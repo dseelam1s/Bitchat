@@ -474,17 +474,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  /// Temporarily applies the per-chat transport override, runs [action], then restores.
-  Future<void> _withTransportOverride(Future<void> Function() action) async {
-    final override = _chatTransport;
-    final previous = widget.messageService.mode;
-    if (override != null) widget.messageService.setMode(override);
-    try {
-      await action();
-    } finally {
-      if (override != null) widget.messageService.setMode(previous);
-    }
-  }
 
   /// Toggle between Internet and Nearby. If currently on global/auto, pick the
   /// opposite of what the app would use right now so the tap feels responsive.
