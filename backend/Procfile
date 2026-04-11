@@ -1,0 +1,1 @@
+web: gunicorn bitchat_api.wsgi:application

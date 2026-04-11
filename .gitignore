@@ -1,0 +1,27 @@
+# ── Flutter ──────────────────────────────────────────────────────────────────
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+mobile/pubspec.lock
+mobile/**/*.iml
+mobile/.idea/
+
+# ── Django ───────────────────────────────────────────────────────────────────
+backend/.env
+backend/db.sqlite3
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/**/*.pyo
+backend/staticfiles/
+backend/media/
+backend/venv/
+backend/.venv/
+
+# ── General ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
