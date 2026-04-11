@@ -1,0 +1,185 @@
+import json
+
+from channels.db import database_sync_to_async
+from channels.generic.websocket import AsyncWebsocketConsumer
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.tokens import AccessToken
+
+from bitchat.models import BitChatIdentity, Message
+from apps.push.firebase_utils import send_push
+
+User = get_user_model()
+
+_ROUTABLE_TYPES = {
+    'call_offer', 'call_answer', 'call_ice',
+    'call_ended', 'call_declined', 'call_busy',
+}
+
+_MESSAGE_TYPES = {'dm', 'reaction', 'delivery_receipt', 'read_receipt', 'typing'}
+
+
+class SignalingConsumer(AsyncWebsocketConsumer):
+    """
+    WebSocket consumer for real-time WebRTC call signaling and online messaging.
+
+    Authentication: JWT access token passed as query param:
+        wss://server/ws/signal/?token=<access_token>
+    """
+
+    async def connect(self):
+        query_string = self.scope.get('query_string', b'').decode()
+        token_str    = self._parse_token(query_string)
+
+        if not token_str:
+            await self.close(code=4001)
+            return
+
+        try:
+            token   = AccessToken(token_str)
+            user_id = token['user_id']
+            user    = await self._get_user(user_id)
+            if user is None:
+                await self.close(code=4001)
+                return
+            self.pubkey = user.username
+        except (InvalidToken, TokenError, KeyError):
+            await self.close(code=4001)
+            return
+
+        self.group_name = f'user_{self.pubkey}'
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        if hasattr(self, 'group_name'):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def receive(self, text_data):
+        try:
+            data = json.loads(text_data)
+        except (json.JSONDecodeError, ValueError):
+            return
+
+        msg_type      = data.get('type', '')
+        recipient_pub = data.get('recipientPubkey', '')
+
+        # ── Real-time message routing ─────────────────────────────────────────
+        if msg_type in _MESSAGE_TYPES:
+            if not recipient_pub or len(recipient_pub) > 128:
+                return
+
+            data['senderPubkey'] = self.pubkey
+
+            await self.channel_layer.group_send(
+                f'user_{recipient_pub}',
+                {'type': 'signal.message', 'payload': data},
+            )
+
+            if msg_type == 'dm':
+                message_id        = data.get('messageId', '')
+                encrypted_content = data.get('encryptedContent', '')
+                timestamp         = data.get('timestamp', 0)
+                sender_name       = data.get('senderName', '')
+                message_type      = data.get('messageType', 'dm')
+                duration          = data.get('duration', 0)
+
+                if message_id and encrypted_content:
+                    saved = await self._save_message(
+                        message_id, self.pubkey, recipient_pub,
+                        encrypted_content, message_type, timestamp, sender_name, duration,
+                    )
+                    if saved:
+                        await self._push_notify(recipient_pub, sender_name or 'Someone')
+
+                    await self.send(text_data=json.dumps({
+                        'type': 'message_ack',
+                        'messageId': message_id,
+                        'status': 'sent',
+                    }))
+
+            elif msg_type in ('delivery_receipt', 'read_receipt'):
+                message_id = data.get('messageId', '')
+                new_status = 'delivered' if msg_type == 'delivery_receipt' else 'read'
+                if message_id:
+                    await self._update_message_status(message_id, recipient_pub, new_status)
+            return
+
+        # ── Call signal routing ───────────────────────────────────────────────
+        if msg_type not in _ROUTABLE_TYPES or not recipient_pub or len(recipient_pub) > 128:
+            return
+
+        data['senderPubkey'] = self.pubkey
+        await self.channel_layer.group_send(
+            f'user_{recipient_pub}',
+            {'type': 'signal.message', 'payload': data},
+        )
+
+    async def signal_message(self, event):
+        await self.send(text_data=json.dumps(event['payload']))
+
+    # ── DB helpers ────────────────────────────────────────────────────────────
+
+    @database_sync_to_async
+    def _save_message(self, message_id, sender_pub, receiver_pub,
+                      encrypted_content, message_type, timestamp, sender_name, duration=0):
+        _, created = Message.objects.get_or_create(
+            message_id=message_id,
+            defaults={
+                'sender_pubkey':     sender_pub,
+                'receiver_pubkey':   receiver_pub,
+                'encrypted_content': encrypted_content,
+                'message_type':      message_type,
+                'timestamp':         timestamp,
+                'sender_name':       sender_name,
+                'duration':          duration,
+                'status':            Message.STATUS_SENT,
+            },
+        )
+        return created
+
+    @database_sync_to_async
+    def _update_message_status(self, message_id, receiver_pub, new_status):
+        try:
+            msg = Message.objects.get(message_id=message_id, receiver_pubkey=receiver_pub)
+            if new_status == 'delivered' and msg.status == Message.STATUS_SENT:
+                msg.status       = Message.STATUS_DELIVERED
+                msg.delivered_at = timezone.now()
+                msg.save(update_fields=['status', 'delivered_at'])
+            elif new_status == 'read' and msg.status != Message.STATUS_READ:
+                msg.status  = Message.STATUS_READ
+                msg.read_at = timezone.now()
+                msg.save(update_fields=['status', 'read_at'])
+        except Message.DoesNotExist:
+            pass
+
+    @database_sync_to_async
+    def _push_notify(self, receiver_pub, sender_name):
+        try:
+            identity = BitChatIdentity.objects.get(pubkey=receiver_pub)
+            if identity.push_token_fcm:
+                send_push(
+                    token=identity.push_token_fcm,
+                    title='New Message',
+                    body=f'{sender_name} sent you a message',
+                )
+        except Exception:
+            pass
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _parse_token(query_string: str) -> str | None:
+        for part in query_string.split('&'):
+            if part.startswith('token='):
+                return part[len('token='):]
+        return None
+
+    @staticmethod
+    async def _get_user(user_id: int):
+        try:
+            get_user = database_sync_to_async(User.objects.get)
+            return await get_user(pk=user_id)
+        except User.DoesNotExist:
+            return None
