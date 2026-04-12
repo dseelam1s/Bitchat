@@ -271,6 +271,16 @@ class MessageService {
   }
 
   Future<void> initialize() async {
+    // Cancel any existing subscriptions before re-subscribing (guards against
+    // initialize() being called more than once, which would leak listeners).
+    _nostrSub?.cancel();
+    _bitchatSub?.cancel();
+    _nearbySub?.cancel();
+    _connectivitySub?.cancel();
+    _meshRelayNostrSub?.cancel();
+    _deliveryReceiptSub?.cancel();
+    _retryTimer?.cancel();
+
     // Listen for messages from both services
     _nostrSub = _nostrService.messageStream.listen(_onMessageReceived);
     _bitchatSub = _bitchatService.messageStream.listen(_onMessageReceived);

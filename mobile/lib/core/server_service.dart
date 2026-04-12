@@ -139,7 +139,11 @@ class ServerService {
             key: 'server_access_token', value: _accessToken);
         return true;
       }
-    } catch (_) {}
+    } catch (e) {
+      // Network error or timeout — do not clear tokens, allow retry on next request
+      return false;
+    }
+    // Server rejected the refresh token (e.g. 401/400) — tokens are invalid; clear them
     await _clearTokens();
     return false;
   }

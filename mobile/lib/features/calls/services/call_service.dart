@@ -138,9 +138,13 @@ class CallService {
     await _setupPeerConnection();
     await _startLocalStream(isVideo: isVideo);
 
+    // Capture local ref — _endCallLocally may null this out concurrently
+    final pc = _peerConnection;
+    if (pc == null) return;
+
     // Create WebRTC offer
-    final offer = await _peerConnection!.createOffer(_sdpConstraints(video: isVideo));
-    await _peerConnection!.setLocalDescription(offer);
+    final offer = await pc.createOffer(_sdpConstraints(video: isVideo));
+    await pc.setLocalDescription(offer);
 
     // Send offer to remote — WebSocket first, Nostr fallback
     await _sendSignal(remotePubkey, {
@@ -203,14 +207,18 @@ class CallService {
     await _setupPeerConnection();
     await _startLocalStream(isVideo: isVideo);
 
+    // Capture local ref — _endCallLocally may null this out concurrently
+    final pc = _peerConnection;
+    if (pc == null) return;
+
     // Set remote description from offer
-    await _peerConnection!.setRemoteDescription(
+    await pc.setRemoteDescription(
       RTCSessionDescription(sdp, sdpType),
     );
 
     // Flush any ICE candidates that arrived before the offer
     for (final candidate in _pendingCandidates) {
-      await _peerConnection!.addCandidate(candidate);
+      await pc.addCandidate(candidate);
     }
     _pendingCandidates.clear();
   }
@@ -219,9 +227,12 @@ class CallService {
     final call = _currentCall;
     if (call == null || call.state != CallState.ringing) return;
 
+    final pc = _peerConnection;
+    if (pc == null) return;
+
     // Create answer
-    final answer = await _peerConnection!.createAnswer(_sdpConstraints(video: call.isVideo));
-    await _peerConnection!.setLocalDescription(answer);
+    final answer = await pc.createAnswer(_sdpConstraints(video: call.isVideo));
+    await pc.setLocalDescription(answer);
 
     call.state = CallState.connected;
     call.connectedAt = DateTime.now();
@@ -253,12 +264,15 @@ class CallService {
     final call = _currentCall;
     if (call == null || call.callId != callId) return;
 
-    await _peerConnection!.setRemoteDescription(
+    final pc = _peerConnection;
+    if (pc == null) return;
+
+    await pc.setRemoteDescription(
       RTCSessionDescription(sdp, sdpType),
     );
 
     for (final candidate in _pendingCandidates) {
-      await _peerConnection!.addCandidate(candidate);
+      await pc.addCandidate(candidate);
     }
     _pendingCandidates.clear();
 
@@ -372,8 +386,12 @@ class CallService {
           : false,
     });
 
-    for (final track in _localStream!.getTracks()) {
-      await _peerConnection!.addTrack(track, _localStream!);
+    final pc = _peerConnection;
+    final stream = _localStream;
+    if (pc == null || stream == null) return;
+
+    for (final track in stream.getTracks()) {
+      await pc.addTrack(track, stream);
     }
   }
 
