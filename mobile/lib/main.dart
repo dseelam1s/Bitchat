@@ -576,7 +576,7 @@ class _AppInitializerState extends State<AppInitializer>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: AppColors.mint.withAlpha((40 + v * 30).toInt()),
+                        color: AppColors.primary.withAlpha((40 + v * 30).toInt()),
                         width: 1.5,
                       ),
                     ),
@@ -586,12 +586,12 @@ class _AppInitializerState extends State<AppInitializer>
                         height: 60,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.mint.withAlpha((8 + v * 12).toInt()),
+                          color: AppColors.primary.withAlpha((8 + v * 12).toInt()),
                         ),
                         child: Icon(
                           Icons.hub,
                           size: 30,
-                          color: AppColors.mint.withAlpha((160 + v * 95).toInt()),
+                          color: AppColors.primary.withAlpha((160 + v * 95).toInt()),
                         ),
                       ),
                     ),
@@ -606,7 +606,7 @@ class _AppInitializerState extends State<AppInitializer>
                   child: LinearProgressIndicator(
                     value: _progress,
                     backgroundColor: AppColors.divider,
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.mint),
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                     minHeight: 2,
                   ),
                 ),

@@ -20,6 +20,7 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
+  bool _introDone = false;
   bool _showRestore = false;
 
   @override
@@ -28,19 +29,224 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       backgroundColor: AppColors.bg,
       body: SafeArea(
         child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 250),
+          duration: const Duration(milliseconds: 300),
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: child,
+          ),
           child: _showRestore
               ? _RestoreView(
+                  key: const ValueKey('restore'),
                   keyManager: widget.keyManager,
                   onComplete: widget.onComplete,
                   onBack: () => setState(() => _showRestore = false),
                 )
-              : _WelcomeView(
-                  keyManager: widget.keyManager,
-                  onComplete: widget.onComplete,
-                  onRestoreTapped: () => setState(() => _showRestore = true),
-                ),
+              : !_introDone
+                  ? _IntroSlides(
+                      key: const ValueKey('intro'),
+                      onDone: () => setState(() => _introDone = true),
+                    )
+                  : _WelcomeView(
+                      key: const ValueKey('welcome'),
+                      keyManager: widget.keyManager,
+                      onComplete: widget.onComplete,
+                      onRestoreTapped: () => setState(() => _showRestore = true),
+                    ),
         ),
+      ),
+    );
+  }
+}
+
+// ── Intro slides ──────────────────────────────────────────────────────────────
+
+class _Slide {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _Slide({required this.icon, required this.title, required this.subtitle});
+}
+
+const _slides = [
+  _Slide(
+    icon: Icons.sensors,
+    title: 'Chat nearby\nwithout internet',
+    subtitle:
+        'Connect with people around you using Bluetooth.\nNo data plan, no Wi-Fi — it just works.',
+  ),
+  _Slide(
+    icon: Icons.lock_outline,
+    title: 'Private\nby design',
+    subtitle:
+        'Your messages are end-to-end encrypted.\nWe cannot read them — and neither can anyone else.',
+  ),
+  _Slide(
+    icon: Icons.public,
+    title: 'Works\neverywhere',
+    subtitle:
+        'Online or offline, in a city or a remote area —\nyour messages find a way through.',
+  ),
+];
+
+class _IntroSlides extends StatefulWidget {
+  final VoidCallback onDone;
+
+  const _IntroSlides({super.key, required this.onDone});
+
+  @override
+  State<_IntroSlides> createState() => _IntroSlidesState();
+}
+
+class _IntroSlidesState extends State<_IntroSlides> {
+  final _controller = PageController();
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _next() {
+    if (_page < _slides.length - 1) {
+      _controller.nextPage(
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      widget.onDone();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isLast = _page == _slides.length - 1;
+
+    return Column(
+      children: [
+        // Skip link
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: widget.onDone,
+            child: Text(
+              'Skip',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textMuted.withAlpha(180),
+              ),
+            ),
+          ),
+        ),
+
+        // Slides
+        Expanded(
+          child: PageView.builder(
+            controller: _controller,
+            onPageChanged: (i) => setState(() => _page = i),
+            itemCount: _slides.length,
+            itemBuilder: (_, i) => _SlidePage(slide: _slides[i]),
+          ),
+        ),
+
+        // Dot indicators
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(_slides.length, (i) {
+            final active = i == _page;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: active ? 20 : 6,
+              height: 6,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(3),
+                color: active
+                    ? AppColors.primary
+                    : AppColors.primary.withAlpha(50),
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 32),
+
+        // Next / Get Started button
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _next,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: Text(
+                isLast ? 'Get Started' : 'Next',
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 28),
+      ],
+    );
+  }
+}
+
+class _SlidePage extends StatelessWidget {
+  final _Slide slide;
+
+  const _SlidePage({required this.slide});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 36),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Icon container
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.primary.withAlpha(18),
+              border:
+                  Border.all(color: AppColors.primary.withAlpha(50), width: 1.5),
+            ),
+            child: Icon(slide.icon, size: 44, color: AppColors.primary),
+          ),
+          const SizedBox(height: 40),
+
+          Text(
+            slide.title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          Text(
+            slide.subtitle,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              height: 1.6,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -54,6 +260,7 @@ class _WelcomeView extends StatefulWidget {
   final VoidCallback onRestoreTapped;
 
   const _WelcomeView({
+    super.key,
     required this.keyManager,
     required this.onComplete,
     required this.onRestoreTapped,
@@ -75,7 +282,6 @@ class _WelcomeViewState extends State<_WelcomeView> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      key: const ValueKey('welcome'),
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
         children: [
@@ -87,14 +293,13 @@ class _WelcomeViewState extends State<_WelcomeView> {
             height: 88,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.mint.withAlpha(60), width: 1.5),
-              color: AppColors.mint.withAlpha(10),
+              border: Border.all(color: AppColors.primary.withAlpha(60), width: 1.5),
+              color: AppColors.primary.withAlpha(12),
             ),
-            child: const Icon(Icons.hub, size: 40, color: AppColors.mint),
+            child: const Icon(Icons.hub, size: 40, color: AppColors.primary),
           ),
           const SizedBox(height: 28),
 
-          // Title
           const Text(
             'BitChat',
             style: TextStyle(
@@ -105,11 +310,11 @@ class _WelcomeViewState extends State<_WelcomeView> {
           ),
           const SizedBox(height: 10),
           Text(
-            'Decentralized messaging.\nNo phone number. No email.',
+            'No phone number. No email.\nJust you.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
-              color: AppColors.textMuted.withAlpha(180),
+              color: AppColors.textSecondary,
               height: 1.5,
             ),
           ),
@@ -122,8 +327,8 @@ class _WelcomeViewState extends State<_WelcomeView> {
             child: FilledButton(
               onPressed: _loading ? null : _startFresh,
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.mint,
-                foregroundColor: Colors.black,
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14)),
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -133,17 +338,18 @@ class _WelcomeViewState extends State<_WelcomeView> {
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.black),
+                          strokeWidth: 2, color: Colors.white),
                     )
-                  : const Text('Start Fresh',
+                  : const Text('Create New Identity',
                       style:
                           TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            'New identity · new short ID',
-            style: TextStyle(fontSize: 11, color: AppColors.textMuted.withAlpha(120)),
+            'Fresh start · get a new short ID',
+            style: TextStyle(
+                fontSize: 11, color: AppColors.textMuted.withAlpha(120)),
           ),
 
           const SizedBox(height: 20),
@@ -167,7 +373,8 @@ class _WelcomeViewState extends State<_WelcomeView> {
           Text(
             'Had BitChat before? Restore with short ID + password',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, color: AppColors.textMuted.withAlpha(120)),
+            style: TextStyle(
+                fontSize: 11, color: AppColors.textMuted.withAlpha(120)),
           ),
 
           const Spacer(flex: 1),
@@ -185,6 +392,7 @@ class _RestoreView extends StatefulWidget {
   final VoidCallback onBack;
 
   const _RestoreView({
+    super.key,
     required this.keyManager,
     required this.onComplete,
     required this.onBack,
@@ -221,9 +429,11 @@ class _RestoreViewState extends State<_RestoreView> {
       return;
     }
 
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
 
-    // 1. Fetch encrypted blob from server
     final blob = await ServerService().restoreEncryptedKey(shortId);
     if (blob == null) {
       setState(() {
@@ -233,7 +443,6 @@ class _RestoreViewState extends State<_RestoreView> {
       return;
     }
 
-    // 2. Decrypt on-device with backup password
     final privateKey = await BackupService().decrypt(blob, password);
     if (privateKey == null) {
       setState(() {
@@ -243,7 +452,6 @@ class _RestoreViewState extends State<_RestoreView> {
       return;
     }
 
-    // 3. Verify: derive public key → check short ID matches
     final keyApi = widget.keyManager.keyApi;
     if (!keyApi.isValidPrivateKey(privateKey)) {
       setState(() {
@@ -263,7 +471,6 @@ class _RestoreViewState extends State<_RestoreView> {
       return;
     }
 
-    // 4. Save restored key and continue
     await widget.keyManager.loadKeys(privateKey, publicKey);
     await widget.onComplete(widget.keyManager);
   }
@@ -271,21 +478,19 @@ class _RestoreViewState extends State<_RestoreView> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      key: const ValueKey('restore'),
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 12),
 
-          // Back
           GestureDetector(
             onTap: _loading ? null : widget.onBack,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.arrow_back_ios, size: 14,
-                    color: AppColors.textMuted.withAlpha(180)),
+                Icon(Icons.arrow_back_ios,
+                    size: 14, color: AppColors.textMuted.withAlpha(180)),
                 const SizedBox(width: 4),
                 Text('Back',
                     style: TextStyle(
@@ -309,13 +514,12 @@ class _RestoreViewState extends State<_RestoreView> {
             'Enter your short ID and backup password to restore your identity.',
             style: TextStyle(
                 fontSize: 13,
-                color: AppColors.textMuted.withAlpha(180),
+                color: AppColors.textSecondary,
                 height: 1.5),
           ),
 
           const SizedBox(height: 32),
 
-          // Short ID
           TextField(
             controller: _shortIdController,
             keyboardType: TextInputType.number,
@@ -329,7 +533,6 @@ class _RestoreViewState extends State<_RestoreView> {
           ),
           const SizedBox(height: 16),
 
-          // Password
           TextField(
             controller: _passwordController,
             obscureText: _obscure,
@@ -347,20 +550,18 @@ class _RestoreViewState extends State<_RestoreView> {
           if (_error != null) ...[
             const SizedBox(height: 10),
             Text(_error!,
-                style:
-                    const TextStyle(fontSize: 12, color: AppColors.error)),
+                style: const TextStyle(fontSize: 12, color: AppColors.error)),
           ],
 
           const SizedBox(height: 28),
 
-          // Restore button
           SizedBox(
             width: double.infinity,
             child: FilledButton(
               onPressed: _loading ? null : _restore,
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.mint,
-                foregroundColor: Colors.black,
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14)),
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -370,7 +571,7 @@ class _RestoreViewState extends State<_RestoreView> {
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.black))
+                          strokeWidth: 2, color: Colors.white))
                   : const Text('Restore',
                       style: TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w600)),
@@ -379,7 +580,6 @@ class _RestoreViewState extends State<_RestoreView> {
 
           const Spacer(flex: 2),
 
-          // Start fresh fallback
           Center(
             child: GestureDetector(
               onTap: _loading ? null : widget.onBack,

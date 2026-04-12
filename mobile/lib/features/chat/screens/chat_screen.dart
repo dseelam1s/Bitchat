@@ -897,6 +897,30 @@ class _ChatScreenState extends State<ChatScreen> {
 
 // ── Delivery status indicator ────────────────────────────────────────────────
 
+// ── Transport dot — tiny icon showing how the message was delivered ──────────
+// 'bitchat' = nearby/BLE mesh — shown in amber to signal it's offline-capable
+// anything else = internet — shown in muted meta color
+
+class _TransportDot extends StatelessWidget {
+  final String? transport;
+  final Color metaColor;
+
+  const _TransportDot({this.transport, required this.metaColor});
+
+  @override
+  Widget build(BuildContext context) {
+    final isNearby = transport == 'bitchat';
+    return Tooltip(
+      message: isNearby ? 'Sent nearby (no internet needed)' : 'Sent via internet',
+      child: Icon(
+        isNearby ? Icons.sensors : Icons.cloud_outlined,
+        size: 10,
+        color: isNearby ? AppColors.signal.withAlpha(200) : metaColor,
+      ),
+    );
+  }
+}
+
 // ── Shared message status tick widget ───────────────────────────────────────
 // Single source of truth for pending/sent/delivered/read icons.
 // Used by _Bubble, _ImageBubble, _VoiceBubble.
@@ -916,10 +940,10 @@ class _StatusTick extends StatelessWidget {
 
     if (isRead) {
       icon = Icons.visibility;
-      color = AppColors.amber;
+      color = AppColors.primary;
     } else if (status == 'delivered') {
       icon = Icons.done_all;
-      color = isDark ? AppColors.mint : Colors.white.withAlpha(220);
+      color = isDark ? AppColors.primary : Colors.white.withAlpha(220);
     } else if (status == 'sent') {
       icon = Icons.done;
       color = isDark ? Colors.white.withAlpha(120) : Colors.white.withAlpha(180);
@@ -1063,11 +1087,7 @@ class _Bubble extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                message.transport == 'bitchat' ? Icons.sensors : Icons.cloud_outlined,
-                size: 10,
-                color: metaColor,
-              ),
+              _TransportDot(transport: message.transport, metaColor: metaColor),
               const SizedBox(width: 4),
               Text(
                 _time(message.timestamp),
@@ -1460,11 +1480,7 @@ class _ImageBubbleState extends State<_ImageBubble> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  widget.message.transport == 'bitchat' ? Icons.sensors : Icons.cloud_outlined,
-                  size: 10,
-                  color: metaColor,
-                ),
+                _TransportDot(transport: widget.message.transport, metaColor: metaColor),
                 const SizedBox(width: 4),
                 Text(
                   _time(widget.message.timestamp),
@@ -1780,11 +1796,7 @@ class _VoiceBubbleState extends State<_VoiceBubble> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  widget.message.transport == 'bitchat' ? Icons.sensors : Icons.cloud_outlined,
-                  size: 10,
-                  color: metaColor,
-                ),
+                _TransportDot(transport: widget.message.transport, metaColor: metaColor),
                 const SizedBox(width: 4),
                 Text(
                   _time(widget.message.timestamp),

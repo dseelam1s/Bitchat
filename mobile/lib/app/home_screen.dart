@@ -145,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _totalUnread > 99 ? '99+' : '$_totalUnread',
                   style: const TextStyle(fontSize: 9),
                 ),
-                backgroundColor: AppColors.teal,
+                backgroundColor: AppColors.primary,
                 textColor: Colors.white,
                 child: const Icon(Icons.chat_bubble_outline, size: 22),
               ),
