@@ -134,9 +134,9 @@ class _HomeScreenState extends State<HomeScreen> {
           height: 60,
           destinations: <NavigationDestination>[
             const NavigationDestination(
-              icon: Icon(Icons.call_outlined, size: 22),
-              selectedIcon: Icon(Icons.call, size: 22),
-              label: 'Recents',
+              icon: Icon(Icons.people_outline, size: 22),
+              selectedIcon: Icon(Icons.people, size: 22),
+              label: 'People',
             ),
             NavigationDestination(
               icon: Badge(
@@ -145,8 +145,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   _totalUnread > 99 ? '99+' : '$_totalUnread',
                   style: const TextStyle(fontSize: 9),
                 ),
-                backgroundColor: AppColors.mint,
-                textColor: Colors.black,
+                backgroundColor: AppColors.teal,
+                textColor: Colors.white,
                 child: const Icon(Icons.chat_bubble_outline, size: 22),
               ),
               selectedIcon: const Icon(Icons.chat_bubble, size: 22),
@@ -155,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const NavigationDestination(
               icon: Icon(Icons.person_outline, size: 22),
               selectedIcon: Icon(Icons.person, size: 22),
-              label: 'Profile',
+              label: 'Me',
             ),
           ],
         ),

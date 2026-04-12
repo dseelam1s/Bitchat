@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:bitchat_messenger/core/constants.dart';
 import 'package:bitchat_messenger/core/theme.dart';
 import 'package:bitchat_messenger/features/chat/models/message.dart';
 import 'package:bitchat_messenger/features/calls/services/call_service.dart';
@@ -68,30 +66,10 @@ class _ChatScreenState extends State<ChatScreen> {
   final Map<String, Map<String, Set<String>>> _reactions = {};
   StreamSubscription? _reactionSub;
 
-  // Per-chat transport override: null = use global mode, 'online' = Internet, 'offline' = Nearby
-  String? _chatTransport;
-
   // Voice note recording state
   bool _isRecording = false;
   int _recordingSeconds = 0;
   Timer? _recordingTimer;
-
-  String _transportPrefsKey() => 'chat_transport_${widget.contactPubkey}';
-
-  Future<void> _loadTransportPreference() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getString(_transportPrefsKey());
-    if (saved != null && mounted) setState(() => _chatTransport = saved);
-  }
-
-  Future<void> _saveTransportPreference(String? value) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (value == null) {
-      prefs.remove(_transportPrefsKey());
-    } else {
-      prefs.setString(_transportPrefsKey(), value);
-    }
-  }
 
   @override
   void initState() {
@@ -100,7 +78,6 @@ class _ChatScreenState extends State<ChatScreen> {
     _localPicPath = widget.contactProfilePictureLocalPath;
     _syncContactProfile();
     _loadMessages(initial: true);
-    _loadTransportPreference();
     widget.messageService.markAsRead(widget.contactPubkey);
 
     // Load older messages when user scrolls to the top
@@ -373,14 +350,10 @@ class _ChatScreenState extends State<ChatScreen> {
         .pickImage(fromCamera: source == ImageSource.camera);
     if (path == null || !mounted) return;
 
-    final override = _chatTransport;
-    final previous = widget.messageService.mode;
-    if (override != null) widget.messageService.setMode(override);
     final sent = await widget.messageService.sendImage(
       widget.contactPubkey,
       path,
     );
-    if (override != null) widget.messageService.setMode(previous);
 
     if (sent == null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -443,26 +416,17 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty) return;
     _textController.clear();
 
-    final override = _chatTransport;
-    final previous = widget.messageService.mode;
-    if (override != null) widget.messageService.setMode(override);
-
     bool anySent = false;
     try {
-      // sendMessage inserts to DB and returns non-null; status 'sent' only if
-      // at least one transport succeeded
       final messageId =
           await widget.messageService.sendMessage(widget.contactPubkey, text);
       if (messageId != null) {
-        // Check if the message actually got through any transport
         final msgs = await widget.messageService
             .getChatMessages(widget.contactPubkey, limit: 10);
         final msg = msgs.where((m) => m.id == messageId).firstOrNull;
         anySent = msg == null || msg.status != 'pending';
       }
-    } finally {
-      if (override != null) widget.messageService.setMode(previous);
-    }
+    } catch (_) {}
 
     if (!anySent && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -474,20 +438,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-
-  /// Toggle between Internet and Nearby. If currently on global/auto, pick the
-  /// opposite of what the app would use right now so the tap feels responsive.
-  void _toggleTransport() {
-    final current = _chatTransport ??
-        (widget.messageService.hasInternet
-            ? AppConstants.modeOnline
-            : AppConstants.modeOffline);
-    final next = current == AppConstants.modeOnline
-        ? AppConstants.modeOffline
-        : AppConstants.modeOnline;
-    setState(() => _chatTransport = next);
-    _saveTransportPreference(next);
-  }
 
   Future<void> _startRecording() async {
     final vns = widget.messageService.voiceNoteService;
@@ -529,15 +479,11 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
-    final override = _chatTransport;
-    final previous = widget.messageService.mode;
-    if (override != null) widget.messageService.setMode(override);
     final sent = await widget.messageService.sendVoiceNote(
       widget.contactPubkey,
       result.path,
       result.duration,
     );
-    if (override != null) widget.messageService.setMode(previous);
 
     if (sent == null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -663,11 +609,15 @@ class _ChatScreenState extends State<ChatScreen> {
                       Text(
                         _contactIsTyping
                             ? 'typing...'
-                            : (isNearby ? 'Nearby' : 'Away'),
+                            : (isNearby
+                                ? 'Connected nearby'
+                                : (widget.messageService.hasInternet
+                                    ? 'Connected'
+                                    : 'Will deliver when reachable')),
                         style: TextStyle(
                           fontSize: 10,
                           color: _contactIsTyping
-                              ? AppColors.mint
+                              ? AppColors.teal
                               : (isNearby ? AppColors.online : AppColors.textMuted),
                         ),
                       ),
@@ -931,10 +881,9 @@ class _ChatScreenState extends State<ChatScreen> {
                           ],
                         ),
                         const SizedBox(height: 6),
-                        _TransportToggle(
-                          chatTransport: _chatTransport,
+                        _DeliveryStatus(
                           hasInternet: widget.messageService.hasInternet,
-                          onToggle: _toggleTransport,
+                          isNearby: widget.messageService.nearbyUsers.contains(widget.contactPubkey),
                         ),
                       ],
                     ),
@@ -946,7 +895,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-// ── Transport toggle pill ────────────────────────────────────────────────────
+// ── Delivery status indicator ────────────────────────────────────────────────
 
 // ── Shared message status tick widget ───────────────────────────────────────
 // Single source of truth for pending/sent/delivered/read icons.
@@ -996,54 +945,48 @@ class _StatusTick extends StatelessWidget {
   }
 }
 
-class _TransportToggle extends StatelessWidget {
-  final String? chatTransport;
+class _DeliveryStatus extends StatelessWidget {
   final bool hasInternet;
-  final VoidCallback onToggle;
+  final bool isNearby;
 
-  const _TransportToggle({
-    required this.chatTransport,
-    required this.hasInternet,
-    required this.onToggle,
-  });
+  const _DeliveryStatus({required this.hasInternet, required this.isNearby});
 
   @override
   Widget build(BuildContext context) {
-    final isInternet = chatTransport == AppConstants.modeOnline ||
-        (chatTransport == null && hasInternet);
+    final String label;
+    final Color color;
+    final IconData icon;
 
-    final icon = isInternet ? Icons.cloud_outlined : Icons.sensors;
-    final label = isInternet ? 'Internet' : 'Nearby';
-    final color = isInternet ? AppColors.mint : AppColors.amber;
+    if (isNearby && hasInternet) {
+      label = 'Sending via best route';
+      color = AppColors.teal;
+      icon  = Icons.wifi_tethering;
+    } else if (isNearby) {
+      label = 'Sending nearby';
+      color = AppColors.amber;
+      icon  = Icons.wifi_tethering;
+    } else if (hasInternet) {
+      label = 'Sending via internet';
+      color = AppColors.teal;
+      icon  = Icons.signal_wifi_4_bar;
+    } else {
+      label = 'Will send when connection is available';
+      color = AppColors.textMuted;
+      icon  = Icons.wifi_off_outlined;
+    }
 
     return Align(
       alignment: Alignment.centerLeft,
-      child: GestureDetector(
-        onTap: onToggle,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: color.withAlpha(18),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: color.withAlpha(60)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(fontSize: 10, color: color),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 13, color: color),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }

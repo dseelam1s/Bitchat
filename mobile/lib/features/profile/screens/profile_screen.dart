@@ -300,7 +300,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             context,
             icon: Icons.forum_outlined,
             title: 'Messaging',
-            subtitle: 'Connection mode, mesh TTL',
+            subtitle: 'How your messages are delivered',
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => _MessagingScreen(messageService: widget.messageService),
             )),
@@ -661,14 +661,29 @@ class _MessagingScreenState extends State<_MessagingScreen> {
       body: ListView(
         children: [
           const SizedBox(height: 8),
-          _sectionLabel('CONNECTION MODE'),
-          _modeRow(Icons.auto_awesome, 'Auto', 'Internet first, mesh fallback', AppConstants.modeAuto),
+          _sectionLabel('MESSAGE DELIVERY'),
+          _modeRow(
+            Icons.wifi_tethering,
+            'Smart (recommended)',
+            'Uses internet when available, switches to nearby automatically',
+            AppConstants.modeAuto,
+          ),
           _divider(),
-          _modeRow(Icons.cloud_outlined, 'Online', 'Nostr relays only', AppConstants.modeOnline),
+          _modeRow(
+            Icons.signal_wifi_4_bar,
+            'Internet only',
+            'Only sends when you have a data connection',
+            AppConstants.modeOnline,
+          ),
           _divider(),
-          _modeRow(Icons.sensors, 'Offline', 'Bluetooth / Wi-Fi mesh only', AppConstants.modeOffline),
+          _modeRow(
+            Icons.bluetooth,
+            'Nearby only',
+            'Only connects to people around you, no internet needed',
+            AppConstants.modeOffline,
+          ),
           const SizedBox(height: 24),
-          _sectionLabel('MESH TTL'),
+          _sectionLabel('ADVANCED'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
@@ -677,11 +692,11 @@ class _MessagingScreenState extends State<_MessagingScreen> {
                   children: [
                     const Icon(Icons.route_outlined, size: 18, color: AppColors.textMuted),
                     const SizedBox(width: 12),
-                    const Expanded(child: Text('Max hops', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500))),
+                    const Expanded(child: Text('Relay range', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500))),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(color: AppColors.mint.withAlpha(15), borderRadius: BorderRadius.circular(8)),
-                      child: Text('$_ttl', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.mint)),
+                      decoration: BoxDecoration(color: AppColors.teal.withAlpha(15), borderRadius: BorderRadius.circular(8)),
+                      child: Text('$_ttl', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.teal)),
                     ),
                   ],
                 ),
@@ -695,7 +710,7 @@ class _MessagingScreenState extends State<_MessagingScreen> {
                   }),
                 ),
                 Text(
-                  'How many devices a message hops through in mesh mode.',
+                  'How far your message travels through nearby devices when no internet is available.',
                   style: TextStyle(fontSize: 11, color: AppColors.textMuted.withAlpha(150)),
                 ),
                 const SizedBox(height: 12),
@@ -719,8 +734,8 @@ class _MessagingScreenState extends State<_MessagingScreen> {
     final sel = _mode == value;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-      leading: Icon(icon, size: 22, color: sel ? AppColors.mint : AppColors.textMuted),
-      title: Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: sel ? AppColors.mint : null)),
+      leading: Icon(icon, size: 22, color: sel ? AppColors.teal : AppColors.textMuted),
+      title: Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: sel ? AppColors.teal : null)),
       subtitle: Text(sub, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
       trailing: _radio(sel),
       onTap: () => setState(() {
@@ -893,8 +908,8 @@ class _AppearanceScreen extends StatelessWidget {
     final sel = themeNotifier.mode == value;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      leading: Icon(icon, size: 22, color: sel ? AppColors.mint : AppColors.textMuted),
-      title: Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: sel ? AppColors.mint : null)),
+      leading: Icon(icon, size: 22, color: sel ? AppColors.teal : AppColors.textMuted),
+      title: Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: sel ? AppColors.teal : null)),
       trailing: sel
           ? Container(
               width: 20, height: 20,
