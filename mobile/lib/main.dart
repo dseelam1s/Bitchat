@@ -266,62 +266,54 @@ class _AppInitializerState extends State<AppInitializer>
   }
 
   Future<void> _requestPermissions() async {
-    _updateStatus('Requesting permissions...', 0.1);
-
+    // Only request permissions that aren't already granted — avoids the
+    // ~300ms OS round-trip per permission on every launch.
     if (Platform.isAndroid) {
-      // Android needs location for BLE scanning + nearbyWifi for mesh
-      await [
+      final needed = <Permission>[
         Permission.bluetooth,
         Permission.bluetoothAdvertise,
         Permission.bluetoothConnect,
         Permission.bluetoothScan,
         Permission.location,
         Permission.nearbyWifiDevices,
-        Permission.notification, // Android 13+ requires explicit permission
-      ].request();
-
-      // Android BLE scanning requires location service enabled
-      final locationEnabled = await Permission.location.serviceStatus.isEnabled;
-      if (!locationEnabled) {
-        _updateStatus('Please enable Location to allow nearby device discovery...', 0.15);
-        bool enabled = false;
-        for (int i = 0; i < 30; i++) {
-          await Future.delayed(const Duration(seconds: 1));
-          if (await Permission.location.serviceStatus.isEnabled) { enabled = true; break; }
-        }
-        if (!enabled) _updateStatus('Continuing without Location — nearby features limited.', 0.15);
+        Permission.notification,
+      ];
+      final toRequest = <Permission>[];
+      for (final p in needed) {
+        if (!await p.isGranted) toRequest.add(p);
       }
+      if (toRequest.isNotEmpty) await toRequest.request();
     } else {
-      // iOS: BLE does not require location permission
-      await [
+      final needed = <Permission>[
         Permission.bluetooth,
         Permission.bluetoothAdvertise,
         Permission.bluetoothConnect,
         Permission.bluetoothScan,
-      ].request();
-    }
-
-    // Wait for Bluetooth to be enabled on all platforms
-    final bluetoothEnabled = await Permission.bluetooth.serviceStatus.isEnabled;
-    if (!bluetoothEnabled) {
-      _updateStatus('Please enable Bluetooth to communicate with nearby devices...', 0.2);
-      bool enabled = false;
-      for (int i = 0; i < 30; i++) {
-        await Future.delayed(const Duration(seconds: 1));
-        if (await Permission.bluetooth.serviceStatus.isEnabled) { enabled = true; break; }
+      ];
+      final toRequest = <Permission>[];
+      for (final p in needed) {
+        if (!await p.isGranted) toRequest.add(p);
       }
-      if (!enabled) _updateStatus('Continuing without Bluetooth — offline messaging unavailable.', 0.2);
+      if (toRequest.isNotEmpty) await toRequest.request();
     }
+    // Do not wait for BT/Location services to be enabled — if they're off,
+    // BLE/mesh simply won't start. The user can enable them later and the
+    // 15-second _checkAndRestart timer will pick it up automatically.
   }
 
   Future<void> _initialize() async {
     try {
-      await _requestPermissions();
-
       final keyManager = KeyManager();
       _pendingKeyManager = keyManager;
 
-      final hasKey = await keyManager.hasStoredKey();
+      // Single secure-storage read — loads keys + username in one pass.
+      // Request permissions in parallel since neither depends on the other.
+      final results = await Future.wait([
+        keyManager.loadExistingKeys(),
+        _requestPermissions().then((_) => false), // returns false, ignored
+      ]);
+      final hasKey = results[0];
+
       if (!hasKey) {
         // No key on device — show onboarding (Start Fresh / Restore)
         if (mounted) {
@@ -333,9 +325,6 @@ class _AppInitializerState extends State<AppInitializer>
         return;
       }
 
-      // Key exists — load and proceed normally
-      _updateStatus('Loading keys...', 0.4);
-      await keyManager.generateKeyPair();
       await _completeInitialization(keyManager);
     } catch (_) {
       _updateStatus('Setup failed. Please restart the app.', 0.0);
@@ -485,11 +474,7 @@ class _AppInitializerState extends State<AppInitializer>
       };
       _contactResolver = contactResolver;
 
-      _updateStatus('Connecting...', 0.7);
-
-      // Authenticate with server first so JWT tokens are ready before
-      // messageService.initialize() tries to send/fetch via server.
-      // Fire-and-forget — if server unreachable, app works offline normally.
+      // Authenticate with server — fire-and-forget, never blocks startup
       if (keyManager.hasKeys) {
         ServerService().connectAndRegister(
           privateKey: keyManager.privateKey!,
@@ -497,11 +482,7 @@ class _AppInitializerState extends State<AppInitializer>
           shortId: Contact.shortIdFor(keyManager.publicKey!),
           displayName: keyManager.username ?? '',
         ).then((_) async {
-          // Connect WebSocket signaling once JWT tokens are ready.
-          // SignalingService fetches the token itself and self-heals on expiry.
           signalingService.connect();
-
-          // Restore contact list from server if local DB is empty (reinstall).
           final existing = await dbService.getAllContacts();
           if (existing.isEmpty) {
             ContactsBackupService().restore(
@@ -513,10 +494,17 @@ class _AppInitializerState extends State<AppInitializer>
         });
       }
 
-      _updateStatus('Connecting...', 0.8);
+      // initialize() now returns quickly — Nostr/BLE start in background
       await messageService.initialize();
 
-      // Start contact resolver — runs in background, never blocks startup
+      // Expose to notification tap handler before showing HomeScreen
+      _globalMessageService = messageService;
+      _globalDbService = dbService;
+
+      // Show HomeScreen immediately — user sees the app right away
+      if (mounted) setState(() => _isLoading = false);
+
+      // Run remaining startup tasks in background after UI is visible
       contactResolver.start(
         hasInternet: messageService.hasInternet,
         nearbyPubkeys: messageService.nearbyUsers,
@@ -525,23 +513,14 @@ class _AppInitializerState extends State<AppInitializer>
       );
 
       if (keyManager.publicKey != null) {
-        await channelService.start(
+        channelService.start(
           keyManager.publicKey!,
           username: keyManager.username,
         );
       }
 
-      _updateStatus('Ready', 1.0);
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      // Start foreground service so BLE mesh stays alive when screen locks
-      await ForegroundServiceHelper.start();
-
-      // Expose to notification tap handler
-      _globalMessageService = messageService;
-      _globalDbService = dbService;
-
-      if (mounted) setState(() => _isLoading = false);
+      // Foreground service keeps BLE alive when screen locks — not urgent
+      ForegroundServiceHelper.start();
     } catch (_) {
       _updateStatus('Setup failed. Please restart the app.', 0.0);
       await Future.delayed(const Duration(seconds: 3));

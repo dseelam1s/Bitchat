@@ -16,38 +16,64 @@ class KeyManager {
   String? get username => _username;
   KeyApi get keyApi => _keyApi;
 
-  // Load saved keys or generate new secp256k1 key pair
-  Future<void> generateKeyPair() async {
-    // Try secure storage first, then migrate from SharedPreferences
+  /// Load existing keys from secure storage. Returns true if a valid key was
+  /// found and loaded, false if no key exists (first install / new device).
+  /// Does NOT generate a new key — call generateKeyPair() for that.
+  Future<bool> loadExistingKeys() async {
     String? savedPrivateKey = await _secureStorage.read(key: 'privateKey');
 
     if (savedPrivateKey == null) {
-      // Check if key exists in old SharedPreferences (migrate it)
+      // Migrate from old SharedPreferences storage if present
       final prefs = await SharedPreferences.getInstance();
       final oldKey = prefs.getString('privateKey');
       if (oldKey != null && _keyApi.isValidPrivateKey(oldKey)) {
         savedPrivateKey = oldKey;
-        // Migrate to secure storage
         await _secureStorage.write(key: 'privateKey', value: oldKey);
-        // Remove from insecure storage
         await prefs.remove('privateKey');
       }
     }
 
-    if (savedPrivateKey != null && _keyApi.isValidPrivateKey(savedPrivateKey)) {
-      _privateKey = savedPrivateKey;
-      _publicKey = _keyApi.getPublicKey(savedPrivateKey);
-    } else {
-      _privateKey = _keyApi.generatePrivateKey();
-      _publicKey = _keyApi.getPublicKey(_privateKey!);
-      await _secureStorage.write(key: 'privateKey', value: _privateKey!);
+    if (savedPrivateKey == null || !_keyApi.isValidPrivateKey(savedPrivateKey)) {
+      return false;
     }
 
-    // Load saved username, or generate a default one on first install
+    _privateKey = savedPrivateKey;
+    _publicKey = _keyApi.getPublicKey(savedPrivateKey);
+
+    // Load username in the same pass — SharedPreferences is already open
     final prefs = await SharedPreferences.getInstance();
     _username = prefs.getString('username');
     if (_username == null || _username!.isEmpty) {
-      final number = Random().nextInt(9000) + 1000; // 1000–9999
+      final number = Random().nextInt(9000) + 1000;
+      _username = 'User$number';
+      await prefs.setString('username', _username!);
+    }
+    return true;
+  }
+
+  // Load saved keys or generate new secp256k1 key pair (used by onboarding)
+  Future<void> generateKeyPair() async {
+    // If keys were already loaded by loadExistingKeys(), skip the storage read
+    if (_privateKey != null && _publicKey != null) {
+      // Still ensure username is set
+      final prefs = await SharedPreferences.getInstance();
+      _username = prefs.getString('username');
+      if (_username == null || _username!.isEmpty) {
+        final number = Random().nextInt(9000) + 1000;
+        _username = 'User$number';
+        await prefs.setString('username', _username!);
+      }
+      return;
+    }
+
+    _privateKey = _keyApi.generatePrivateKey();
+    _publicKey = _keyApi.getPublicKey(_privateKey!);
+    await _secureStorage.write(key: 'privateKey', value: _privateKey!);
+
+    final prefs = await SharedPreferences.getInstance();
+    _username = prefs.getString('username');
+    if (_username == null || _username!.isEmpty) {
+      final number = Random().nextInt(9000) + 1000;
       _username = 'User$number';
       await prefs.setString('username', _username!);
     }
@@ -78,8 +104,9 @@ class KeyManager {
   bool get hasKeys => _privateKey != null && _publicKey != null;
 
   /// Returns true if a valid private key is already saved on this device.
-  /// Used on first launch to decide whether to show onboarding or load normally.
+  /// If keys are already loaded in memory, skips the storage read.
   Future<bool> hasStoredKey() async {
+    if (_privateKey != null) return true;
     final key = await _secureStorage.read(key: 'privateKey');
     return key != null && _keyApi.isValidPrivateKey(key);
   }

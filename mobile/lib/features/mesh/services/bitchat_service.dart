@@ -85,11 +85,11 @@ class BitChatService {
     _myShortId = shortId;
     _myProfilePictureUrl = profilePictureUrl;
 
-    // Try nearby_connections first (needs Wi-Fi + BT + Location)
-    await _startMesh();
-
-    // Always start BLE as fallback/additional transport
-    await _startBle();
+    // Start mesh and BLE in parallel — they are independent transports
+    await Future.wait([
+      _startMesh(),
+      _startBle(),
+    ]);
 
     // Periodically check and restart if needed
     _restartTimer = Timer.periodic(const Duration(seconds: 15), (_) {

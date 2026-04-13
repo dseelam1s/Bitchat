@@ -281,58 +281,54 @@ class MessageService {
     _deliveryReceiptSub?.cancel();
     _retryTimer?.cancel();
 
-    // Listen for messages from both services
+    // Set up ALL stream subscriptions first — streams are broadcast controllers
+    // that exist independently of start() being called, so this is safe.
     _nostrSub = _nostrService.messageStream.listen(_onMessageReceived);
     _bitchatSub = _bitchatService.messageStream.listen(_onMessageReceived);
+    _nearbySub = _bitchatService.nearbyChangedStream.listen(_onNearbyChanged);
+    _meshRelayNostrSub = _bitchatService.relayToNostrStream.listen(_onMeshRelayToNostr);
+    _deliveryReceiptSub = _bitchatService.deliveryReceiptStream.listen(_onDeliveryReceipt);
 
     // Set keys for encryption/signing
     if (_keyManager.hasKeys) {
       _nostrService.setKeys(_keyManager.privateKey!, _keyManager.publicKey!);
     }
 
-    // Load last event timestamp so relays send missed messages
-    await _loadLastEventTimestamp();
-
-    // Monitor network connectivity
-    _connectivitySub = _connectivity.onConnectivityChanged.listen(_onConnectivityChanged);
-    await _checkConnectivity();
-
-    // Connect to Nostr relays if we have internet, and fetch messages from server
-    if (_hasInternet) {
-      await _connectNostr();
-      _fetchPendingFromServer();
-      _fetchOnlineMessages();
-    }
-
-    // Wire media services so BitChatService can save received audio/image files
+    // Wire media services
     _bitchatService.voiceNoteService = voiceNoteService;
     _bitchatService.imageSharingService = imageSharingService;
+
+    // These two DB/connectivity calls are fast — keep them awaited
+    await _loadLastEventTimestamp();
+    _connectivitySub = _connectivity.onConnectivityChanged.listen(_onConnectivityChanged);
+    await _checkConnectivity();
 
     // Load locally cached profile picture URL for BLE handshakes
     final prefs = await SharedPreferences.getInstance();
     _profilePictureUrl = prefs.getString('my_profile_picture_url');
 
-    // Start BitChat for offline capability
+    // Load previously received reactions into memory (fast DB read)
+    await _loadReactions();
+
+    // ── From here on everything is fire-and-forget ──────────────────────────
+    // Nostr relay WebSocket handshake — can take 500ms–2s per relay.
+    // BLE/mesh startup — can take 500ms–1s on Android.
+    // Neither is needed before the HomeScreen is shown.
+
+    if (_hasInternet) {
+      _connectNostr(); // no await — connects to relays in background
+      _fetchPendingFromServer();
+      _fetchOnlineMessages();
+    }
+
     if (_keyManager.publicKey != null) {
-      await _bitchatService.start(
+      _bitchatService.start( // no await — BLE starts in background
         _keyManager.publicKey!,
         username: _keyManager.username,
         shortId: Contact.shortIdFor(_keyManager.publicKey!),
         profilePictureUrl: _profilePictureUrl,
       );
     }
-
-    // When a nearby device appears, try to deliver pending messages to it
-    _nearbySub = _bitchatService.nearbyChangedStream.listen(_onNearbyChanged);
-
-    // When mesh receives a message not for us, try forwarding via Nostr
-    _meshRelayNostrSub = _bitchatService.relayToNostrStream.listen(_onMeshRelayToNostr);
-
-    // Listen for delivery receipts from mesh
-    _deliveryReceiptSub = _bitchatService.deliveryReceiptStream.listen(_onDeliveryReceipt);
-
-    // Load previously received reactions into memory
-    await _loadReactions();
 
     // Retry pending messages every 30 seconds
     _retryTimer?.cancel();
