@@ -22,6 +22,11 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _introDone = false;
   bool _showRestore = false;
+  bool _showNamePrompt = false;
+
+  void _onKeysGenerated() {
+    setState(() => _showNamePrompt = true);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,17 +46,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   onComplete: widget.onComplete,
                   onBack: () => setState(() => _showRestore = false),
                 )
-              : !_introDone
-                  ? _IntroSlides(
-                      key: const ValueKey('intro'),
-                      onDone: () => setState(() => _introDone = true),
-                    )
-                  : _WelcomeView(
-                      key: const ValueKey('welcome'),
+              : _showNamePrompt
+                  ? _NamePromptView(
+                      key: const ValueKey('name'),
                       keyManager: widget.keyManager,
                       onComplete: widget.onComplete,
-                      onRestoreTapped: () => setState(() => _showRestore = true),
-                    ),
+                    )
+                  : !_introDone
+                      ? _IntroSlides(
+                          key: const ValueKey('intro'),
+                          onDone: () => setState(() => _introDone = true),
+                        )
+                      : _WelcomeView(
+                          key: const ValueKey('welcome'),
+                          keyManager: widget.keyManager,
+                          onKeysGenerated: _onKeysGenerated,
+                          onRestoreTapped: () => setState(() => _showRestore = true),
+                        ),
         ),
       ),
     );
@@ -256,13 +267,13 @@ class _SlidePage extends StatelessWidget {
 
 class _WelcomeView extends StatefulWidget {
   final KeyManager keyManager;
-  final Future<void> Function(KeyManager) onComplete;
+  final VoidCallback onKeysGenerated;
   final VoidCallback onRestoreTapped;
 
   const _WelcomeView({
     super.key,
     required this.keyManager,
-    required this.onComplete,
+    required this.onKeysGenerated,
     required this.onRestoreTapped,
   });
 
@@ -276,7 +287,7 @@ class _WelcomeViewState extends State<_WelcomeView> {
   Future<void> _startFresh() async {
     setState(() => _loading = true);
     await widget.keyManager.generateKeyPair();
-    await widget.onComplete(widget.keyManager);
+    widget.onKeysGenerated();
   }
 
   @override
@@ -593,6 +604,134 @@ class _RestoreViewState extends State<_RestoreView> {
             ),
           ),
           const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Name prompt view ──────────────────────────────────────────────────────────
+
+class _NamePromptView extends StatefulWidget {
+  final KeyManager keyManager;
+  final Future<void> Function(KeyManager) onComplete;
+
+  const _NamePromptView({
+    super.key,
+    required this.keyManager,
+    required this.onComplete,
+  });
+
+  @override
+  State<_NamePromptView> createState() => _NamePromptViewState();
+}
+
+class _NamePromptViewState extends State<_NamePromptView> {
+  final _nameController = TextEditingController();
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _continue() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = 'Please enter a name to continue.');
+      return;
+    }
+    if (name.length < 2) {
+      setState(() => _error = 'Name must be at least 2 characters.');
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    await widget.keyManager.setUsername(name);
+    await widget.onComplete(widget.keyManager);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Spacer(flex: 2),
+
+          const Text(
+            'What should people\ncall you?',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'This is how you appear to others. You can change it later in your profile.',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              height: 1.5,
+            ),
+          ),
+
+          const SizedBox(height: 36),
+
+          TextField(
+            controller: _nameController,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            maxLength: 32,
+            onSubmitted: (_) => _loading ? null : _continue(),
+            decoration: const InputDecoration(
+              labelText: 'Your name',
+              hintText: 'e.g. Alex',
+              counterText: '',
+            ),
+          ),
+
+          if (_error != null) ...[
+            const SizedBox(height: 10),
+            Text(_error!,
+                style: const TextStyle(fontSize: 12, color: AppColors.error)),
+          ],
+
+          const Spacer(flex: 2),
+
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _loading ? null : _continue,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Continue',
+                      style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w600)),
+            ),
+          ),
+          const SizedBox(height: 28),
         ],
       ),
     );
