@@ -1088,6 +1088,8 @@ class _Bubble extends StatelessWidget {
       ),
     );
 
+    final isPending = isMe && message.status == 'pending';
+
     return GestureDetector(
       onLongPress: () => _showMessageMenu(context),
       child: Align(
@@ -1097,6 +1099,24 @@ class _Bubble extends StatelessWidget {
           children: [
             bubble,
             if (reactions.isNotEmpty) _buildReactions(context),
+            if (isPending && onRetry != null)
+              GestureDetector(
+                onTap: onRetry,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 4, right: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.error_outline, size: 11, color: AppColors.error.withAlpha(180)),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Not delivered · Tap to retry',
+                        style: TextStyle(fontSize: 10, color: AppColors.error.withAlpha(180)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -1484,6 +1504,8 @@ class _ImageBubbleState extends State<_ImageBubble> {
       ),
     );
 
+    final isPending = widget.isMe && widget.message.status == 'pending';
+
     return Align(
       alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Column(
@@ -1510,6 +1532,24 @@ class _ImageBubbleState extends State<_ImageBubble> {
                         style: const TextStyle(fontSize: 12)),
                   );
                 }).toList(),
+              ),
+            ),
+          if (isPending && widget.onRetry != null)
+            GestureDetector(
+              onTap: widget.onRetry,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 4, right: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.error_outline, size: 11, color: AppColors.error.withAlpha(180)),
+                    const SizedBox(width: 3),
+                    Text(
+                      'Not delivered · Tap to retry',
+                      style: TextStyle(fontSize: 10, color: AppColors.error.withAlpha(180)),
+                    ),
+                  ],
+                ),
               ),
             ),
         ],
@@ -1855,6 +1895,24 @@ class _VoiceBubbleState extends State<_VoiceBubble> {
                       ),
                     );
                   }).toList(),
+                ),
+              ),
+            if (isMe && widget.message.status == 'pending' && widget.messageService != null)
+              GestureDetector(
+                onTap: () => widget.messageService!.retryPendingMessages(),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 4, right: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.error_outline, size: 11, color: AppColors.error.withAlpha(180)),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Not delivered · Tap to retry',
+                        style: TextStyle(fontSize: 10, color: AppColors.error.withAlpha(180)),
+                      ),
+                    ],
+                  ),
                 ),
               ),
           ],
