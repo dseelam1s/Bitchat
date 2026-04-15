@@ -4,7 +4,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:bitchat_messenger/core/constants.dart';
 import 'package:bitchat_messenger/core/theme.dart';
 import 'package:bitchat_messenger/main.dart' show themeNotifier;
 import 'package:bitchat_messenger/features/contacts/models/contact.dart';
@@ -644,13 +643,11 @@ class _MessagingScreen extends StatefulWidget {
 }
 
 class _MessagingScreenState extends State<_MessagingScreen> {
-  late String _mode;
   late int _ttl;
 
   @override
   void initState() {
     super.initState();
-    _mode = widget.messageService.mode;
     _ttl = widget.messageService.ttl;
   }
 
@@ -661,28 +658,6 @@ class _MessagingScreenState extends State<_MessagingScreen> {
       body: ListView(
         children: [
           const SizedBox(height: 8),
-          _sectionLabel('MESSAGE DELIVERY'),
-          _modeRow(
-            Icons.wifi_tethering,
-            'Smart (recommended)',
-            'Uses internet when available, switches to nearby automatically',
-            AppConstants.modeAuto,
-          ),
-          _divider(),
-          _modeRow(
-            Icons.signal_wifi_4_bar,
-            'Internet only',
-            'Only sends when you have a data connection',
-            AppConstants.modeOnline,
-          ),
-          _divider(),
-          _modeRow(
-            Icons.bluetooth,
-            'Nearby only',
-            'Only connects to people around you, no internet needed',
-            AppConstants.modeOffline,
-          ),
-          const SizedBox(height: 24),
           _sectionLabel('ADVANCED'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -728,37 +703,6 @@ class _MessagingScreenState extends State<_MessagingScreen> {
       text,
       style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted.withAlpha(150), letterSpacing: 1.5),
     ),
-  );
-
-  Widget _modeRow(IconData icon, String title, String sub, String value) {
-    final sel = _mode == value;
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-      leading: Icon(icon, size: 22, color: sel ? AppColors.teal : AppColors.textMuted),
-      title: Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: sel ? AppColors.teal : null)),
-      subtitle: Text(sub, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-      trailing: _radio(sel),
-      onTap: () => setState(() {
-        _mode = value;
-        widget.messageService.setMode(value);
-      }),
-    );
-  }
-
-  Widget _divider() => const Padding(
-    padding: EdgeInsets.symmetric(horizontal: 20),
-    child: Divider(height: 1, color: AppColors.divider),
-  );
-
-  Widget _radio(bool selected) => Container(
-    width: 20, height: 20,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      border: Border.all(color: selected ? AppColors.mint : AppColors.textMuted, width: 1.5),
-    ),
-    child: selected
-        ? Center(child: Container(width: 10, height: 10, decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.mint)))
-        : null,
   );
 }
 

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:bitchat_messenger/core/constants.dart';
 import 'package:bitchat_messenger/core/theme.dart';
 import 'package:bitchat_messenger/features/channels/models/channel.dart';
 import 'package:bitchat_messenger/features/contacts/models/contact.dart';
@@ -342,8 +341,6 @@ class _ChatsScreenState extends State<ChatsScreen> {
     final contactMap = {for (final c in _contacts) c.pubkey: c};
     final defaultChannel = _channels.firstWhere((c) => c.isDefault, orElse: () => Channel(id: 'nearby', name: 'Nearby', creatorPubkey: '', createdAt: 0, lastActivityAt: 0, isDefault: true));
     final items = _buildUnifiedList();
-    final mode = widget.messageService.mode;
-
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -353,40 +350,6 @@ class _ChatsScreenState extends State<ChatsScreen> {
             const Text('Chats'),
           ],
         ),
-        actions: [
-          // Mesh node count + connection mode chip
-          Tooltip(
-            message: nearby.isEmpty
-                ? 'No mesh nodes in range'
-                : '${nearby.length} mesh node${nearby.length == 1 ? '' : 's'} in range',
-            child: Container(
-              margin: const EdgeInsets.only(right: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: _modeColor(mode).withAlpha(12),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _modeColor(mode).withAlpha(40)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(_modeIcon(mode), size: 14, color: _modeColor(mode)),
-                  if (nearby.isNotEmpty) ...[
-                    const SizedBox(width: 5),
-                    Text(
-                      '${nearby.length}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _modeColor(mode),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -703,18 +666,6 @@ class _ChatsScreenState extends State<ChatsScreen> {
         ],
       ),
     );
-  }
-
-  IconData _modeIcon(String mode) {
-    if (mode == AppConstants.modeOnline) return Icons.cloud_outlined;
-    if (mode == AppConstants.modeOffline) return Icons.sensors;
-    return Icons.auto_awesome;
-  }
-
-  Color _modeColor(String mode) {
-    if (mode == AppConstants.modeOnline) return AppColors.mint;
-    if (mode == AppConstants.modeOffline) return AppColors.amber;
-    return AppColors.blue;
   }
 
   String _safeInitial(String text) => text.isNotEmpty ? text[0] : '?';
