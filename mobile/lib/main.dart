@@ -474,7 +474,9 @@ class _AppInitializerState extends State<AppInitializer>
       };
       _contactResolver = contactResolver;
 
-      // Authenticate with server — fire-and-forget, never blocks startup
+      // Authenticate with server — fire-and-forget, never blocks startup.
+      // connectAndRegister wakes Render first (up to 50 s) then retries auth,
+      // so .then() may fire well after the HomeScreen is already visible.
       if (keyManager.hasKeys) {
         ServerService().connectAndRegister(
           privateKey: keyManager.privateKey!,
@@ -482,7 +484,19 @@ class _AppInitializerState extends State<AppInitializer>
           shortId: Contact.shortIdFor(keyManager.publicKey!),
           displayName: keyManager.username ?? '',
         ).then((_) async {
+          // Connect real-time WebSocket now that we have a JWT
           signalingService.connect();
+
+          // Re-fetch messages that arrived while the server was waking up.
+          // The initial fetch in initialize() ran with no auth token and
+          // returned empty — this catches up on anything we missed.
+          await messageService.fetchMissedServerMessages();
+
+          // Flush any outgoing messages that were queued as 'pending'
+          // while the server was starting up.
+          messageService.retryPendingMessages();
+
+          // Restore contacts on first launch (needs auth to decrypt backup)
           final existing = await dbService.getAllContacts();
           if (existing.isEmpty) {
             ContactsBackupService().restore(

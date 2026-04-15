@@ -168,6 +168,17 @@ class MessageService {
   /// Publicly trigger a retry of pending messages (e.g. after a contact resolves).
   void retryPendingMessages() => _retryPendingMessages();
 
+  /// Re-fetch messages from the server after a late authentication.
+  ///
+  /// Called from main.dart after [ServerService.connectAndRegister] completes
+  /// on a cold-start delay — by that point [initialize] has already run with
+  /// no auth token so the initial fetches returned empty. This re-runs them.
+  Future<void> fetchMissedServerMessages() async {
+    if (!_hasInternet) return;
+    await _fetchPendingFromServer();
+    await _fetchOnlineMessages();
+  }
+
   /// Publicly trigger a contact list backup (e.g. after manually adding a contact).
   void triggerContactsBackup() => _triggerContactsBackup();
 

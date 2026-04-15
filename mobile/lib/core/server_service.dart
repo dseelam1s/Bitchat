@@ -335,6 +335,24 @@ class ServerService {
     }
   }
 
+  /// Wake the server from a cold start before attempting auth.
+  ///
+  /// Render free tier sleeps after 15 minutes of inactivity and takes
+  /// 30–45 seconds to spin back up. This uses a long timeout to cover
+  /// that window so auth never races against a sleeping server.
+  ///
+  /// Returns true once the server responds, false if unreachable.
+  Future<bool> wakeup() async {
+    try {
+      final res = await _client
+          .get(_uri('health/'))
+          .timeout(const Duration(seconds: 50));
+      return res.statusCode < 500;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Upload a profile picture file.
   ///
   /// Returns the public URL on success, or throws a [ServerUploadException]
@@ -447,6 +465,9 @@ class ServerService {
   /// Called once at app startup. Authenticates with the server and registers
   /// the short ID if not already done. Completely fire-and-forget — if the
   /// server is unreachable nothing happens and the app works as normal.
+  ///
+  /// Handles Render free-tier cold starts by waking the server first (up to
+  /// 50 s) then retrying auth up to 3 times before giving up.
   Future<void> connectAndRegister({
     required String privateKey,
     required String publicKey,
@@ -456,11 +477,25 @@ class ServerService {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // Authenticate (creates JWT tokens, no side effects if already exists)
-      final authResult = await authenticate(privateKey, publicKey);
-      if (authResult == null) return; // server unreachable
+      // ── Step 1: Wake the server ───────────────────────────────────────────
+      // Render free tier sleeps after 15 min inactivity and takes 30–45 s to
+      // spin back up. wakeup() waits up to 50 s so auth never hits a cold server.
+      final isUp = await wakeup();
+      if (!isUp) return; // completely unreachable — app works offline as normal
 
-      // Register FCM push token on every launch so token rotation is always synced
+      // ── Step 2: Authenticate with retry ──────────────────────────────────
+      // Even after wakeup the first auth request can occasionally fail if the
+      // server is still initialising its DB pool. Retry up to 3 times.
+      Map<String, dynamic>? authResult;
+      for (int attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) await Future.delayed(const Duration(seconds: 5));
+        authResult = await authenticate(privateKey, publicKey);
+        if (authResult != null) break;
+      }
+      if (authResult == null) return; // auth failed after retries
+
+      // ── Step 3: Register FCM push token ──────────────────────────────────
+      // Done on every launch so token rotation is always synced to the server.
       try {
         final fcmToken = await FirebaseMessaging.instance.getToken();
         if (fcmToken != null) {
@@ -472,11 +507,10 @@ class ServerService {
         // Firebase not configured — push notifications disabled
       }
 
-      // Check if we've already completed short ID registration on this device
+      // ── Step 4: Register short ID (first launch only) ────────────────────
       final alreadyDone = prefs.getBool('server_registered') ?? false;
       if (alreadyDone) return;
 
-      // Register the short ID (first launch only)
       final regResult = await registerShortId(shortId, displayName);
       if (regResult == null) return;
 
