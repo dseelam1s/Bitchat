@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:bitchat_messenger/core/theme.dart';
 import 'package:bitchat_messenger/features/channels/models/channel.dart';
 import 'package:bitchat_messenger/features/contacts/models/contact.dart';
@@ -650,20 +651,42 @@ class _ChatsScreenState extends State<ChatsScreen> {
   }
 
   Widget _buildEmpty() {
+    final pubkey = widget.messageService.publicKey ?? '';
+    final shortId = pubkey.isNotEmpty ? Contact.shortIdFor(pubkey) : '';
+
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.chat_bubble_outline, size: 40, color: AppColors.textMuted.withAlpha(80)),
-          const SizedBox(height: 16),
-          const Text('No chats yet', style: TextStyle(fontSize: 15, color: null)),
-          const SizedBox(height: 6),
-          Text(
-            'Tap a nearby device in the bar above, or create a channel',
-            style: TextStyle(fontSize: 12, color: AppColors.textMuted.withAlpha(150)),
-            textAlign: TextAlign.center,
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primary.withAlpha(15),
+                border: Border.all(color: AppColors.primary.withAlpha(40), width: 1.5),
+              ),
+              child: Icon(Icons.chat_bubble_outline, size: 32, color: AppColors.primary.withAlpha(160)),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'No chats yet',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Share your ID with friends so they can message you.',
+              style: TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.5),
+              textAlign: TextAlign.center,
+            ),
+            if (shortId.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              _ShortIdChip(shortId: shortId),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -696,5 +719,66 @@ class _ChatsScreenState extends State<ChatsScreen> {
     if (diff == 1) return 'Yesterday';
     if (diff < 7) return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][dt.weekday - 1];
     return '${dt.day}/${dt.month}/${dt.year % 100}';
+  }
+}
+
+// ── Short ID copy chip (used in empty state) ──────────────────────────────────
+
+class _ShortIdChip extends StatefulWidget {
+  final String shortId;
+  const _ShortIdChip({required this.shortId});
+
+  @override
+  State<_ShortIdChip> createState() => _ShortIdChipState();
+}
+
+class _ShortIdChipState extends State<_ShortIdChip> {
+  bool _copied = false;
+
+  void _copy() async {
+    await Clipboard.setData(ClipboardData(text: '#${widget.shortId}'));
+    setState(() => _copied = true);
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) setState(() => _copied = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _copy,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: _copied
+              ? AppColors.primary.withAlpha(20)
+              : AppColors.primary.withAlpha(10),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.primary.withAlpha(_copied ? 80 : 40),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '#${widget.shortId}',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              _copied ? Icons.check : Icons.copy_outlined,
+              size: 14,
+              color: AppColors.primary,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

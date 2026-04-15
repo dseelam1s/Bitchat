@@ -1246,27 +1246,61 @@ class _ContactsTabState extends State<_ContactsTab> {
 
   Widget _buildEmpty() {
     final isSearching = _searchController.text.isNotEmpty;
+
+    if (isSearching) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 40, color: AppColors.textMuted.withAlpha(80)),
+            const SizedBox(height: 16),
+            const Text('No contacts match', style: TextStyle(fontSize: 15)),
+          ],
+        ),
+      );
+    }
+
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            isSearching ? Icons.search_off : Icons.people_outline,
-            size: 40,
-            color: AppColors.textMuted.withAlpha(80),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            isSearching ? 'No contacts match' : 'No contacts yet',
-            style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onSurface.withAlpha(120)),
-          ),
-          const SizedBox(height: 6),
-          if (!isSearching)
-            Text(
-              'Tap + to add a contact',
-              style: TextStyle(fontSize: 12, color: AppColors.textMuted.withAlpha(150)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primary.withAlpha(15),
+                border: Border.all(color: AppColors.primary.withAlpha(40), width: 1.5),
+              ),
+              child: Icon(Icons.people_outline, size: 32, color: AppColors.primary.withAlpha(160)),
             ),
-        ],
+            const SizedBox(height: 20),
+            const Text(
+              'No contacts yet',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Add a contact using their short ID to start messaging.',
+              style: TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.5),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: _addContact,
+              icon: const Icon(Icons.person_add_outlined, size: 18),
+              label: const Text('Add Contact'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
