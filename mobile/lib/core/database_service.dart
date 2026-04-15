@@ -505,9 +505,13 @@ class DatabaseService {
   // Mark all messages from a contact as read (text + voice_note + image)
   Future<void> markMessagesAsRead(String myPubkey, String contactPubkey) async {
     final db = await database;
+    // Mark ALL non-read messages — not just 'delivered' ones.
+    // Messages arriving via WebSocket in real-time land with status 'sent'
+    // (the server hasn't polled them yet), so restricting to 'delivered'
+    // left them permanently counted as unread.
     await db.rawUpdate(
       "UPDATE messages SET status = 'read' "
-      "WHERE senderPubkey = ? AND receiverPubkey = ? AND status = 'delivered' "
+      "WHERE senderPubkey = ? AND receiverPubkey = ? AND status != 'read' "
       "AND type IN ('text', 'voice_note', 'image')",
       [contactPubkey, myPubkey],
     );
