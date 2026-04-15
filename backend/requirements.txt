@@ -8,3 +8,4 @@ firebase-admin==6.5.0
 channels==4.1.0
 gunicorn==23.0.0
 whitenoise==6.8.2
+cloudinary==1.41.0

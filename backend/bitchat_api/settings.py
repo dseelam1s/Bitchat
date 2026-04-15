@@ -148,3 +148,19 @@ SIMPLE_JWT = {
 }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ── Cloudinary (file storage for images, audio, profile pictures) ─────────────
+# Set these three env vars in Render dashboard (or .env for local dev).
+# If not set the app falls back to local disk (dev only — not safe for production).
+CLOUDINARY_CLOUD_NAME = config('CLOUDINARY_CLOUD_NAME', default='')
+CLOUDINARY_API_KEY    = config('CLOUDINARY_API_KEY',    default='')
+CLOUDINARY_API_SECRET = config('CLOUDINARY_API_SECRET', default='')
+
+if CLOUDINARY_CLOUD_NAME:
+    import cloudinary
+    cloudinary.config(
+        cloud_name=CLOUDINARY_CLOUD_NAME,
+        api_key=CLOUDINARY_API_KEY,
+        api_secret=CLOUDINARY_API_SECRET,
+        secure=True,          # always return https:// URLs
+    )

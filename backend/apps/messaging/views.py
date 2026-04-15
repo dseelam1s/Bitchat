@@ -1,8 +1,3 @@
-import os
-import uuid
-
-from django.conf import settings
-from django.core.files.storage import default_storage
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -10,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from bitchat.models import BitChatIdentity, Message
+from apps.common import upload_file
 from apps.push.firebase_utils import send_push
 from .serializers import ReceiptSerializer, SendMessageSerializer
 
@@ -186,11 +182,11 @@ def message_image_upload(request):
     if image.size > 5 * 1024 * 1024:
         return Response({'detail': 'Image too large (max 5MB).'}, status=status.HTTP_400_BAD_REQUEST)
 
-    ext      = os.path.splitext(image.name)[1].lower() or '.jpg'
-    filename = f'message_images/{uuid.uuid4().hex}{ext}'
-    saved    = default_storage.save(filename, image)
-    url      = request.build_absolute_uri(settings.MEDIA_URL + saved)
-    return Response({'url': url})
+    try:
+        url = upload_file(image, folder='images', resource_type='image')
+        return Response({'url': url})
+    except Exception:
+        return Response({'detail': 'Upload failed. Please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # ── Audio Upload ──────────────────────────────────────────────────────────────
@@ -211,8 +207,9 @@ def message_audio_upload(request):
     if audio.size > 5 * 1024 * 1024:
         return Response({'detail': 'Audio too large (max 5MB).'}, status=status.HTTP_400_BAD_REQUEST)
 
-    ext      = os.path.splitext(audio.name)[1].lower() or '.m4a'
-    filename = f'message_audio/{uuid.uuid4().hex}{ext}'
-    saved    = default_storage.save(filename, audio)
-    url      = request.build_absolute_uri(settings.MEDIA_URL + saved)
-    return Response({'url': url})
+    try:
+        # Cloudinary uses resource_type='video' for all audio formats
+        url = upload_file(audio, folder='audio', resource_type='video')
+        return Response({'url': url})
+    except Exception:
+        return Response({'detail': 'Upload failed. Please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -1,15 +1,10 @@
-import os
-import uuid
-
-from django.conf import settings
-from django.core.files.storage import default_storage
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from bitchat.models import BitChatIdentity
-from apps.common import identity_or_404, picture_url
+from apps.common import identity_or_404, picture_url, upload_file
 from .serializers import ProfileUpdateSerializer
 
 
@@ -78,10 +73,10 @@ def profile_picture_upload(request):
     if image.size > 2 * 1024 * 1024:
         return Response({'detail': 'Image too large (max 2MB).'}, status=status.HTTP_400_BAD_REQUEST)
 
-    ext      = os.path.splitext(image.name)[1].lower() or '.jpg'
-    filename = f'profile_pictures/{uuid.uuid4().hex}{ext}'
-    saved    = default_storage.save(filename, image)
-    url      = request.build_absolute_uri(settings.MEDIA_URL + saved)
+    try:
+        url = upload_file(image, folder='profiles', resource_type='image')
+    except Exception:
+        return Response({'detail': 'Upload failed. Please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     identity.profile_picture_url = url
     identity.save(update_fields=['profile_picture_url', 'updated_at'])
