@@ -100,7 +100,6 @@ def register(request):
         identity = BitChatIdentity.objects.get(pubkey=pubkey)
         return Response({
             'short_id': identity.short_id,
-            'recovery_code': identity.recovery_code,
             'already_registered': True,
         })
     except BitChatIdentity.DoesNotExist:
@@ -126,7 +125,7 @@ def register(request):
         display_name=display_name,
     )
     return Response(
-        {'short_id': identity.short_id, 'recovery_code': identity.recovery_code, 'already_registered': False},
+        {'short_id': identity.short_id, 'already_registered': False},
         status=status.HTTP_201_CREATED,
     )
 
