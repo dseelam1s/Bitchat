@@ -897,33 +897,15 @@ class _ChatScreenState extends State<ChatScreen> {
 
 // ── Delivery status indicator ────────────────────────────────────────────────
 
-// ── Transport dot — tiny icon showing how the message was delivered ──────────
-// 'bitchat' = nearby/BLE mesh — shown in amber to signal it's offline-capable
-// anything else = internet — shown in muted meta color
-
-class _TransportDot extends StatelessWidget {
-  final String? transport;
-  final Color metaColor;
-
-  const _TransportDot({this.transport, required this.metaColor});
-
-  @override
-  Widget build(BuildContext context) {
-    final isNearby = transport == 'bitchat';
-    return Tooltip(
-      message: isNearby ? 'Sent nearby (no internet needed)' : 'Sent via internet',
-      child: Icon(
-        isNearby ? Icons.sensors : Icons.cloud_outlined,
-        size: 10,
-        color: isNearby ? AppColors.signal.withAlpha(200) : metaColor,
-      ),
-    );
-  }
-}
-
 // ── Shared message status tick widget ───────────────────────────────────────
 // Single source of truth for pending/sent/delivered/read icons.
 // Used by _Bubble, _ImageBubble, _VoiceBubble.
+//
+// WhatsApp-style convention:
+//   pending   → clock  (grey)           — queued, not yet sent
+//   sent      → ✓      (grey)           — reached the server
+//   delivered → ✓✓     (grey)           — receiver's device got it
+//   read      → ✓✓     (blue/primary)   — receiver opened the chat
 
 class _StatusTick extends StatelessWidget {
   final String status;
@@ -934,23 +916,28 @@ class _StatusTick extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isRead = status == 'read';
     final IconData icon;
     final Color color;
 
-    if (isRead) {
-      icon = Icons.visibility;
-      color = AppColors.primary;
+    if (status == 'read') {
+      icon  = Icons.done_all;
+      color = AppColors.primary;               // blue double tick — seen
     } else if (status == 'delivered') {
-      icon = Icons.done_all;
-      color = isDark ? AppColors.primary : Colors.white.withAlpha(220);
+      icon  = Icons.done_all;
+      color = isDark
+          ? Colors.white.withAlpha(140)
+          : Colors.white.withAlpha(200);       // grey double tick — delivered
     } else if (status == 'sent') {
-      icon = Icons.done;
-      color = isDark ? Colors.white.withAlpha(120) : Colors.white.withAlpha(180);
+      icon  = Icons.done;
+      color = isDark
+          ? Colors.white.withAlpha(120)
+          : Colors.white.withAlpha(180);       // grey single tick — sent
     } else {
-      // pending — tappable retry
-      icon = Icons.access_time;
-      color = isDark ? Colors.white.withAlpha(80) : Colors.white.withAlpha(140);
+      // pending — clock, tappable to retry
+      icon  = Icons.access_time;
+      color = isDark
+          ? Colors.white.withAlpha(80)
+          : Colors.white.withAlpha(140);
     }
 
     final iconWidget = Icon(icon, size: 12, color: color);
@@ -1087,8 +1074,6 @@ class _Bubble extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _TransportDot(transport: message.transport, metaColor: metaColor),
-              const SizedBox(width: 4),
               Text(
                 _time(message.timestamp),
                 style: TextStyle(fontSize: 10, color: metaColor),
@@ -1480,8 +1465,6 @@ class _ImageBubbleState extends State<_ImageBubble> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _TransportDot(transport: widget.message.transport, metaColor: metaColor),
-                const SizedBox(width: 4),
                 Text(
                   _time(widget.message.timestamp),
                   style: TextStyle(fontSize: 10, color: metaColor),
@@ -1796,8 +1779,6 @@ class _VoiceBubbleState extends State<_VoiceBubble> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _TransportDot(transport: widget.message.transport, metaColor: metaColor),
-                const SizedBox(width: 4),
                 Text(
                   _time(widget.message.timestamp),
                   style: TextStyle(fontSize: 10, color: metaColor),
