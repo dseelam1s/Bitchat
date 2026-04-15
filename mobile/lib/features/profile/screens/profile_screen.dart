@@ -10,6 +10,7 @@ import 'package:bitchat_messenger/features/contacts/models/contact.dart';
 import 'package:bitchat_messenger/features/chat/services/message_service.dart';
 import 'package:bitchat_messenger/features/profile/services/backup_service.dart';
 import 'package:bitchat_messenger/core/server_service.dart';
+import 'package:share_plus/share_plus.dart';
 
 // ── Profile Screen (Tab 3) ────────────────────────────────────────────────────
 
@@ -268,9 +269,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ),
                       const SizedBox(height: 4),
-                      Text(
-                        '#$shortId',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.mint, letterSpacing: 1.5),
+                      GestureDetector(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: '#$shortId'));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Short ID copied'), duration: Duration(seconds: 2)),
+                          );
+                        },
+                        onLongPress: () {
+                          SharePlus.instance.share(ShareParams(text: 'Message me on BitChat: #$shortId'));
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '#$shortId',
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.mint, letterSpacing: 1.5),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(Icons.copy_outlined, size: 13, color: AppColors.mint.withAlpha(160)),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -286,6 +305,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 8),
 
           // ── Settings rows ───────────────────────────────────────────────
+          _settingsRow(
+            context,
+            icon: Icons.share_outlined,
+            title: 'Share your ID',
+            subtitle: 'Let friends find you on BitChat',
+            onTap: () => SharePlus.instance.share(ShareParams(text: 'Message me on BitChat: #$shortId')),
+          ),
           _settingsRow(
             context,
             icon: Icons.manage_accounts_outlined,
