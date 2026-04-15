@@ -320,16 +320,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
       }
     }
 
-    // Channel conversations (exclude default nearby channel — it's in the stories bar)
-    for (final channel in _channels) {
-      if (channel.isDefault) continue;
-      items.add(_ChannelItem(
-        channel: channel,
-        lastText: null,
-        lastTs: channel.lastActivityAt,
-        unread: 0,
-      ));
-    }
+    // Channels hidden for now — DMs only in this phase.
 
     items.sort((a, b) => b.sortTimestamp.compareTo(a.sortTimestamp));
     return items;
@@ -337,10 +328,6 @@ class _ChatsScreenState extends State<ChatsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final nearby = widget.messageService.nearbyUsers.toList();
-    final names = widget.messageService.nearbyDeviceNames;
-    final contactMap = {for (final c in _contacts) c.pubkey: c};
-    final defaultChannel = _channels.firstWhere((c) => c.isDefault, orElse: () => Channel(id: 'nearby', name: 'Nearby', creatorPubkey: '', createdAt: 0, lastActivityAt: 0, isDefault: true));
     final items = _buildUnifiedList();
     return Scaffold(
       appBar: AppBar(
@@ -352,36 +339,17 @@ class _ChatsScreenState extends State<ChatsScreen> {
           ],
         ),
       ),
-      body: Column(
-        children: [
-          // Stories bar — nearby broadcast first, then nearby devices
-          _buildStoriesBar(nearby, names, contactMap, defaultChannel),
-
-          // Unified list
-          Expanded(
-            child: items.isEmpty
-                ? _buildEmpty()
-                : ListView.builder(
-                    padding: const EdgeInsets.only(top: 4, bottom: 100),
-                    itemCount: items.length,
-                    itemBuilder: (_, i) {
-                      final item = items[i];
-                      if (item is _DmItem) return _buildDmTile(item);
-                      if (item is _ChannelItem) return _buildChannelTile(item);
-                      return const SizedBox.shrink();
-                    },
-                  ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'chats_fab',
-        onPressed: _showCreateChannelDialog,
-        backgroundColor: AppColors.mint,
-        foregroundColor: Colors.black,
-        tooltip: 'Create channel',
-        child: const Icon(Icons.add),
-      ),
+      body: items.isEmpty
+          ? _buildEmpty()
+          : ListView.builder(
+              padding: const EdgeInsets.only(top: 4, bottom: 100),
+              itemCount: items.length,
+              itemBuilder: (_, i) {
+                final item = items[i];
+                if (item is _DmItem) return _buildDmTile(item);
+                return const SizedBox.shrink();
+              },
+            ),
     );
   }
 
