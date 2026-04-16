@@ -516,14 +516,28 @@ class BleService {
       };
       final bytes = Uint8List.fromList(utf8.encode(jsonEncode(chunkMap)));
 
-      // Send to all GATT clients we're connected to
+      // Send to all nearby devices, retrying each up to 3 times on failure.
+      // In a mesh, succeeding with at least one device is enough — the mesh
+      // propagates from there. If every device fails after retries, abort.
+      bool anySent = false;
       for (final entry in _writeCharCache.entries) {
-        try {
-          await entry.value.write(bytes, withoutResponse: false);
-        } catch (_) {}
+        for (int attempt = 0; attempt < 3; attempt++) {
+          try {
+            await entry.value.write(bytes, withoutResponse: false);
+            anySent = true;
+            break;
+          } catch (_) {
+            if (attempt < 2) {
+              // Back off before retrying: 50ms, then 100ms
+              await Future.delayed(Duration(milliseconds: 50 * (attempt + 1)));
+            }
+          }
+        }
       }
 
-      // Small delay to avoid flooding the BLE connection
+      if (!anySent) return false;
+
+      // Small delay between chunks to avoid flooding the BLE connection
       if (i < total - 1) {
         await Future.delayed(const Duration(milliseconds: 30));
       }

@@ -277,7 +277,7 @@ class DatabaseService {
     );
     // Only retry actual chat messages — never retry ephemeral/metadata types
     final maps = await db.rawQuery(
-      "SELECT * FROM messages WHERE status = 'pending' "
+      "SELECT * FROM messages WHERE status IN ('pending', 'failed') "
       "AND type IN ('text', 'voice_note', 'image', 'read_receipt')",
     );
     return maps.map((m) => Message.fromMap(m)).toList();

@@ -6,7 +6,7 @@ class Message {
   final String type;
   final int timestamp;
   final int ttl;
-  final String status; // pending, sent, delivered, read
+  final String status; // pending, sent, delivered, read, failed
   final String transport; // nostr, bitchat
   final bool meshEncrypted; // true if content is NIP-04 encrypted for mesh
   final String? senderName; // display name of the sender

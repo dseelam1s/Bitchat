@@ -10,6 +10,7 @@ import 'package:bitchat_messenger/features/contacts/models/contact.dart';
 import 'package:bitchat_messenger/features/chat/services/message_service.dart';
 import 'package:bitchat_messenger/features/profile/services/backup_service.dart';
 import 'package:bitchat_messenger/core/server_service.dart';
+import 'package:bitchat_messenger/features/profile/services/profile_picture_cache_service.dart';
 import 'package:share_plus/share_plus.dart';
 
 // ── Profile Screen (Tab 3) ────────────────────────────────────────────────────
@@ -27,6 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _usernameController;
   bool _isEditingUsername = false;
   String? _profilePictureUrl;
+  String? _localProfilePicturePath;
 
   @override
   void initState() {
@@ -40,10 +42,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadProfilePicture() async {
     final pubkey = widget.messageService.publicKey;
     if (pubkey == null) return;
+
+    // Show cached local copy immediately — works offline
+    final cached = await ProfilePictureCacheService().localPath(pubkey);
+    if (cached != null && mounted) {
+      setState(() => _localProfilePicturePath = cached);
+    }
+
+    // Fetch latest from server and refresh cache
     final result = await ServerService().getProfile(pubkey);
     final url = result?['profile_picture_url'] as String?;
     if (url != null && url.isNotEmpty && mounted) {
       setState(() => _profilePictureUrl = url);
+      final localPath = await ProfilePictureCacheService().download(pubkey, url);
+      if (localPath != null && mounted) {
+        setState(() => _localProfilePicturePath = localPath);
+      }
     }
   }
 
@@ -138,6 +152,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() => _profilePictureUrl = url);
       // Persist locally so it's available offline and in BLE handshakes
       widget.messageService.setProfilePictureUrl(url);
+      // Cache image to disk for offline display
+      final pubkey = widget.messageService.publicKey;
+      if (pubkey != null) {
+        final localPath = await ProfilePictureCacheService().download(pubkey, url);
+        if (localPath != null && mounted) {
+          setState(() => _localProfilePicturePath = localPath);
+        }
+      }
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile picture updated')));
     } on ServerUploadException catch (e) {
       if (!mounted) return;
@@ -156,7 +178,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _removeProfilePicture() async {
     await ServerService().updateProfile(profilePictureUrl: '');
     widget.messageService.setProfilePictureUrl(null);
-    if (mounted) setState(() => _profilePictureUrl = null);
+    final pubkey = widget.messageService.publicKey;
+    if (pubkey != null) await ProfilePictureCacheService().delete(pubkey);
+    if (mounted) setState(() {
+      _profilePictureUrl = null;
+      _localProfilePicturePath = null;
+    });
   }
 
   @override
@@ -189,13 +216,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           color: AppColors.inputBg,
                         ),
                         clipBehavior: Clip.antiAlias,
-                        child: _profilePictureUrl != null
-                            ? CachedNetworkImage(
-                                imageUrl: _profilePictureUrl!,
-                                fit: BoxFit.cover,
-                                errorWidget: (_, __, ___) => const Icon(Icons.person_outline, size: 34, color: AppColors.textMuted),
-                              )
-                            : const Icon(Icons.person_outline, size: 34, color: AppColors.textMuted),
+                        child: _localProfilePicturePath != null
+                            ? Image.file(File(_localProfilePicturePath!), fit: BoxFit.cover)
+                            : _profilePictureUrl != null
+                                ? CachedNetworkImage(
+                                    imageUrl: _profilePictureUrl!,
+                                    fit: BoxFit.cover,
+                                    errorWidget: (_, __, ___) => const Icon(Icons.person_outline, size: 34, color: AppColors.textMuted),
+                                  )
+                                : const Icon(Icons.person_outline, size: 34, color: AppColors.textMuted),
                       ),
                       Positioned(
                         bottom: 0, right: 0,

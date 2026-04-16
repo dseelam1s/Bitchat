@@ -134,7 +134,7 @@ class MessageService {
     );
 
     if (_shouldUseOnline()) await _trySendServer(msg);
-    if (_shouldUseOffline()) await _trySendBitChat(msg);
+    else if (_shouldUseOffline()) await _trySendBitChat(msg);
   }
 
   void _addReaction(String messageId, String emoji, String senderPubkey) {
@@ -588,8 +588,9 @@ class MessageService {
           );
           await _dbService.insertMessage(message);
           _messageController.add(message);
-          await _trySendServer(message);
-          await _dbService.updateMessageStatus(message.id, 'sent');
+          final serverSent = await _trySendServer(message);
+          await _dbService.updateMessageStatus(message.id, serverSent ? 'sent' : 'failed');
+          if (!serverSent) _messageController.add(message.copyWith(status: 'failed'));
           return message.id;
         }
       }
@@ -655,8 +656,9 @@ class MessageService {
           );
           await _dbService.insertMessage(message);
           _messageController.add(message);
-          await _trySendServer(message);
-          await _dbService.updateMessageStatus(message.id, 'sent');
+          final serverSent = await _trySendServer(message);
+          await _dbService.updateMessageStatus(message.id, serverSent ? 'sent' : 'failed');
+          if (!serverSent) _messageController.add(message.copyWith(status: 'failed'));
           return message.id;
         }
       }
@@ -708,23 +710,22 @@ class MessageService {
     await _dbService.insertMessage(message);
     _messageController.add(message);
 
-    // Try to send via all available transports independently.
-    // Both are always attempted so a nearby receiver without internet still gets
-    // the message via BLE even when server succeeds for the online path.
+    // Strict transport separation: online uses server only, offline uses BLE only.
+    // Never both — avoids duplicate delivery and status confusion.
     bool sent = false;
 
     if (_shouldUseOnline()) {
       if (await _trySendServer(message)) sent = true;
-    }
-
-    if (_shouldUseOffline()) {
+    } else if (_shouldUseOffline()) {
       if (await _trySendBitChat(message)) sent = true;
     }
 
     if (sent) {
       await _dbService.updateMessageStatus(message.id, 'sent');
+    } else {
+      await _dbService.updateMessageStatus(message.id, 'failed');
+      _messageController.add(message.copyWith(status: 'failed'));
     }
-    // If not sent, stays as 'pending' — periodic retry will handle it
 
     return message.id;
   }
@@ -1029,22 +1030,9 @@ class MessageService {
       );
     }
 
-    // Auto-create contact if sender is unknown
-    final wasNew = await _dbService.ensureContact(
-      decrypted.senderPubkey,
-      name: decrypted.senderName,
-    );
-
-    // Auto-update contact name if sender included their display name
-    if (decrypted.senderName != null && decrypted.senderName!.isNotEmpty) {
-      await _dbService.updateContactName(decrypted.senderPubkey, decrypted.senderName!);
-    }
-
-    // Back up contacts whenever a new one is auto-created
-    if (wasNew) _triggerContactsBackup();
-
+    // Do NOT auto-add sender to contacts — user must do this explicitly.
     // If sender has no name/photo yet and we have internet, silently fetch
-    // their profile from server so they don't show as an unknown pubkey.
+    // their profile from server so they show with a name instead of a raw pubkey.
     _resolveUnknownSender(decrypted.senderPubkey);
 
     _saveLastEventTimestamp(decrypted.timestamp);
@@ -1229,8 +1217,7 @@ class MessageService {
 
     if (!sent && _shouldUseOnline()) {
       if (await _trySendServer(receipt)) sent = true;
-    }
-    if (!sent && _shouldUseOffline()) {
+    } else if (!sent && _shouldUseOffline()) {
       if (await _trySendBitChat(receipt)) sent = true;
     }
     if (sent) {

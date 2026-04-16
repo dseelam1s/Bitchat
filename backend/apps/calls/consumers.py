@@ -17,7 +17,10 @@ _ROUTABLE_TYPES = {
     'call_ended', 'call_declined', 'call_busy',
 }
 
-_MESSAGE_TYPES = {'dm', 'reaction', 'delivery_receipt', 'read_receipt', 'typing'}
+_MESSAGE_TYPES = {'dm', 'image', 'voice_note', 'reaction', 'delivery_receipt', 'read_receipt', 'typing'}
+
+# Types that should be saved to DB and push-notified
+_STORABLE_TYPES = {'dm', 'image', 'voice_note'}
 
 
 class SignalingConsumer(AsyncWebsocketConsumer):
@@ -77,12 +80,12 @@ class SignalingConsumer(AsyncWebsocketConsumer):
                 {'type': 'signal.message', 'payload': data},
             )
 
-            if msg_type == 'dm':
+            if msg_type in _STORABLE_TYPES:
                 message_id        = data.get('messageId', '')
                 encrypted_content = data.get('encryptedContent', '')
                 timestamp         = data.get('timestamp', 0)
                 sender_name       = data.get('senderName', '')
-                message_type      = data.get('messageType', 'dm')
+                message_type      = data.get('messageType', msg_type)
                 duration          = data.get('duration', 0)
 
                 if message_id and encrypted_content:

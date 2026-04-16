@@ -162,58 +162,22 @@ class _ChatsScreenState extends State<ChatsScreen> {
     );
   }
 
-  void _openNearbyUser(String pubkey, {String? suggestedName}) async {
-    final contact = _contacts.firstWhere(
+  void _openNearbyUser(String pubkey, {String? suggestedName}) {
+    // If already a contact, open normally
+    final existing = _contacts.firstWhere(
       (c) => c.pubkey == pubkey,
       orElse: () => Contact(pubkey: pubkey),
     );
-    if (_contacts.any((c) => c.pubkey == pubkey) && !contact.isPending) {
-      _openDm(contact);
+    if (_contacts.any((c) => c.pubkey == pubkey) && !existing.isPending) {
+      _openDm(existing);
       return;
     }
-    // Unknown nearby user — ask for name then add
+    // Not a contact — open chat directly using name or short ID as label.
+    // User is NOT added to contacts; they can do that explicitly from within the chat.
     final cleanName = suggestedName?.replaceAll(RegExp(r'\s*#\d+$'), '').trim();
-    final nameController = TextEditingController(text: cleanName ?? '');
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Nearby User'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: Theme.of(ctx).colorScheme.surface, borderRadius: BorderRadius.circular(8)),
-              child: Text(
-                '#${Contact.shortIdFor(pubkey)}',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.mint, letterSpacing: 2),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: nameController,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Name (optional)', hintText: 'Give them a name'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, nameController.text.trim()), child: const Text('Add & Chat')),
-        ],
-      ),
-    );
-    if (name == null) return;
-    final displayName = name.isNotEmpty ? name : null;
-    await widget.dbService.insertContact(Contact(pubkey: pubkey, name: displayName));
-    await _loadAll();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(displayName != null ? '$displayName added to contacts' : 'Contact added'),
-      duration: const Duration(seconds: 2),
-    ));
+    final displayName = (cleanName != null && cleanName.isNotEmpty)
+        ? cleanName
+        : '#${Contact.shortIdFor(pubkey)}';
     _openDm(Contact(pubkey: pubkey, name: displayName));
   }
 
@@ -473,7 +437,12 @@ class _ChatsScreenState extends State<ChatsScreen> {
 
   Widget _buildDmTile(_DmItem item) {
     final contact = item.contact;
-    final label = contact.name?.isNotEmpty == true ? contact.name! : '#${contact.shortId}';
+    final senderName = item.lastMessage.senderName;
+    final label = contact.name?.isNotEmpty == true
+        ? contact.name!
+        : (senderName != null && senderName.isNotEmpty)
+            ? senderName
+            : '#${contact.shortId}';
     final hasUnread = item.unread > 0;
     final myPubkey = widget.messageService.publicKey;
 

@@ -1088,7 +1088,7 @@ class _Bubble extends StatelessWidget {
       ),
     );
 
-    final isPending = isMe && message.status == 'pending';
+    final isFailed = isMe && message.status == 'failed';
 
     return GestureDetector(
       onLongPress: () => _showMessageMenu(context),
@@ -1099,7 +1099,7 @@ class _Bubble extends StatelessWidget {
           children: [
             bubble,
             if (reactions.isNotEmpty) _buildReactions(context),
-            if (isPending && onRetry != null)
+            if (isFailed && onRetry != null)
               GestureDetector(
                 onTap: onRetry,
                 child: Padding(
@@ -1504,7 +1504,7 @@ class _ImageBubbleState extends State<_ImageBubble> {
       ),
     );
 
-    final isPending = widget.isMe && widget.message.status == 'pending';
+    final isFailed = widget.isMe && widget.message.status == 'failed';
 
     return Align(
       alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -1534,7 +1534,7 @@ class _ImageBubbleState extends State<_ImageBubble> {
                 }).toList(),
               ),
             ),
-          if (isPending && widget.onRetry != null)
+          if (isFailed && widget.onRetry != null)
             GestureDetector(
               onTap: widget.onRetry,
               child: Padding(
@@ -1897,7 +1897,7 @@ class _VoiceBubbleState extends State<_VoiceBubble> {
                   }).toList(),
                 ),
               ),
-            if (isMe && widget.message.status == 'pending' && widget.messageService != null)
+            if (isMe && widget.message.status == 'failed' && widget.messageService != null)
               GestureDetector(
                 onTap: () => widget.messageService!.retryPendingMessages(),
                 child: Padding(

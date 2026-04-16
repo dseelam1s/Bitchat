@@ -10,6 +10,7 @@ urlpatterns = [
     path('auth/',                   views.auth,           name='auth'),
     path('lookup/',                 views.lookup,         name='lookup'),
     path('restore/',                views.restore,        name='restore'),
+    path('profile/upload-picture/',         views.profile_picture_upload,   name='profile_picture_upload'),
     path('profile/<str:pubkey>/',   views.profile_get,    name='profile_get'),
 
     # ── Authenticated ─────────────────────────────────────────────
@@ -19,7 +20,6 @@ urlpatterns = [
     path('contacts/backup/fetch/',  views.contacts_backup_fetch,    name='contacts_backup_fetch'),
     path('push-token/',             views.push_token,     name='push_token'),
     path('profile/',                        views.profile_update,           name='profile_update'),
-    path('profile/upload-picture/',         views.profile_picture_upload,   name='profile_picture_upload'),
     path('messages/image/upload/',          views.message_image_upload,     name='message_image_upload'),
     path('messages/audio/upload/',          views.message_audio_upload,     name='message_audio_upload'),
     path('notify/',                         views.notify,                   name='notify'),
