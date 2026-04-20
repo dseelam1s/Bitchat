@@ -113,9 +113,11 @@ class CallService {
 
   // ── Outgoing call ────────────────────────────────────────────────────────
 
-  Future<void> startCall(String remotePubkey, {String? remoteName, bool isVideo = false}) async {
-    if (hasActiveCall) return; // already in a call
-    if (_myPubkey != null && remotePubkey == _myPubkey) return; // can't call yourself
+  /// Returns null on success, or an error string if the call can't be started.
+  Future<String?> startCall(String remotePubkey, {String? remoteName, bool isVideo = false}) async {
+    if (hasActiveCall) return null;
+    if (_myPubkey != null && remotePubkey == _myPubkey) return null;
+    if (!_signalingService.isConnected) return 'Not connected to server — please wait a moment and try again';
 
     final callId = _uuid.v4();
     _currentCall = CallSession(
@@ -134,7 +136,7 @@ class CallService {
 
     // Capture local ref — _endCallLocally may null this out concurrently
     final pc = _peerConnection;
-    if (pc == null) return;
+    if (pc == null) return null;
 
     // Create WebRTC offer
     final offer = await pc.createOffer(_sdpConstraints(video: isVideo));
@@ -163,6 +165,7 @@ class CallService {
         _endCallLocally(reason: 'no_answer');
       }
     });
+    return null;
   }
 
   // ── Incoming call ────────────────────────────────────────────────────────

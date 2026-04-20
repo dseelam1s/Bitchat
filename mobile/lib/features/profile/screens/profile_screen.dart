@@ -385,11 +385,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ));
               final ok = await ServerService().ping();
               if (!mounted) return;
+              final wsConnected = widget.messageService.isSignalingConnected;
               messenger.hideCurrentSnackBar();
+              final String msg;
+              final Color color;
+              if (!ok) {
+                msg = 'Server unreachable — check your internet connection';
+                color = Colors.red[700]!;
+              } else if (!wsConnected) {
+                msg = 'Server reachable but real-time connection not ready yet — wait a few seconds';
+                color = Colors.orange[700]!;
+              } else {
+                msg = 'Server reachable and real-time connection active';
+                color = Colors.green[700]!;
+              }
               messenger.showSnackBar(SnackBar(
-                content: Text(ok ? 'Server is reachable' : 'Server unreachable — check your internet connection'),
-                backgroundColor: ok ? Colors.green[700] : Colors.red[700],
-                duration: const Duration(seconds: 3),
+                content: Text(msg),
+                backgroundColor: color,
+                duration: const Duration(seconds: 4),
               ));
             },
           ),

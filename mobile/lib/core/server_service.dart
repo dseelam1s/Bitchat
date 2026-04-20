@@ -420,41 +420,37 @@ class ServerService {
     required String publicKey,
     required String shortId,
     required String displayName,
+    void Function()? onAuthenticated,
   }) async {
     try {
       // ── Step 1: Wake the server ───────────────────────────────────────────
-      // Render free tier sleeps after 15 min inactivity and takes 30–45 s to
-      // spin back up. wakeup() waits up to 50 s so auth never hits a cold server.
       final isUp = await wakeup();
-      if (!isUp) return; // completely unreachable — app works offline as normal
+      if (!isUp) return;
 
       // ── Step 2: Authenticate with retry ──────────────────────────────────
-      // Even after wakeup the first auth request can occasionally fail if the
-      // server is still initialising its DB pool. Retry up to 3 times.
       Map<String, dynamic>? authResult;
       for (int attempt = 0; attempt < 3; attempt++) {
         if (attempt > 0) await Future.delayed(const Duration(seconds: 5));
         authResult = await authenticate(privateKey, publicKey);
         if (authResult != null) break;
       }
-      if (authResult == null) return; // auth failed after retries
+      if (authResult == null) return;
 
-      // ── Step 3: Register FCM push token ──────────────────────────────────
-      // Done on every launch so token rotation is always synced to the server.
-      try {
-        final fcmToken = await FirebaseMessaging.instance.getToken();
-        if (fcmToken != null) {
-          await registerFcmToken(fcmToken);
-        }
-        // Re-attach refresh listener every launch (Firebase deduplicates internally)
-        FirebaseMessaging.instance.onTokenRefresh.listen(registerFcmToken);
-      } catch (_) {
-        // Firebase not configured — push notifications disabled
-      }
+      // ── Auth done — notify caller immediately so WebSocket can connect ────
+      // FCM registration and short-ID registration happen in parallel after this.
+      onAuthenticated?.call();
 
-      // ── Step 4: Register short ID ────────────────────────────────────────
-      // Called on every launch — server uses get_or_create so it's idempotent.
-      await registerShortId(shortId, displayName);
+      // ── Steps 3 & 4 in parallel ──────────────────────────────────────────
+      await Future.wait([
+        () async {
+          try {
+            final fcmToken = await FirebaseMessaging.instance.getToken();
+            if (fcmToken != null) await registerFcmToken(fcmToken);
+            FirebaseMessaging.instance.onTokenRefresh.listen(registerFcmToken);
+          } catch (_) {}
+        }(),
+        registerShortId(shortId, displayName),
+      ]);
     } catch (_) {
       // Server errors must never surface to the user
     }

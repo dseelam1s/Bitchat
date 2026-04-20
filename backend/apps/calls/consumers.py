@@ -33,10 +33,14 @@ class SignalingConsumer(AsyncWebsocketConsumer):
     """
 
     async def connect(self):
+        import logging
+        logger = logging.getLogger(__name__)
+
         query_string = self.scope.get('query_string', b'').decode()
         token_str    = self._parse_token(query_string)
 
         if not token_str:
+            logger.warning('WS rejected: no token in query string')
             await self.close(code=4001)
             return
 
@@ -45,10 +49,20 @@ class SignalingConsumer(AsyncWebsocketConsumer):
             user_id = token['user_id']
             user    = await self._get_user(user_id)
             if user is None:
+                logger.warning('WS rejected: user_id=%s not found', user_id)
                 await self.close(code=4001)
                 return
             self.pubkey = user.username
-        except (InvalidToken, TokenError, KeyError):
+        except (InvalidToken, TokenError) as e:
+            logger.warning('WS rejected: token invalid — %s', e)
+            await self.close(code=4001)
+            return
+        except KeyError as e:
+            logger.warning('WS rejected: missing claim %s', e)
+            await self.close(code=4001)
+            return
+        except Exception as e:
+            logger.warning('WS rejected: unexpected error — %s', e)
             await self.close(code=4001)
             return
 

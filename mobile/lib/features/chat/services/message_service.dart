@@ -81,6 +81,7 @@ class MessageService {
   Set<String> get nearbyUsers => _bitchatService.nearbyPubkeys;
   Stream<Set<String>> get nearbyChangedStream => _bitchatService.nearbyChangedStream;
   bool get hasInternet => _hasInternet;
+  bool get isSignalingConnected => _signalingService?.isConnected == true;
   bool get hasNearbyDevices => _bitchatService.nearbyPubkeys.isNotEmpty;
   Map<String, String> get nearbyDeviceNames => _bitchatService.nearbyDeviceNames;
   Map<String, String> get nearbyDeviceProfilePictures => _bitchatService.nearbyDeviceProfilePictures;

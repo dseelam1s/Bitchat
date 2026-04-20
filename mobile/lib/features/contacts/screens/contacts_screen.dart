@@ -130,8 +130,9 @@ class _RecentsTabState extends State<_RecentsTab> {
       orElse: () => Contact(pubkey: log.remotePubkey),
     );
 
-    await cs.startCall(log.remotePubkey, remoteName: contact.name ?? log.remoteName);
+    final err = await cs.startCall(log.remotePubkey, remoteName: contact.name ?? log.remoteName);
     if (!mounted) return;
+    if (err != null) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err))); return; }
     Navigator.push(context, MaterialPageRoute(builder: (_) => InCallScreen(callService: cs)));
   }
 
@@ -203,8 +204,9 @@ class _RecentsTabState extends State<_RecentsTab> {
                     : null;
 
                 Navigator.of(ctx).pop();
-                await cs.startCall(pubkey, remoteName: name);
+                final err = await cs.startCall(pubkey, remoteName: name);
                 if (!mounted) return;
+                if (err != null) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err))); return; }
                 Navigator.push(context, MaterialPageRoute(
                   builder: (_) => InCallScreen(callService: cs),
                 ));
@@ -785,8 +787,12 @@ class _ContactsTabState extends State<_ContactsTab> {
     final cs = widget.callService;
     if (cs == null || !widget.messageService.hasInternet) return;
     if (cs.hasActiveCall) return;
-    await cs.startCall(contact.pubkey, remoteName: contact.name);
+    final err = await cs.startCall(contact.pubkey, remoteName: contact.name);
     if (!mounted) return;
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      return;
+    }
     Navigator.push(context, MaterialPageRoute(builder: (_) => InCallScreen(callService: cs)));
   }
 

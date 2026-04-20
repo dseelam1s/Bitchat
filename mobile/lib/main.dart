@@ -448,17 +448,14 @@ class _AppInitializerState extends State<AppInitializer>
           publicKey: keyManager.publicKey!,
           shortId: Contact.shortIdFor(keyManager.publicKey!),
           displayName: keyManager.username ?? '',
+          onAuthenticated: () {
+            // JWT is ready — connect WebSocket immediately.
+            // FCM token + short-ID registration continue in parallel.
+            signalingService.connect();
+          },
         ).then((_) async {
-          // Connect real-time WebSocket now that we have a JWT
-          signalingService.connect();
-
-          // Re-fetch messages that arrived while the server was waking up.
-          // The initial fetch in initialize() ran with no auth token and
-          // returned empty — this catches up on anything we missed.
+          // Full registration done — catch up on missed messages.
           await messageService.fetchMissedServerMessages();
-
-          // Flush any outgoing messages that were queued as 'pending'
-          // while the server was starting up.
           messageService.retryPendingMessages();
 
           // Restore contacts on first launch (needs auth to decrypt backup)

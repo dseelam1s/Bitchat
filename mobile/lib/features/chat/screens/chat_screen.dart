@@ -229,8 +229,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 title: const Text('Voice call'),
                 onTap: () async {
                   Navigator.pop(ctx);
-                  await cs.startCall(widget.contactPubkey, remoteName: widget.contactName);
+                  final err = await cs.startCall(widget.contactPubkey, remoteName: widget.contactName);
                   if (!mounted) return;
+                  if (err != null) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err))); return; }
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => InCallScreen(callService: cs)),
@@ -242,12 +243,13 @@ class _ChatScreenState extends State<ChatScreen> {
                 title: const Text('Video call'),
                 onTap: () async {
                   Navigator.pop(ctx);
-                  await cs.startCall(
+                  final err = await cs.startCall(
                     widget.contactPubkey,
                     remoteName: widget.contactName,
                     isVideo: true,
                   );
                   if (!mounted) return;
+                  if (err != null) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err))); return; }
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => InCallScreen(callService: cs)),
