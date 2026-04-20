@@ -4,10 +4,11 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from datetime import timedelta
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import AccessToken
 
-from bitchat.models import BitChatIdentity, Message
+from bitchat.models import BitChatIdentity, Message, PendingCallOffer
 from apps.push.firebase_utils import send_push
 
 User = get_user_model()
@@ -55,6 +56,9 @@ class SignalingConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
+        # Replay any pending call offers that arrived while app was backgrounded/killed
+        await self._replay_pending_call_offers()
+
     async def disconnect(self, close_code):
         if hasattr(self, 'group_name'):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
@@ -65,7 +69,7 @@ class SignalingConsumer(AsyncWebsocketConsumer):
         except (json.JSONDecodeError, ValueError):
             return
 
-        msg_type      = data.get('type', '')
+        msg_type      = data.get('type') or data.get('__type', '')
         recipient_pub = data.get('recipientPubkey', '')
 
         # ── Real-time message routing ─────────────────────────────────────────
@@ -119,11 +123,20 @@ class SignalingConsumer(AsyncWebsocketConsumer):
             {'type': 'signal.message', 'payload': data},
         )
 
-        # For call_offer: also send FCM push so receiver wakes up
-        # even if their WebSocket isn't connected (app in background/killed)
         if msg_type == 'call_offer':
+            # Store offer so it can be replayed if receiver's WS wasn't connected
+            call_id = data.get('callId', '')
+            if call_id:
+                await self._store_call_offer(call_id, recipient_pub, data)
+            # FCM push wakes app in background/killed — WS replay delivers the SDP
             caller_name = data.get('callerName') or 'Someone'
             await self._push_notify_call(recipient_pub, caller_name)
+
+        elif msg_type in ('call_answer', 'call_ended', 'call_declined', 'call_busy'):
+            # Call resolved — delete pending offer so it isn't replayed on reconnect
+            call_id = data.get('callId', '')
+            if call_id:
+                await self._delete_call_offer(call_id)
 
     async def signal_message(self, event):
         await self.send(text_data=json.dumps(event['payload']))
@@ -189,6 +202,48 @@ class SignalingConsumer(AsyncWebsocketConsumer):
                 )
         except Exception:
             pass
+
+    @database_sync_to_async
+    def _store_call_offer(self, call_id, receiver_pub, payload):
+        PendingCallOffer.objects.update_or_create(
+            call_id=call_id,
+            defaults={
+                'caller_pubkey':  self.pubkey,
+                'receiver_pubkey': receiver_pub,
+                'payload':        json.dumps(payload),
+                'expires_at':     timezone.now() + timedelta(seconds=60),
+            },
+        )
+
+    @database_sync_to_async
+    def _delete_call_offer(self, call_id):
+        PendingCallOffer.objects.filter(call_id=call_id).delete()
+
+    async def _replay_pending_call_offers(self):
+        offers = await self._fetch_pending_offers()
+        for offer in offers:
+            try:
+                payload = json.loads(offer['payload'])
+                await self.send(text_data=json.dumps(payload))
+            except Exception:
+                pass
+        if offers:
+            await self._delete_delivered_offers(self.pubkey)
+
+    @database_sync_to_async
+    def _fetch_pending_offers(self):
+        now = timezone.now()
+        # Delete stale offers first, then return live ones
+        PendingCallOffer.objects.filter(expires_at__lt=now).delete()
+        return list(
+            PendingCallOffer.objects
+            .filter(receiver_pubkey=self.pubkey, expires_at__gte=now)
+            .values('payload')
+        )
+
+    @database_sync_to_async
+    def _delete_delivered_offers(self, receiver_pub):
+        PendingCallOffer.objects.filter(receiver_pubkey=receiver_pub).delete()
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 

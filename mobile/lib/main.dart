@@ -57,6 +57,18 @@ void _openChatFromPubkey(String senderPubkey) async {
   ));
 }
 
+/// Handle a notification tap — routes to chat for messages, ignores for calls.
+/// (Call signals are delivered over WebSocket; tapping a call notification when
+/// the app is backgrounded/killed cannot replay the WebRTC offer.)
+void _handleNotificationTap(RemoteMessage message) {
+  final type = message.data['type'] as String?;
+  if (type == 'call') return; // call offer comes via WebSocket, not tap
+  final senderPubkey = message.data['senderPubkey'] as String?;
+  if (senderPubkey != null && senderPubkey.isNotEmpty) {
+    _openChatFromPubkey(senderPubkey);
+  }
+}
+
 // Must be top-level — called by FCM when app is in background/terminated
 @pragma('vm:entry-point')
 Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
@@ -100,10 +112,15 @@ void main() async {
         iOS: DarwinInitializationSettings(),
       ),
       onDidReceiveNotificationResponse: (details) {
-        // Tap on foreground local notification
+        // Tap on foreground local notification — payload is "type|senderPubkey"
         final payload = details.payload;
         if (payload != null && payload.isNotEmpty) {
-          _openChatFromPubkey(payload);
+          final parts = payload.split('|');
+          final notifType = parts.length > 1 ? parts[0] : null;
+          final pubkey = parts.length > 1 ? parts[1] : parts[0];
+          if (notifType != 'call' && pubkey.isNotEmpty) {
+            _openChatFromPubkey(pubkey);
+          }
         }
       },
     );
@@ -116,6 +133,7 @@ void main() async {
     FirebaseMessaging.onMessage.listen((message) {
       final notification = message.notification;
       if (notification == null) return;
+      final notifType = message.data['type'] as String?;
       final senderPubkey = message.data['senderPubkey'] as String?;
       _localNotifications.show(
         notification.hashCode,
@@ -131,28 +149,21 @@ void main() async {
             icon: '@mipmap/ic_launcher',
           ),
         ),
-        payload: senderPubkey, // passed to onDidReceiveNotificationResponse
+        // encode type so tap handler can skip opening chat for calls
+        payload: '${notifType ?? ''}|${senderPubkey ?? ''}',
       );
     });
 
     // App in background — user taps notification
-    FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      final senderPubkey = message.data['senderPubkey'] as String?;
-      if (senderPubkey != null && senderPubkey.isNotEmpty) {
-        _openChatFromPubkey(senderPubkey);
-      }
-    });
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
 
     // App was terminated — user taps notification that launched the app
     final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
     if (initialMessage != null) {
-      final senderPubkey = initialMessage.data['senderPubkey'] as String?;
-      if (senderPubkey != null && senderPubkey.isNotEmpty) {
-        // Delay until the app's navigator is ready
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _openChatFromPubkey(senderPubkey);
-        });
-      }
+      // Delay until the app's navigator is ready
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleNotificationTap(initialMessage);
+      });
     }
   } catch (_) {
     // Firebase not configured — push notifications disabled, app works normally.

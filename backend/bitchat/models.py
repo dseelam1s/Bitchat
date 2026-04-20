@@ -138,6 +138,29 @@ class Message(models.Model):
         return f'{self.message_id[:8]}... {self.sender_pubkey[:8]}→{self.receiver_pubkey[:8]} [{self.status}]'
 
 
+class PendingCallOffer(models.Model):
+    """
+    Stores a WebRTC call offer for a receiver whose app was backgrounded/killed.
+    On reconnect, the server replays the offer so the receiver's call screen appears.
+    Expires after 60 seconds (matches caller's ring timeout) and is deleted on delivery.
+    """
+    call_id        = models.CharField(max_length=128, unique=True, db_index=True)
+    caller_pubkey  = models.CharField(max_length=128)
+    receiver_pubkey = models.CharField(max_length=128, db_index=True)
+    payload        = models.TextField()   # full JSON of the original call_offer payload
+    expires_at     = models.DateTimeField()
+    created_at     = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['receiver_pubkey', 'expires_at']),
+        ]
+        verbose_name = 'Pending Call Offer'
+
+    def __str__(self):
+        return f'Call {self.call_id[:8]}... {self.caller_pubkey[:8]}→{self.receiver_pubkey[:8]}'
+
+
 class PendingMessage(models.Model):
     """
     Stores an encrypted mesh message relayed by an internet-connected device (C)
