@@ -3,56 +3,32 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:bitchat_messenger/core/theme.dart';
-import 'package:bitchat_messenger/features/channels/models/channel.dart';
 import 'package:bitchat_messenger/features/contacts/models/contact.dart';
 import 'package:bitchat_messenger/features/chat/models/message.dart';
 import 'package:bitchat_messenger/features/calls/services/call_service.dart';
-import 'package:bitchat_messenger/features/channels/services/channel_service.dart';
 import 'package:bitchat_messenger/core/database_service.dart';
 import 'package:bitchat_messenger/features/chat/services/message_service.dart';
 import 'package:bitchat_messenger/features/profile/services/profile_sync_service.dart';
-import 'package:bitchat_messenger/features/channels/screens/channel_chat_screen.dart';
 import 'package:bitchat_messenger/features/chat/screens/chat_screen.dart';
 
-// ── Unified list item ─────────────────────────────────────────────────────────
-
-abstract class _ChatItem {
-  int get sortTimestamp;
-}
-
-class _DmItem implements _ChatItem {
+class _DmItem {
   final Contact contact;
   final Message lastMessage;
   final int unread;
   final bool isNearby;
   _DmItem({required this.contact, required this.lastMessage, required this.unread, required this.isNearby});
-  @override
   int get sortTimestamp => lastMessage.timestamp;
 }
-
-class _ChannelItem implements _ChatItem {
-  final Channel channel;
-  final String? lastText;
-  final int lastTs;
-  final int unread;
-  _ChannelItem({required this.channel, required this.lastText, required this.lastTs, required this.unread});
-  @override
-  int get sortTimestamp => lastTs;
-}
-
-// ── ChatsScreen ───────────────────────────────────────────────────────────────
 
 class ChatsScreen extends StatefulWidget {
   final DatabaseService dbService;
   final MessageService messageService;
-  final ChannelService channelService;
   final CallService? callService;
 
   const ChatsScreen({
     super.key,
     required this.dbService,
     required this.messageService,
-    required this.channelService,
     this.callService,
   });
 
@@ -64,10 +40,8 @@ class _ChatsScreenState extends State<ChatsScreen> {
   List<Contact> _contacts = [];
   Map<String, Message> _lastMessages = {};
   Map<String, int> _unreadCounts = {};
-  List<Channel> _channels = [];
   StreamSubscription? _nearbySub;
   StreamSubscription? _messageSub;
-  StreamSubscription? _channelSub;
   Timer? _reloadDebounce;
 
   @override
@@ -85,9 +59,6 @@ class _ChatsScreenState extends State<ChatsScreen> {
       _reloadDebounce = Timer(const Duration(milliseconds: 300), () {
         if (mounted) _loadAll();
       });
-    });
-    _channelSub = widget.channelService.channelListStream.listen((channels) {
-      if (mounted) setState(() => _channels = channels);
     });
   }
 
@@ -116,7 +87,6 @@ class _ChatsScreenState extends State<ChatsScreen> {
     _reloadDebounce?.cancel();
     _nearbySub?.cancel();
     _messageSub?.cancel();
-    _channelSub?.cancel();
     super.dispose();
   }
 
@@ -124,13 +94,11 @@ class _ChatsScreenState extends State<ChatsScreen> {
     final contacts = await widget.dbService.getContacts();
     final lastMessages = await widget.messageService.getLastMessages();
     final unreadCounts = await widget.messageService.getUnreadCounts();
-    final channels = widget.channelService.activeChannels;
     if (!mounted) return;
     setState(() {
       _contacts = contacts;
       _lastMessages = lastMessages;
       _unreadCounts = unreadCounts;
-      _channels = channels;
     });
   }
 
@@ -148,18 +116,6 @@ class _ChatsScreenState extends State<ChatsScreen> {
         ),
       ),
     ).then((_) => _loadAll());
-  }
-
-  void _openChannel(Channel channel) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ChannelChatScreen(
-          channel: channel,
-          channelService: widget.channelService,
-        ),
-      ),
-    );
   }
 
   void _openNearbyUser(String pubkey, {String? suggestedName}) {
@@ -181,85 +137,9 @@ class _ChatsScreenState extends State<ChatsScreen> {
     _openDm(Contact(pubkey: pubkey, name: displayName));
   }
 
-  void _showCreateChannelDialog() {
-    final controller = TextEditingController();
-    bool isPrivate = false;
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setInner) => AlertDialog(
-          title: const Text('Create Channel'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: controller,
-                autofocus: true,
-                decoration: const InputDecoration(hintText: 'Channel name'),
-                textCapitalization: TextCapitalization.words,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  _typeChip('Public', Icons.tag, !isPrivate, () => setInner(() => isPrivate = false)),
-                  const SizedBox(width: 10),
-                  _typeChip('Private', Icons.lock_outline, isPrivate, () => setInner(() => isPrivate = true)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                isPrivate ? 'Invite-only. Add members by Short ID.' : 'Visible to all nearby devices.',
-                style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            TextButton(
-              onPressed: () {
-                final name = controller.text.trim();
-                if (name.isNotEmpty) {
-                  if (isPrivate) widget.channelService.createPrivateGroup(name);
-                  else widget.channelService.createChannel(name);
-                  Navigator.pop(ctx);
-                }
-              },
-              child: const Text('Create'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _typeChip(String label, IconData icon, bool selected, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.mint.withAlpha(20) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: selected ? AppColors.mint : AppColors.divider),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: selected ? AppColors.mint : AppColors.textMuted),
-            const SizedBox(width: 5),
-            Text(label, style: TextStyle(fontSize: 12, color: selected ? AppColors.mint : AppColors.textMuted, fontWeight: FontWeight.w500)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  List<_ChatItem> _buildUnifiedList() {
+  List<_DmItem> _buildList() {
     final nearby = widget.messageService.nearbyUsers;
-    final items = <_ChatItem>[];
-
-    // DM conversations
+    final items = <_DmItem>[];
     final contactPubkeys = {for (final c in _contacts) c.pubkey};
     for (final contact in _contacts) {
       final lastMsg = _lastMessages[contact.pubkey];
@@ -271,28 +151,38 @@ class _ChatsScreenState extends State<ChatsScreen> {
         isNearby: nearby.contains(contact.pubkey),
       ));
     }
-    // Unknown senders (not in contacts)
     for (final pubkey in _lastMessages.keys) {
       if (!contactPubkeys.contains(pubkey)) {
         final lastMsg = _lastMessages[pubkey]!;
+        // Resolve best available name for non-saved contacts:
+        // 1. BLE device name (if nearby), 2. senderName from a received message
+        final bleRaw = widget.messageService.nearbyDeviceNames[pubkey];
+        final bleName = bleRaw?.replaceAll(RegExp(r'\s*#\d+$'), '').trim();
+        final senderName = lastMsg.senderPubkey == pubkey ? lastMsg.senderName : null;
+        final name = (bleName?.isNotEmpty == true)
+            ? bleName
+            : (senderName?.isNotEmpty == true)
+                ? senderName
+                : null;
         items.add(_DmItem(
-          contact: Contact(pubkey: pubkey),
+          contact: Contact(pubkey: pubkey, name: name),
           lastMessage: lastMsg,
           unread: _unreadCounts[pubkey] ?? 0,
           isNearby: nearby.contains(pubkey),
         ));
       }
     }
-
-    // Channels hidden for now — DMs only in this phase.
-
     items.sort((a, b) => b.sortTimestamp.compareTo(a.sortTimestamp));
     return items;
   }
 
   @override
   Widget build(BuildContext context) {
-    final items = _buildUnifiedList();
+    final items = _buildList();
+    final nearby = widget.messageService.nearbyUsers.toList();
+    final names = widget.messageService.nearbyDeviceNames;
+    final contactMap = {for (final c in _contacts) c.pubkey: c};
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -303,21 +193,25 @@ class _ChatsScreenState extends State<ChatsScreen> {
           ],
         ),
       ),
-      body: items.isEmpty
-          ? _buildEmpty()
-          : ListView.builder(
-              padding: const EdgeInsets.only(top: 4, bottom: 100),
-              itemCount: items.length,
-              itemBuilder: (_, i) {
-                final item = items[i];
-                if (item is _DmItem) return _buildDmTile(item);
-                return const SizedBox.shrink();
-              },
-            ),
+      body: Column(
+        children: [
+          if (nearby.isNotEmpty)
+            _buildStoriesBar(nearby, names, contactMap),
+          Expanded(
+            child: items.isEmpty
+                ? _buildEmpty()
+                : ListView.builder(
+                    padding: const EdgeInsets.only(top: 4, bottom: 100),
+                    itemCount: items.length,
+                    itemBuilder: (_, i) => _buildDmTile(items[i]),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildStoriesBar(List<String> nearby, Map<String, String> names, Map<String, Contact> contactMap, Channel defaultChannel) {
+  Widget _buildStoriesBar(List<String> nearby, Map<String, String> names, Map<String, Contact> contactMap) {
     final overflow = nearby.length > 7 ? nearby.length - 6 : 0;
     final visible = nearby.take(overflow > 0 ? 6 : nearby.length).toList();
 
@@ -330,13 +224,6 @@ class _ChatsScreenState extends State<ChatsScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         children: [
-          // Nearby broadcast — always first
-          _buildStoryBubble(
-            label: 'Nearby',
-            icon: Icons.cell_tower,
-            color: AppColors.mint,
-            onTap: () => _openChannel(defaultChannel),
-          ),
           // Nearby devices
           ...visible.map((pubkey) {
             final contact = contactMap[pubkey];
@@ -507,72 +394,6 @@ class _ChatsScreenState extends State<ChatsScreen> {
                             ),
                           ),
                         ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(Icons.chevron_right, size: 18, color: AppColors.textMuted.withAlpha(100)),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildChannelTile(_ChannelItem item) {
-    final channel = item.channel;
-    final color = channel.isPrivate ? AppColors.amber : AppColors.blue;
-    final icon = channel.isPrivate ? Icons.lock_outline : Icons.tag;
-    final hasUnread = item.unread > 0;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: Material(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => _openChannel(channel),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                Stack(
-                  children: [
-                    Container(
-                      width: 42, height: 42,
-                      decoration: BoxDecoration(color: color.withAlpha(18), borderRadius: BorderRadius.circular(12)),
-                      child: Icon(icon, size: 18, color: color),
-                    ),
-                    if (hasUnread)
-                      Positioned(
-                        right: -1, top: -1,
-                        child: Container(
-                          width: 18, height: 18,
-                          decoration: BoxDecoration(color: AppColors.mint, shape: BoxShape.circle, border: Border.all(color: Theme.of(context).cardColor, width: 2)),
-                          child: Center(child: Text(item.unread > 9 ? '9+' : '${item.unread}', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white))),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(child: Text(channel.name, style: TextStyle(fontSize: 14, fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w500), overflow: TextOverflow.ellipsis)),
-                          if (item.lastTs > 0)
-                            Text(_formatTime(item.lastTs), style: TextStyle(fontSize: 10, color: hasUnread ? AppColors.mint : AppColors.textMuted)),
-                        ],
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        channel.isPrivate ? 'Private group' : 'Public channel',
-                        style: TextStyle(fontSize: 12, color: AppColors.textMuted.withAlpha(150)),
                       ),
                     ],
                   ),

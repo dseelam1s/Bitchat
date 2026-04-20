@@ -52,6 +52,7 @@ class CallService {
   bool _isCameraOff = false;
 
   String? _myPubkey;
+  String? _myName;
 
   final _callStateController = StreamController<CallSession?>.broadcast();
   final _remoteStreamController = StreamController<MediaStream?>.broadcast();
@@ -98,24 +99,17 @@ class CallService {
           _currentCall!.state == CallState.ringing ||
           _currentCall!.state == CallState.connected);
 
-  /// Send a call signal. Tries WebSocket first; falls back to Nostr relay.
+  /// Send a call signal via WebSocket signaling server.
   Future<void> _sendSignal(String recipientPubkey, Map<String, dynamic> payload) async {
-    // Add recipientPubkey so the server knows where to route it
     final withRecipient = {...payload, 'recipientPubkey': recipientPubkey};
-    final sentViaWs = _signalingService.send(withRecipient);
-    if (!sentViaWs) {
-      // WebSocket not connected — fall back to Nostr relay
-      await _nostrService.sendCallSignal(
-        recipientPubkey: recipientPubkey,
-        payload: payload,
-      );
-    }
+    _signalingService.send(withRecipient);
   }
 
   /// Wired in main.dart to persist call logs to the database.
   void Function(CallLog log)? onCallLogged;
 
   void setMyPubkey(String pubkey) => _myPubkey = pubkey;
+  void setMyName(String? name) => _myName = name;
 
   // ── Outgoing call ────────────────────────────────────────────────────────
 
@@ -152,7 +146,7 @@ class CallService {
       'callId': callId,
       'sdp': offer.sdp,
       'sdpType': offer.type,
-      'callerName': remoteName ?? '',
+      'callerName': _myName ?? '',
       'isVideo': isVideo,
     });
 

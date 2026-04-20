@@ -243,10 +243,6 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                 ],
               ],
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCreateChannelDialog,
-        child: const Icon(Icons.add),
-      ),
     );
   }
 }

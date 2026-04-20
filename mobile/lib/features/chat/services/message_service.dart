@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:nostr_tools/nostr_tools.dart' hide Message;
+import 'package:nostr_tools/nostr_tools.dart' show Nip04;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bitchat_messenger/core/bounded_set.dart';
 import 'package:bitchat_messenger/core/constants.dart';
@@ -12,15 +11,12 @@ import 'package:bitchat_messenger/core/nip44.dart';
 import 'package:bitchat_messenger/features/contacts/models/contact.dart';
 import 'package:bitchat_messenger/features/chat/models/message.dart';
 import 'package:bitchat_messenger/core/database_service.dart';
-import 'package:bitchat_messenger/core/image_sharing_service.dart';
 import 'package:bitchat_messenger/core/nostr_service.dart';
 import 'package:bitchat_messenger/features/mesh/services/bitchat_service.dart';
 import 'package:bitchat_messenger/core/server_service.dart';
 import 'package:bitchat_messenger/core/signaling_service.dart';
 import 'package:bitchat_messenger/features/profile/services/profile_picture_cache_service.dart';
 import 'package:bitchat_messenger/features/contacts/services/contacts_backup_service.dart';
-import 'package:bitchat_messenger/core/image_download_service.dart';
-import 'package:bitchat_messenger/core/voice_note_service.dart';
 
 class MessageService {
   final NostrService _nostrService;
@@ -32,24 +28,18 @@ class MessageService {
   final _nip44 = Nip44(); // new default encryption
 
   final _messageController = StreamController<Message>.broadcast();
-  final _reactionsController = StreamController<String>.broadcast(); // emits messageId
-  final voiceNoteService = VoiceNoteService();
-  final imageSharingService = ImageSharingService();
-  // messageId → emoji → set of senderPubkeys
-  final Map<String, Map<String, Set<String>>> _reactions = {};
   String _mode = AppConstants.modeAuto;
   int _ttl = AppConstants.defaultTTL;
   bool _hasInternet = false;
   String? _profilePictureUrl;
-  // In-memory dedup set — guards against the race condition where Nostr and
+  // In-memory dedup set — guards against the race condition where server and
   // BLE deliver the same message simultaneously before either DB write commits.
   final _processingIds = BoundedSet<String>(2000);
   SignalingService? _signalingService;
-  StreamSubscription? _nostrSub;
   StreamSubscription? _bitchatSub;
   StreamSubscription? _nearbySub;
   StreamSubscription? _connectivitySub;
-  StreamSubscription? _meshRelayNostrSub;
+  StreamSubscription? _meshRelayServerSub;
   StreamSubscription? _deliveryReceiptSub;
   Timer? _retryTimer;
 
@@ -83,66 +73,22 @@ class MessageService {
   Stream<Message> get messageStream => _messageController.stream;
   /// Emits the senderPubkey whenever a typing indicator arrives for us.
   Stream<Map<String, dynamic>> get typingStream => _bitchatService.typingStream;
-  /// Emits the messageId whenever a reaction is added or updated.
-  Stream<String> get reactionsStream => _reactionsController.stream;
   String get mode => _mode;
   String? get publicKey => _keyManager.publicKey;
   String? get privateKey => _keyManager.privateKey;
   String? get username => _keyManager.username;
-  NostrService get nostrService => _nostrService;
   DatabaseService get dbService => _dbService;
   Set<String> get nearbyUsers => _bitchatService.nearbyPubkeys;
   Stream<Set<String>> get nearbyChangedStream => _bitchatService.nearbyChangedStream;
   bool get hasInternet => _hasInternet;
   bool get hasNearbyDevices => _bitchatService.nearbyPubkeys.isNotEmpty;
-  // True only when a Wi-Fi P2P session is active — the only transport that
-  // can carry audio payloads (BLE MTU is too small for audio).
-  // True when media can be sent — Wi-Fi P2P (fast) or BLE chunked (slower fallback)
-  bool get canSendVoiceNote => _bitchatService.canSendMedia;
-  bool get canSendImage => _bitchatService.canSendMedia;
-  // True when Wi-Fi P2P is active — used by UI to show speed hint
-  bool get hasWifiMesh => _bitchatService.hasWifiMesh;
   Map<String, String> get nearbyDeviceNames => _bitchatService.nearbyDeviceNames;
   Map<String, String> get nearbyDeviceProfilePictures => _bitchatService.nearbyDeviceProfilePictures;
   String? get profilePictureUrl => _profilePictureUrl;
 
-  /// Returns the current in-memory reactions for [messageId].
-  /// Map is emoji → set of senderPubkeys.
-  Map<String, Set<String>> reactionsFor(String messageId) =>
-      Map.unmodifiable(_reactions[messageId] ?? {});
-
   /// Send a typing indicator to the current chat contact (throttled by caller).
   Future<void> sendTypingIndicator(String receiverPubkey) async {
     await _bitchatService.sendTypingIndicator(receiverPubkey);
-  }
-
-  /// React to a message with an emoji. Sends to [contactPubkey] and records locally.
-  Future<void> sendReaction(String messageId, String contactPubkey, String emoji) async {
-    if (_keyManager.publicKey == null) return;
-    // Register locally immediately so UI is instant
-    _addReaction(messageId, emoji, _keyManager.publicKey!);
-
-    final msg = Message(
-      id: _keyManager.generateMessageId(),
-      senderPubkey: _keyManager.publicKey!,
-      receiverPubkey: contactPubkey,
-      content: jsonEncode({'messageId': messageId, 'emoji': emoji}),
-      type: AppConstants.typeReaction,
-      timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      ttl: 3,
-      senderName: _keyManager.username,
-    );
-
-    if (_shouldUseOnline()) await _trySendServer(msg);
-    else if (_shouldUseOffline()) await _trySendBitChat(msg);
-  }
-
-  void _addReaction(String messageId, String emoji, String senderPubkey) {
-    _reactions
-        .putIfAbsent(messageId, () => {})
-        .putIfAbsent(emoji, () => {})
-        .add(senderPubkey);
-    _reactionsController.add(messageId);
   }
 
   Future<void> setProfilePictureUrl(String? url) async {
@@ -196,7 +142,9 @@ class MessageService {
     if (type == 'message_ack') {
       final messageId = payload['messageId'] as String?;
       if (messageId != null && messageId.isNotEmpty) {
-        await _dbService.updateMessageStatus(messageId, 'sent');
+        // Use updateMessageStatusIfHigher — if message is already 'delivered'
+        // or 'read', the ack must not regress it back to 'sent'.
+        await _dbService.updateMessageStatusIfHigher(messageId, 'sent');
         _messageController.add(Message(
           id: messageId,
           senderPubkey: _keyManager.publicKey ?? '',
@@ -210,8 +158,8 @@ class MessageService {
       return;
     }
 
-    // ── Incoming DM or reaction ───────────────────────────────────────────────
-    if (type == 'dm' || type == 'reaction') {
+    // ── Incoming DM ──────────────────────────────────────────────────────────
+    if (type == 'dm') {
       final messageId      = payload['messageId'] as String?;
       final senderPubkey   = payload['senderPubkey'] as String?;
       final encryptedContent = payload['encryptedContent'] as String?;
@@ -227,7 +175,6 @@ class MessageService {
         timestamp:      timestamp,
         type:           payload['messageType'] as String? ?? type,
         senderName:     payload['senderName'] as String? ?? '',
-        duration:       payload['duration'] as int? ?? 0,
         meshEncrypted:  true,
         transport:      'websocket',
       );
@@ -258,8 +205,10 @@ class MessageService {
     // ── Read receipt ──────────────────────────────────────────────────────────
     if (type == 'read_receipt') {
       final messageId    = payload['messageId'] as String?;
-      final senderPubkey = payload['senderPubkey'] as String?;
-      if (messageId != null && senderPubkey != null) {
+      // senderPubkey may be absent if the server didn't add it to the relayed
+      // payload — default to empty string so the DB update still fires.
+      final senderPubkey = payload['senderPubkey'] as String? ?? '';
+      if (messageId != null) {
         await _onReadReceipt(messageId, senderPubkey);
       }
       return;
@@ -273,44 +222,25 @@ class MessageService {
   }
 
   void _publishProfile() {
-    if (_keyManager.publicKey == null) return;
-    final shortId = Contact.shortIdFor(_keyManager.publicKey!);
-    _nostrService.publishProfile(
-      username: _keyManager.username,
-      shortId: shortId,
-    );
+    // Profile is synced to server via ServerService during connectAndRegister.
+    // No relay publishing needed.
   }
 
   Future<void> initialize() async {
     // Cancel any existing subscriptions before re-subscribing (guards against
     // initialize() being called more than once, which would leak listeners).
-    _nostrSub?.cancel();
     _bitchatSub?.cancel();
     _nearbySub?.cancel();
     _connectivitySub?.cancel();
-    _meshRelayNostrSub?.cancel();
+    _meshRelayServerSub?.cancel();
     _deliveryReceiptSub?.cancel();
     _retryTimer?.cancel();
 
-    // Set up ALL stream subscriptions first — streams are broadcast controllers
-    // that exist independently of start() being called, so this is safe.
-    _nostrSub = _nostrService.messageStream.listen(_onMessageReceived);
     _bitchatSub = _bitchatService.messageStream.listen(_onMessageReceived);
     _nearbySub = _bitchatService.nearbyChangedStream.listen(_onNearbyChanged);
-    _meshRelayNostrSub = _bitchatService.relayToNostrStream.listen(_onMeshRelayToNostr);
+    _meshRelayServerSub = _bitchatService.relayToNostrStream.listen(_onMeshRelayToServer);
     _deliveryReceiptSub = _bitchatService.deliveryReceiptStream.listen(_onDeliveryReceipt);
 
-    // Set keys for encryption/signing
-    if (_keyManager.hasKeys) {
-      _nostrService.setKeys(_keyManager.privateKey!, _keyManager.publicKey!);
-    }
-
-    // Wire media services
-    _bitchatService.voiceNoteService = voiceNoteService;
-    _bitchatService.imageSharingService = imageSharingService;
-
-    // These two DB/connectivity calls are fast — keep them awaited
-    await _loadLastEventTimestamp();
     _connectivitySub = _connectivity.onConnectivityChanged.listen(_onConnectivityChanged);
     await _checkConnectivity();
 
@@ -318,16 +248,11 @@ class MessageService {
     final prefs = await SharedPreferences.getInstance();
     _profilePictureUrl = prefs.getString('my_profile_picture_url');
 
-    // Load previously received reactions into memory (fast DB read)
-    await _loadReactions();
-
     // ── From here on everything is fire-and-forget ──────────────────────────
-    // Nostr relay WebSocket handshake — can take 500ms–2s per relay.
     // BLE/mesh startup — can take 500ms–1s on Android.
-    // Neither is needed before the HomeScreen is shown.
+    // Not needed before the HomeScreen is shown.
 
     if (_hasInternet) {
-      _connectNostr(); // no await — connects to relays in background
       _fetchPendingFromServer();
       _fetchOnlineMessages();
     }
@@ -351,29 +276,6 @@ class MessageService {
     _retryPendingMessages();
   }
 
-  /// Loads reaction messages from the messages table into the in-memory map.
-  Future<void> _loadReactions() async {
-    try {
-      final db = await _dbService.database;
-      final rows = await db.query('messages',
-          where: 'type = ?', whereArgs: [AppConstants.typeReaction]);
-      for (final row in rows) {
-        try {
-          final data = jsonDecode(row['content'] as String) as Map;
-          final msgId = data['messageId'] as String?;
-          final emoji = data['emoji'] as String?;
-          final sender = row['senderPubkey'] as String?;
-          if (msgId != null && emoji != null && sender != null) {
-            _reactions
-                .putIfAbsent(msgId, () => {})
-                .putIfAbsent(emoji, () => {})
-                .add(sender);
-          }
-        } catch (_) {}
-      }
-    } catch (_) {}
-  }
-
   Future<void> _checkConnectivity() async {
     final result = await _connectivity.checkConnectivity();
     _hasInternet = result.any((r) =>
@@ -389,24 +291,11 @@ class MessageService {
         r == ConnectivityResult.mobile ||
         r == ConnectivityResult.ethernet);
 
-    // Just came online — reconnect to relays, retry pending, fetch server messages
+    // Just came online — retry pending messages and fetch from server
     if (!hadInternet && _hasInternet) {
-      _connectNostr();
       _retryPendingMessages();
       _fetchPendingFromServer();
       _fetchOnlineMessages();
-    }
-  }
-
-  Future<void> _connectNostr() async {
-    try {
-      await _nostrService.connect();
-      if (_keyManager.publicKey != null) {
-        _nostrService.subscribe(_keyManager.publicKey!);
-        _publishProfile();
-      }
-    } catch (_) {
-      // Relay unavailable, will retry
     }
   }
 
@@ -431,19 +320,6 @@ class MessageService {
         } catch (_) {}
       }
     } catch (_) {}
-  }
-
-  Future<void> _loadLastEventTimestamp() async {
-    final prefs = await SharedPreferences.getInstance();
-    final timestamp = prefs.getInt('lastEventTimestamp');
-    if (timestamp != null) {
-      _nostrService.setLastEventTimestamp(timestamp);
-    }
-  }
-
-  Future<void> _saveLastEventTimestamp(int timestamp) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('lastEventTimestamp', timestamp);
   }
 
   void _onNearbyChanged(Set<String> nearbyPubkeys) {
@@ -472,65 +348,25 @@ class MessageService {
     }
   }
 
-  Future<void> _onMeshRelayToNostr(Message message) async {
-    // A mesh message arrived that's not for us — if we have internet, forward it
+  /// A BLE mesh message arrived that's not for us — relay it to the server
+  /// so the intended receiver can fetch it (with push notification).
+  Future<void> _onMeshRelayToServer(Message message) async {
     if (!_hasInternet) return;
+    if (!message.meshEncrypted) return;
+    if (message.type == 'delivery_receipt' || message.type == 'typing_indicator') return;
 
-    // Relay to server — stores for B to fetch + sends push notification to B.
-    // Only relay encrypted DMs (not delivery receipts, typing, reactions).
-    if (message.meshEncrypted && message.type != 'delivery_receipt') {
-      final senderName =
-          (await _dbService.getContactByPubkey(message.senderPubkey))?.name ??
-              'Someone';
-      ServerService().relayMeshMessage(
-        messageId: message.id,
-        senderPubkey: message.senderPubkey,
-        receiverPubkey: message.receiverPubkey,
-        encryptedContent: message.content,
-        timestamp: message.timestamp,
-        messageType: message.type,
-        senderName: senderName,
-      );
-    }
-
-    if (!_nostrService.isConnected) return;
-
-    try {
-      if (message.type == 'delivery_receipt') {
-        // Wrap receipt as JSON in the content field so Nostr can carry it
-        final receiptPayload = Message(
-          id: message.id,
-          senderPubkey: message.senderPubkey,
-          receiverPubkey: message.receiverPubkey,
-          content: jsonEncode({
-            'type': 'delivery_receipt',
-            'originalMessageId': message.content,
-          }),
-          timestamp: message.timestamp,
-        );
-        await _nostrService.sendMessage(receiptPayload);
-      } else if (message.meshEncrypted) {
-        // Message is already encrypted for the receiver — wrap it so Nostr carries
-        // the ciphertext without re-encrypting. Include original sender so receiver
-        // can derive the correct decryption key.
-        final wrappedPayload = Message(
-          id: message.id,
-          senderPubkey: message.senderPubkey,
-          receiverPubkey: message.receiverPubkey,
-          content: jsonEncode({
-            'type': 'mesh_relay',
-            'encryptedContent': message.content,
-            'originalSender': message.senderPubkey,
-          }),
-          timestamp: message.timestamp,
-        );
-        await _nostrService.sendMessage(wrappedPayload);
-      } else {
-        await _nostrService.sendMessage(message);
-      }
-    } catch (_) {
-      // Failed to relay via Nostr, message continues through mesh
-    }
+    final senderName =
+        (await _dbService.getContactByPubkey(message.senderPubkey))?.name ??
+            'Someone';
+    ServerService().relayMeshMessage(
+      messageId: message.id,
+      senderPubkey: message.senderPubkey,
+      receiverPubkey: message.receiverPubkey,
+      encryptedContent: message.content,
+      timestamp: message.timestamp,
+      messageType: message.type,
+      senderName: senderName,
+    );
   }
 
   Future<void> _deliverPendingToNearby(Set<String> nearbyPubkeys) async {
@@ -554,146 +390,6 @@ class MessageService {
     _ttl = ttl;
   }
 
-  /// Send a voice note over Nearby Connections mesh.
-  /// Send a voice note — tries server upload first (when online), falls back to BLE.
-  ///
-  /// Server path: upload audio → get URL → NIP-44 encrypt URL → send as DM with duration.
-  /// BLE path: base64 encode → chunk over BLE mesh.
-  ///
-  /// [filePath] is the recorded audio file. [duration] is in seconds.
-  /// Returns the message ID on success, null on failure.
-  Future<String?> sendVoiceNote(
-    String receiverPubkey,
-    String filePath,
-    int duration,
-  ) async {
-    if (_keyManager.publicKey == null) return null;
-
-    // ── Online path: upload audio to server, send URL in encrypted DM ─────────
-    if (_shouldUseOnline()) {
-      final audioFile = File(filePath);
-      if (await audioFile.exists()) {
-        final url = await ServerService().uploadVoiceNote(audioFile);
-        if (url != null) {
-          final message = Message(
-            id: _keyManager.generateMessageId(),
-            senderPubkey: _keyManager.publicKey!,
-            receiverPubkey: receiverPubkey,
-            content: url,
-            type: 'voice_note',
-            timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-            duration: duration,
-            senderName: _keyManager.username,
-            transport: 'server',
-          );
-          await _dbService.insertMessage(message);
-          _messageController.add(message);
-          final serverSent = await _trySendServer(message);
-          await _dbService.updateMessageStatus(message.id, serverSent ? 'sent' : 'failed');
-          if (!serverSent) _messageController.add(message.copyWith(status: 'failed'));
-          return message.id;
-        }
-      }
-    }
-
-    // ── BLE fallback ──────────────────────────────────────────────────────────
-    final message = Message(
-      id: _keyManager.generateMessageId(),
-      senderPubkey: _keyManager.publicKey!,
-      receiverPubkey: receiverPubkey,
-      content: filePath,
-      type: 'voice_note',
-      timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      ttl: 3,
-      duration: duration,
-      senderName: _keyManager.username,
-    );
-
-    await _dbService.insertMessage(message);
-    _messageController.add(message);
-
-    final sent = await _bitchatService.sendVoiceNote(
-      message: message,
-      filePath: filePath,
-      voiceNoteService: voiceNoteService,
-    );
-
-    if (!sent) {
-      await _dbService.deleteMessage(message.id);
-      return null;
-    }
-
-    await _dbService.updateMessageStatus(message.id, 'sent');
-    return message.id;
-  }
-
-  /// Send an image — tries server upload first (when online), falls back to BLE.
-  ///
-  /// Server path: upload image → get URL → NIP-44 encrypt URL → send as DM.
-  /// BLE path: compress to 50KB → chunk over BLE mesh.
-  ///
-  /// [filePath] is the local file path from [imageSharingService.pickImage].
-  /// Returns the message ID on success, null on failure (UI should show error).
-  Future<String?> sendImage(String receiverPubkey, String filePath) async {
-    if (_keyManager.publicKey == null) return null;
-
-    // ── Online path: upload image to server, send URL in encrypted DM ─────────
-    if (_shouldUseOnline()) {
-      final imageFile = File(filePath);
-      if (await imageFile.exists()) {
-        final url = await ServerService().uploadMessageImage(imageFile);
-        if (url != null) {
-          final message = Message(
-            id: _keyManager.generateMessageId(),
-            senderPubkey: _keyManager.publicKey!,
-            receiverPubkey: receiverPubkey,
-            content: url, // sender renders from URL; receiver decrypts URL and renders
-            type: 'image',
-            timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-            ttl: 3,
-            senderName: _keyManager.username,
-            transport: 'server',
-          );
-          await _dbService.insertMessage(message);
-          _messageController.add(message);
-          final serverSent = await _trySendServer(message);
-          await _dbService.updateMessageStatus(message.id, serverSent ? 'sent' : 'failed');
-          if (!serverSent) _messageController.add(message.copyWith(status: 'failed'));
-          return message.id;
-        }
-      }
-    }
-
-    // ── BLE fallback ──────────────────────────────────────────────────────────
-    final message = Message(
-      id: _keyManager.generateMessageId(),
-      senderPubkey: _keyManager.publicKey!,
-      receiverPubkey: receiverPubkey,
-      content: filePath, // sender displays from local path
-      type: 'image',
-      timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      ttl: 3,
-      senderName: _keyManager.username,
-    );
-
-    await _dbService.insertMessage(message);
-    _messageController.add(message);
-
-    final sent = await _bitchatService.sendImage(
-      message: message,
-      filePath: filePath,
-      imageSharingService: imageSharingService,
-    );
-
-    if (!sent) {
-      await _dbService.deleteMessage(message.id);
-      return null;
-    }
-
-    await _dbService.updateMessageStatus(message.id, 'sent');
-    return message.id;
-  }
-
   Future<String?> sendMessage(String receiverPubkey, String content) async {
     if (_keyManager.publicKey == null) return null;
     final message = Message(
@@ -710,13 +406,16 @@ class MessageService {
     await _dbService.insertMessage(message);
     _messageController.add(message);
 
-    // Strict transport separation: online uses server only, offline uses BLE only.
-    // Never both — avoids duplicate delivery and status confusion.
+    // Try both transports independently — if sender has internet AND receiver is
+    // nearby without internet, BLE must still fire even though server succeeded.
+    // The receiver's dedup set (BoundedSet) prevents showing the message twice
+    // if both paths happen to reach them.
     bool sent = false;
 
     if (_shouldUseOnline()) {
       if (await _trySendServer(message)) sent = true;
-    } else if (_shouldUseOffline()) {
+    }
+    if (_shouldUseOffline()) {
       if (await _trySendBitChat(message)) sent = true;
     }
 
@@ -760,7 +459,6 @@ class MessageService {
           'timestamp':        message.timestamp,
           'senderName':       _keyManager.username ?? '',
           'messageType':      message.type,
-          'duration':         message.duration,
         });
         if (sent) return true;
       }
@@ -773,7 +471,6 @@ class MessageService {
         timestamp:        message.timestamp,
         messageType:      message.type,
         senderName:       _keyManager.username ?? '',
-        duration:         message.duration,
       );
     } catch (_) {
       return false;
@@ -794,7 +491,6 @@ class MessageService {
             timestamp:      raw['timestamp'] as int,
             type:           raw['message_type'] as String? ?? 'dm',
             senderName:     raw['sender_name'] as String? ?? '',
-            duration:       raw['duration'] as int? ?? 0,
             meshEncrypted:  true,
             transport:      'server',
           );
@@ -811,6 +507,8 @@ class MessageService {
   }
 
   /// Sync delivery/read status of sent messages from server (tick marks).
+  /// Uses updateMessageStatusIfHigher so a server 'sent' can never downgrade
+  /// a message that's already at 'delivered' or 'read' locally.
   Future<void> _syncMessageStatuses() async {
     try {
       final statuses = await ServerService().fetchMessageStatuses();
@@ -818,7 +516,7 @@ class MessageService {
         final id     = s['message_id'] as String?;
         final status = s['status'] as String?;
         if (id != null && status != null) {
-          await _dbService.updateMessageStatus(id, status);
+          await _dbService.updateMessageStatusIfHigher(id, status);
           _messageController.add(Message(
             id: id, senderPubkey: '', receiverPubkey: '',
             content: '', timestamp: 0, type: 'status_update',
@@ -850,13 +548,10 @@ class MessageService {
   // Returns null if encryption fails — caller must not send plaintext over mesh
   Future<Message?> _encryptForMesh(Message message) async {
     if (_keyManager.privateKey == null) return null;
-    // Don't encrypt receipts, status updates, or ephemeral/metadata types.
-    // Reactions contain only {messageId, emoji} — not sensitive, and must remain
-    // parseable as JSON on the receiving side before decryption context is available.
+    // Don't encrypt receipts, status updates, or ephemeral types.
     if (message.type == 'delivery_receipt' ||
         message.type == 'read_receipt' ||
         message.type == 'status_update' ||
-        message.type == AppConstants.typeReaction ||
         message.type == AppConstants.typeTypingIndicator) {
       return message;
     }
@@ -919,27 +614,10 @@ class MessageService {
     }
 
     // ── Step 3: Decrypt before ALL other type-specific handling ───────────────
-    // Reactions, read receipts, group invites, and call signals all need
-    // plaintext content. Decrypting here once is correct and safe.
+    // Read receipts, group invites, and call signals all need plaintext content.
     final decrypted = message.meshEncrypted ? await _decryptFromMesh(message) : message;
 
-    // ── Step 4: Reactions — not encrypted, but must parse JSON ───────────────
-    if (decrypted.type == AppConstants.typeReaction) {
-      if (_processingIds.contains(decrypted.id)) return;
-      _processingIds.add(decrypted.id);
-      try {
-        final data = jsonDecode(decrypted.content) as Map;
-        final msgId = data['messageId'] as String?;
-        final emoji = data['emoji'] as String?;
-        if (msgId != null && emoji != null) {
-          await _dbService.insertMessage(decrypted);
-          _addReaction(msgId, emoji, decrypted.senderPubkey);
-        }
-      } catch (_) {}
-      return;
-    }
-
-    // ── Step 5: JSON-wrapped sub-types (read receipts, invites, call signals) ─
+    // ── Step 4: JSON-wrapped sub-types (read receipts, invites, call signals) ─
     try {
       final parsed = jsonDecode(decrypted.content);
       if (parsed is Map) {
@@ -1003,7 +681,7 @@ class MessageService {
       // Not JSON — regular text/voice/image message, continue to storage
     }
 
-    // ── Step 6: Regular messages (text, voice_note, image) ───────────────────
+    // ── Step 6: Regular text messages ────────────────────────────────────────
     // In-memory guard prevents duplicate emit when Nostr + BLE deliver
     // the same message concurrently before either DB write commits.
     if (_processingIds.contains(decrypted.id)) return;
@@ -1012,30 +690,14 @@ class MessageService {
     final seen = await _dbService.hasSeenMessage(decrypted.id);
     if (seen) return;
 
-    // Store and emit immediately — message appears in chat right away.
-    // For online images content is a URL; ImageDownloadService downloads it
-    // to local storage in the background (updates DB when done).
     await _dbService.insertMessage(decrypted);
     _messageController.add(decrypted);
-
-    // ── Online image: kick off background download via ImageDownloadService ──
-    if (decrypted.type == 'image' &&
-        (decrypted.content.startsWith('http://') ||
-            decrypted.content.startsWith('https://'))) {
-      ImageDownloadService().download(
-        decrypted.id,
-        decrypted.content,
-        _dbService,
-        imageSharingService,
-      );
-    }
 
     // Do NOT auto-add sender to contacts — user must do this explicitly.
     // If sender has no name/photo yet and we have internet, silently fetch
     // their profile from server so they show with a name instead of a raw pubkey.
     _resolveUnknownSender(decrypted.senderPubkey);
 
-    _saveLastEventTimestamp(decrypted.timestamp);
   }
 
   Future<void> _onDeliveryReceipt(Map<String, String> receipt) async {
@@ -1237,17 +899,13 @@ class MessageService {
   }
 
   void dispose() {
-    _nostrSub?.cancel();
     _bitchatSub?.cancel();
     _nearbySub?.cancel();
     _connectivitySub?.cancel();
-    _meshRelayNostrSub?.cancel();
+    _meshRelayServerSub?.cancel();
     _deliveryReceiptSub?.cancel();
     _retryTimer?.cancel();
-    _nostrService.dispose();
     _bitchatService.dispose();
-    voiceNoteService.dispose();
     _messageController.close();
-    _reactionsController.close();
   }
 }

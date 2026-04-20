@@ -119,6 +119,12 @@ class SignalingConsumer(AsyncWebsocketConsumer):
             {'type': 'signal.message', 'payload': data},
         )
 
+        # For call_offer: also send FCM push so receiver wakes up
+        # even if their WebSocket isn't connected (app in background/killed)
+        if msg_type == 'call_offer':
+            caller_name = data.get('callerName') or 'Someone'
+            await self._push_notify_call(recipient_pub, caller_name)
+
     async def signal_message(self, event):
         await self.send(text_data=json.dumps(event['payload']))
 
@@ -155,6 +161,20 @@ class SignalingConsumer(AsyncWebsocketConsumer):
                 msg.read_at = timezone.now()
                 msg.save(update_fields=['status', 'read_at'])
         except Message.DoesNotExist:
+            pass
+
+    @database_sync_to_async
+    def _push_notify_call(self, receiver_pub, caller_name):
+        try:
+            identity = BitChatIdentity.objects.get(pubkey=receiver_pub)
+            if identity.push_token_fcm:
+                send_push(
+                    token=identity.push_token_fcm,
+                    title='Incoming Call',
+                    body=f'{caller_name} is calling you',
+                    data={'type': 'call', 'senderPubkey': self.pubkey},
+                )
+        except Exception:
             pass
 
     @database_sync_to_async

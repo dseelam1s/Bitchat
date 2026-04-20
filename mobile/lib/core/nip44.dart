@@ -4,10 +4,8 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 
-/// NIP-44 v2 encryption for Nostr.
-///
-/// Uses XChaCha20-Poly1305 with HKDF-SHA256 key derivation.
-/// Backward-compatible: can detect and decrypt NIP-04 messages.
+/// NIP-44 v2 encryption (XChaCha20-Poly1305 + HKDF-SHA256).
+/// Used for all end-to-end encrypted messages in BitChat.
 class Nip44 {
   final _xchacha20 = Xchacha20.poly1305Aead();
   final _hkdf = Hkdf(hmac: Hmac(Sha256()), outputLength: 32);

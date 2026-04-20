@@ -11,14 +11,6 @@ class AppConstants {
   // http → ws, https → wss
   static const String signalingUrl = 'wss://messanger-backend-1.onrender.com/ws/signal/';
 
-  // Default Nostr relays
-  static const List<String> defaultRelays = [
-    'wss://relay.damus.io',
-    'wss://nos.lol',
-    'wss://relay.snort.social',
-    'wss://relay.primal.net',
-  ];
-
   // BitChat mesh settings
   static const int defaultTTL = 5;
   static const int messageExpiryHours = 24;
@@ -29,7 +21,6 @@ class AppConstants {
 
   // Message types
   static const String typeText = 'text';
-  static const String typeImage = 'image';
 
   // Connection modes
   static const String modeOnline = 'online';
@@ -48,7 +39,6 @@ class AppConstants {
   static const String typeChannelMessage = 'channel_message';
   static const String typeChannelAnnouncement = 'channel_announcement';
 
-  // Ephemeral / reaction types
+  // Ephemeral types
   static const String typeTypingIndicator = 'typing_indicator';
-  static const String typeReaction = 'reaction';
 }

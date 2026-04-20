@@ -7,14 +7,13 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:nostr_tools/nostr_tools.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:bitchat_messenger/core/constants.dart';
 
 /// Handles all communication with the BitChat comfort-layer server.
 ///
 /// All methods silently swallow errors — if the server is unreachable the
-/// app keeps working through Nostr relays + BLE mesh exactly as before.
+/// app keeps working through BLE mesh exactly as before.
 class ServerService {
   static final ServerService _instance = ServerService._internal();
   factory ServerService() => _instance;
@@ -150,7 +149,7 @@ class ServerService {
 
   // ── Auth ─────────────────────────────────────────────────────────────────
 
-  /// Sign in with the user's Nostr keypair.
+  /// Sign in with the user's keypair.
   ///
   /// Returns `{'access': ..., 'refresh': ..., 'is_registered': bool}` or null.
   Future<Map<String, dynamic>?> authenticate(
@@ -161,7 +160,7 @@ class ServerService {
     final challenge = challengeData['challenge'] as String?;
     if (challenge == null) return null;
 
-    // 2. Build kind:27235 Nostr event signed with the user's private key
+    // 2. Build kind:27235 auth event signed with the user's private key
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final event = Event(
       kind: 27235,
@@ -268,58 +267,6 @@ class ServerService {
   /// Fetch public profile for any pubkey — no auth required.
   Future<Map<String, dynamic>?> getProfile(String pubkey) async {
     return _get('profile/$pubkey/');
-  }
-
-  /// Upload a voice note for use in a message. Returns its public URL, or null on failure.
-  Future<String?> uploadVoiceNote(File audioFile) async {
-    try {
-      await _loadTokens();
-      final uri = _uri('messages/audio/upload/');
-      final request = http.MultipartRequest('POST', uri)
-        ..headers.addAll({
-          if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
-        })
-        ..files.add(await http.MultipartFile.fromPath('audio', audioFile.path,
-            contentType: MediaType('audio', 'm4a')));
-      final streamed = await request.send().timeout(const Duration(seconds: 60));
-      final response = await http.Response.fromStream(streamed);
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        return data['url'] as String?;
-      }
-      return null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Upload an image for use in a message. Returns its public URL, or null on failure.
-  ///
-  /// The URL is encrypted inside the NIP-44 DM payload before being sent —
-  /// the server only stores image bytes and never sees sender/recipient.
-  Future<String?> uploadMessageImage(File imageFile) async {
-    try {
-      await _loadTokens();
-      final uri = _uri('messages/image/upload/');
-      final request = http.MultipartRequest('POST', uri)
-        ..headers.addAll({
-          if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
-        })
-        ..files.add(await http.MultipartFile.fromPath(
-          'image',
-          imageFile.path,
-          contentType: MediaType.parse(lookupMimeType(imageFile.path) ?? 'image/jpeg'),
-        ));
-      final streamed = await request.send().timeout(const Duration(seconds: 30));
-      final response = await http.Response.fromStream(streamed);
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        return data['url'] as String?;
-      }
-      return null;
-    } catch (_) {
-      return null;
-    }
   }
 
   /// Check if the server is reachable. Returns true if any response received.
@@ -475,8 +422,6 @@ class ServerService {
     required String displayName,
   }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-
       // ── Step 1: Wake the server ───────────────────────────────────────────
       // Render free tier sleeps after 15 min inactivity and takes 30–45 s to
       // spin back up. wakeup() waits up to 50 s so auth never hits a cold server.
@@ -507,14 +452,9 @@ class ServerService {
         // Firebase not configured — push notifications disabled
       }
 
-      // ── Step 4: Register short ID (first launch only) ────────────────────
-      final alreadyDone = prefs.getBool('server_registered') ?? false;
-      if (alreadyDone) return;
-
-      final regResult = await registerShortId(shortId, displayName);
-      if (regResult == null) return;
-
-      await prefs.setBool('server_registered', true);
+      // ── Step 4: Register short ID ────────────────────────────────────────
+      // Called on every launch — server uses get_or_create so it's idempotent.
+      await registerShortId(shortId, displayName);
     } catch (_) {
       // Server errors must never surface to the user
     }
@@ -554,7 +494,6 @@ class ServerService {
     required int timestamp,
     String messageType = 'dm',
     String senderName = '',
-    int duration = 0,
   }) async {
     final result = await _post('messages/send/', {
       'message_id':        messageId,
@@ -563,7 +502,6 @@ class ServerService {
       'timestamp':         timestamp,
       'message_type':      messageType,
       'sender_name':       senderName,
-      'duration':          duration,
     }, authenticated: true);
     return result != null;
   }

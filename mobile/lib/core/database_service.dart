@@ -238,7 +238,7 @@ class DatabaseService {
     final db = await database;
     final maps = await db.rawQuery(
       "SELECT * FROM messages WHERE senderPubkey = ? AND receiverPubkey = ? "
-      "AND status != 'read' AND type IN ('text', 'voice_note', 'image')",
+      "AND status != 'read' AND type IN ('text')",
       [senderPubkey, myPubkey],
     );
     return maps.map((m) => Message.fromMap(m)).toList();
@@ -250,6 +250,31 @@ class DatabaseService {
         where: 'id = ?', whereArgs: [id]);
   }
 
+  /// Same as [updateMessageStatus] but only applies the update when [status]
+  /// ranks strictly higher than the current stored value.
+  /// Ranking: pending(1) < sent(2) < delivered(3) < read(4).
+  /// This prevents server status syncs from downgrading a tick that already
+  /// advanced locally (e.g. delivered → sent regression).
+  Future<void> updateMessageStatusIfHigher(String id, String status) async {
+    final db = await database;
+    await db.rawUpdate(
+      '''UPDATE messages SET status = ? WHERE id = ?
+         AND CASE status
+               WHEN 'read'      THEN 4
+               WHEN 'delivered' THEN 3
+               WHEN 'sent'      THEN 2
+               WHEN 'pending'   THEN 1
+               ELSE 0 END
+           < CASE ?
+               WHEN 'read'      THEN 4
+               WHEN 'delivered' THEN 3
+               WHEN 'sent'      THEN 2
+               WHEN 'pending'   THEN 1
+               ELSE 0 END''',
+      [status, id, status],
+    );
+  }
+
   Future<List<Message>> getMessages(
       String myPubkey, String contactPubkey,
       {int limit = 50, int offset = 0}) async {
@@ -258,8 +283,8 @@ class DatabaseService {
     final maps = await db.query(
       'messages',
       where:
-          '((senderPubkey = ? AND receiverPubkey = ?) OR (senderPubkey = ? AND receiverPubkey = ?)) AND type != ? AND type != ?',
-      whereArgs: [myPubkey, contactPubkey, contactPubkey, myPubkey, 'read_receipt', 'reaction'],
+          '((senderPubkey = ? AND receiverPubkey = ?) OR (senderPubkey = ? AND receiverPubkey = ?)) AND type != ?',
+      whereArgs: [myPubkey, contactPubkey, contactPubkey, myPubkey, 'read_receipt'],
       orderBy: 'timestamp DESC',
       limit: limit,
       offset: offset,
@@ -278,7 +303,7 @@ class DatabaseService {
     // Only retry actual chat messages — never retry ephemeral/metadata types
     final maps = await db.rawQuery(
       "SELECT * FROM messages WHERE status IN ('pending', 'failed') "
-      "AND type IN ('text', 'voice_note', 'image', 'read_receipt')",
+      "AND type IN ('text', 'read_receipt')",
     );
     return maps.map((m) => Message.fromMap(m)).toList();
   }
@@ -457,7 +482,7 @@ class DatabaseService {
           CASE WHEN senderPubkey = ? THEN receiverPubkey ELSE senderPubkey END AS contactPubkey,
           MAX(timestamp) AS maxTs
         FROM messages
-        WHERE type IN ('text','image','voice_note') AND (senderPubkey = ? OR receiverPubkey = ?)
+        WHERE type IN ('text') AND (senderPubkey = ? OR receiverPubkey = ?)
         GROUP BY contactPubkey
       ) latest
       ON (
@@ -465,7 +490,7 @@ class DatabaseService {
         OR (m.senderPubkey = latest.contactPubkey AND m.receiverPubkey = ?)
       )
       AND m.timestamp = latest.maxTs
-      AND m.type IN ('text','image','voice_note')
+      AND m.type IN ('text')
       ORDER BY m.timestamp DESC, m.rowid DESC
     ''', [myPubkey, myPubkey, myPubkey, myPubkey, myPubkey]);
 
@@ -491,7 +516,7 @@ class DatabaseService {
       SELECT senderPubkey, COUNT(*) as cnt
       FROM messages
       WHERE receiverPubkey = ? AND status != 'read'
-        AND type IN ('text', 'voice_note', 'image')
+        AND type IN ('text')
       GROUP BY senderPubkey
     ''', [myPubkey]);
 
@@ -512,7 +537,7 @@ class DatabaseService {
     await db.rawUpdate(
       "UPDATE messages SET status = 'read' "
       "WHERE senderPubkey = ? AND receiverPubkey = ? AND status != 'read' "
-      "AND type IN ('text', 'voice_note', 'image')",
+      "AND type IN ('text')",
       [contactPubkey, myPubkey],
     );
   }

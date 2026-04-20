@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:bitchat_messenger/core/theme.dart';
 import 'package:bitchat_messenger/features/calls/services/call_service.dart';
-import 'package:bitchat_messenger/features/channels/services/channel_service.dart';
 import 'package:bitchat_messenger/core/database_service.dart';
 import 'package:bitchat_messenger/features/chat/services/message_service.dart';
 import 'package:bitchat_messenger/features/calls/screens/incoming_call_screen.dart';
@@ -13,14 +12,12 @@ import 'package:bitchat_messenger/features/profile/screens/profile_screen.dart';
 class HomeScreen extends StatefulWidget {
   final DatabaseService dbService;
   final MessageService messageService;
-  final ChannelService channelService;
   final CallService callService;
 
   const HomeScreen({
     super.key,
     required this.dbService,
     required this.messageService,
-    required this.channelService,
     required this.callService,
   });
 
@@ -74,11 +71,10 @@ class _HomeScreenState extends State<HomeScreen> {
         messageService: widget.messageService,
         callService: widget.callService,
       ),
-      // Tab 1 — Chats (DMs + channels unified)
+      // Tab 1 — Chats (DMs)
       ChatsScreen(
         dbService: widget.dbService,
         messageService: widget.messageService,
-        channelService: widget.channelService,
         callService: widget.callService,
       ),
       // Tab 2 — Profile + Settings

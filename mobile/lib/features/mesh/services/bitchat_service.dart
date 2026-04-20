@@ -8,8 +8,6 @@ import 'package:bitchat_messenger/core/bounded_set.dart';
 import 'package:bitchat_messenger/core/constants.dart';
 import 'package:bitchat_messenger/features/chat/models/message.dart';
 import 'package:bitchat_messenger/core/database_service.dart';
-import 'package:bitchat_messenger/core/image_sharing_service.dart';
-import 'package:bitchat_messenger/core/voice_note_service.dart';
 import 'package:bitchat_messenger/features/mesh/services/ble_service.dart';
 import 'package:bitchat_messenger/features/mesh/services/multipeer_channel.dart';
 
@@ -67,10 +65,6 @@ class BitChatService {
   bool get hasWifiMesh =>
       _connectedEndpoints.isNotEmpty ||
       (_multipeerActive && _multipeerPubkeys.isNotEmpty);
-
-  // True if media (voice notes / images) can be sent — Wi-Fi P2P or BLE fallback.
-  bool get canSendMedia =>
-      hasWifiMesh || (_bleActive && _bleService.hasAnyConnection);
 
   // Get display names discovered via BLE handshake
   Map<String, String> get nearbyDeviceNames => _bleService.deviceNames;
@@ -293,10 +287,6 @@ class BitChatService {
     _notifyNearbyChanged();
   }
 
-  // Injected by MessageService so BitChatService can save received audio/image files
-  VoiceNoteService? voiceNoteService;
-  ImageSharingService? imageSharingService;
-
   Future<void> _handlePayload(String endpointId, Payload payload) async {
     if (payload.type != PayloadType.BYTES || payload.bytes == null) return;
 
@@ -333,69 +323,13 @@ class BitChatService {
       _seenMessageIds.add(message.id);
 
       if (message.receiverPubkey == _myPubkey) {
-        // Voice note — decode audio bytes and save to local file
-        if (message.type == 'voice_note') {
-          final base64Data = data['voiceData'] as String?;
-          if (base64Data != null && voiceNoteService != null) {
-            final localPath = await voiceNoteService!.decodeFromBase64(message.id, base64Data);
-            if (localPath != null) {
-              final stored = message.copyWith(
-                content: localPath,
-                status: 'delivered',
-                transport: 'bitchat',
-              );
-              _messageController.add(stored);
-              await _sendDeliveryReceipt(stored);
-              return;
-            }
-          }
-          return; // drop if no audio data
-        }
-
-        // Image — decode base64 bytes and save to local file
-        if (message.type == 'image') {
-          final base64Data = data['imageData'] as String?;
-          if (base64Data != null && imageSharingService != null) {
-            final localPath = await imageSharingService!.decodeFromBase64(message.id, base64Data);
-            if (localPath != null) {
-              final stored = message.copyWith(
-                content: localPath,
-                status: 'delivered',
-                transport: 'bitchat',
-              );
-              _messageController.add(stored);
-              await _sendDeliveryReceipt(stored);
-              return;
-            }
-          }
-          return; // drop if no image data
-        }
-
         _messageController.add(message.copyWith(
           status: 'delivered',
           transport: 'bitchat',
         ));
-        // Reactions are ephemeral acknowledgements — no delivery receipt needed
-        if (message.type != AppConstants.typeReaction) {
-          await _sendDeliveryReceipt(message);
-        }
+        await _sendDeliveryReceipt(message);
       } else {
-        // Large payloads: relay in-memory only (never store in DB — too large)
-        if (message.type == 'voice_note' || message.type == 'image') {
-          if (message.ttl > 1) {
-            final relayMap = data..['ttl'] = message.ttl - 1;
-            final bytes = Uint8List.fromList(utf8.encode(jsonEncode(relayMap)));
-            final endpoints = _connectedEndpoints.keys.toList();
-            for (final endpointId in endpoints) {
-              try { await _nearby?.sendBytesPayload(endpointId, bytes); } catch (_) {}
-            }
-            if (_multipeerActive) {
-              try { await _multipeer?.send(bytes); } catch (_) {}
-            }
-          }
-        } else {
-          await _storeAndForward(message);
-        }
+        await _storeAndForward(message);
       }
     } catch (e) {
       // Skip malformed payloads
@@ -435,60 +369,10 @@ class BitChatService {
       _seenMessageIds.add(message.id);
 
       if (message.receiverPubkey == _myPubkey) {
-        if (message.type == 'voice_note') {
-          final base64Data = data['voiceData'] as String?;
-          if (base64Data != null && voiceNoteService != null) {
-            final localPath = await voiceNoteService!.decodeFromBase64(message.id, base64Data);
-            if (localPath != null) {
-              final stored = message.copyWith(
-                content: localPath,
-                status: 'delivered',
-                transport: 'bitchat',
-              );
-              _messageController.add(stored);
-              await _sendDeliveryReceipt(stored);
-              return;
-            }
-          }
-          return;
-        }
-
-        if (message.type == 'image') {
-          final base64Data = data['imageData'] as String?;
-          if (base64Data != null && imageSharingService != null) {
-            final localPath = await imageSharingService!.decodeFromBase64(message.id, base64Data);
-            if (localPath != null) {
-              final stored = message.copyWith(
-                content: localPath,
-                status: 'delivered',
-                transport: 'bitchat',
-              );
-              _messageController.add(stored);
-              await _sendDeliveryReceipt(stored);
-              return;
-            }
-          }
-          return;
-        }
-
         _messageController.add(message.copyWith(status: 'delivered', transport: 'bitchat'));
-        if (message.type != AppConstants.typeReaction) {
-          await _sendDeliveryReceipt(message);
-        }
+        await _sendDeliveryReceipt(message);
       } else {
-        if (message.type == 'voice_note' || message.type == 'image') {
-          if (message.ttl > 1) {
-            final relayMap = data..['ttl'] = message.ttl - 1;
-            final relayBytes = Uint8List.fromList(utf8.encode(jsonEncode(relayMap)));
-            final endpoints = _connectedEndpoints.keys.toList();
-            for (final endpointId in endpoints) {
-              try { await _nearby?.sendBytesPayload(endpointId, relayBytes); } catch (_) {}
-            }
-            try { await _multipeer?.send(relayBytes); } catch (_) {}
-          }
-        } else {
-          await _storeAndForward(message);
-        }
+        await _storeAndForward(message);
       }
     } catch (_) {}
   }
@@ -638,98 +522,6 @@ class BitChatService {
       try { await _multipeer?.send(bytes); } catch (_) {}
     }
     // BLE excluded intentionally — see doc comment above
-  }
-
-  /// Send a voice note. Tries Wi-Fi P2P (Nearby/MultipeerConnectivity) first for
-  /// speed; falls back to BLE chunked transfer if Wi-Fi P2P is unavailable.
-  /// Returns true if sent to at least one peer.
-  Future<bool> sendVoiceNote({
-    required Message message,
-    required String filePath,
-    required VoiceNoteService voiceNoteService,
-  }) async {
-    final hasNearby = _connectedEndpoints.isNotEmpty;
-    final hasMultipeer = _multipeerActive && _multipeerPubkeys.isNotEmpty;
-    final hasBle = _bleActive && _bleService.hasAnyConnection;
-    if (!hasNearby && !hasMultipeer && !hasBle) return false;
-
-    final base64Data = await voiceNoteService.encodeToBase64(filePath);
-    if (base64Data == null) return false;
-
-    _seenMessageIds.add(message.id);
-    bool sent = false;
-
-    // Prefer Wi-Fi P2P — fast, no chunking needed
-    if (hasNearby || hasMultipeer) {
-      final transitMap = message.toMap()..['voiceData'] = base64Data;
-      final bytes = Uint8List.fromList(utf8.encode(jsonEncode(transitMap)));
-
-      final endpoints = _connectedEndpoints.keys.toList();
-      for (final endpointId in endpoints) {
-        try { await _nearby?.sendBytesPayload(endpointId, bytes); sent = true; } catch (_) {}
-      }
-      if (_multipeerActive) {
-        try { if (await _multipeer?.send(bytes) == true) sent = true; } catch (_) {}
-      }
-    }
-
-    // Fallback: BLE chunked transfer (slower but works without Wi-Fi P2P)
-    if (!sent && hasBle) {
-      sent = await _bleService.sendMediaChunked(
-        message: message,
-        mediaType: 'voice_note',
-        base64Data: base64Data,
-      );
-    }
-
-    return sent;
-  }
-
-  /// Send an image. Tries Wi-Fi P2P first; falls back to BLE chunked transfer.
-  /// Returns true if sent to at least one peer.
-  Future<bool> sendImage({
-    required Message message,
-    required String filePath,
-    required ImageSharingService imageSharingService,
-  }) async {
-    final hasNearby = _connectedEndpoints.isNotEmpty;
-    final hasMultipeer = _multipeerActive && _multipeerPubkeys.isNotEmpty;
-    final hasBle = _bleActive && _bleService.hasAnyConnection;
-    if (!hasNearby && !hasMultipeer && !hasBle) return false;
-
-    // Wi-Fi P2P path — full quality up to 1MB
-    final base64Data = await imageSharingService.encodeToBase64(filePath);
-    if (base64Data == null) return false;
-
-    _seenMessageIds.add(message.id);
-    bool sent = false;
-
-    // Prefer Wi-Fi P2P
-    if (hasNearby || hasMultipeer) {
-      final transitMap = message.toMap()..['imageData'] = base64Data;
-      final bytes = Uint8List.fromList(utf8.encode(jsonEncode(transitMap)));
-
-      final endpoints = _connectedEndpoints.keys.toList();
-      for (final endpointId in endpoints) {
-        try { await _nearby?.sendBytesPayload(endpointId, bytes); sent = true; } catch (_) {}
-      }
-      if (_multipeerActive) {
-        try { if (await _multipeer?.send(bytes) == true) sent = true; } catch (_) {}
-      }
-    }
-
-    // Fallback: BLE chunked transfer — compress to 50KB max for reliable multi-hop relay
-    if (!sent && hasBle) {
-      final bleBase64 = await imageSharingService.encodeToBase64(filePath, forBle: true);
-      if (bleBase64 == null) return false;
-      sent = await _bleService.sendMediaChunked(
-        message: message,
-        mediaType: 'image',
-        base64Data: bleBase64,
-      );
-    }
-
-    return sent;
   }
 
   Future<void> sendMessage(Message message) async {

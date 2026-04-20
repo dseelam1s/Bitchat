@@ -7,10 +7,9 @@ class Message {
   final int timestamp;
   final int ttl;
   final String status; // pending, sent, delivered, read, failed
-  final String transport; // nostr, bitchat
+  final String transport; // server, bitchat
   final bool meshEncrypted; // true if content is NIP-04 encrypted for mesh
   final String? senderName; // display name of the sender
-  final int duration; // seconds — only used for voice_note type
 
   Message({
     required this.id,
@@ -21,10 +20,9 @@ class Message {
     required this.timestamp,
     this.ttl = 5,
     this.status = 'pending',
-    this.transport = 'nostr',
+    this.transport = 'server',
     this.meshEncrypted = false,
     this.senderName,
-    this.duration = 0,
   });
 
   Map<String, dynamic> toMap() {
@@ -40,7 +38,6 @@ class Message {
       'transport': transport,
       'meshEncrypted': meshEncrypted ? 1 : 0,
       'senderName': senderName,
-      'duration': duration,
     };
   }
 
@@ -54,10 +51,9 @@ class Message {
       timestamp: (map['timestamp'] as int?) ?? 0,
       ttl: (map['ttl'] as int?) ?? 5,
       status: map['status'] ?? 'pending',
-      transport: map['transport'] ?? 'nostr',
+      transport: map['transport'] ?? 'server',
       meshEncrypted: map['meshEncrypted'] == 1 || map['meshEncrypted'] == true,
       senderName: map['senderName'],
-      duration: (map['duration'] as int?) ?? 0,
     );
   }
 
@@ -68,7 +64,6 @@ class Message {
     int? ttl,
     bool? meshEncrypted,
     String? senderName,
-    int? duration,
   }) {
     return Message(
       id: id,
@@ -82,7 +77,6 @@ class Message {
       transport: transport ?? this.transport,
       meshEncrypted: meshEncrypted ?? this.meshEncrypted,
       senderName: senderName ?? this.senderName,
-      duration: duration ?? this.duration,
     );
   }
 }

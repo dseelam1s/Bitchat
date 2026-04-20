@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:nostr_tools/nostr_tools.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -40,43 +39,19 @@ class KeyManager {
     _privateKey = savedPrivateKey;
     _publicKey = _keyApi.getPublicKey(savedPrivateKey);
 
-    // Load username in the same pass — SharedPreferences is already open
     final prefs = await SharedPreferences.getInstance();
     _username = prefs.getString('username');
-    if (_username == null || _username!.isEmpty) {
-      final number = Random().nextInt(9000) + 1000;
-      _username = 'User$number';
-      await prefs.setString('username', _username!);
-    }
     return true;
   }
 
   // Load saved keys or generate new secp256k1 key pair (used by onboarding)
   Future<void> generateKeyPair() async {
     // If keys were already loaded by loadExistingKeys(), skip the storage read
-    if (_privateKey != null && _publicKey != null) {
-      // Still ensure username is set
-      final prefs = await SharedPreferences.getInstance();
-      _username = prefs.getString('username');
-      if (_username == null || _username!.isEmpty) {
-        final number = Random().nextInt(9000) + 1000;
-        _username = 'User$number';
-        await prefs.setString('username', _username!);
-      }
-      return;
-    }
+    if (_privateKey != null && _publicKey != null) return;
 
     _privateKey = _keyApi.generatePrivateKey();
     _publicKey = _keyApi.getPublicKey(_privateKey!);
     await _secureStorage.write(key: 'privateKey', value: _privateKey!);
-
-    final prefs = await SharedPreferences.getInstance();
-    _username = prefs.getString('username');
-    if (_username == null || _username!.isEmpty) {
-      final number = Random().nextInt(9000) + 1000;
-      _username = 'User$number';
-      await prefs.setString('username', _username!);
-    }
   }
 
   Future<void> setUsername(String? name) async {

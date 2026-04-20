@@ -361,15 +361,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           _settingsRow(
             context,
-            icon: Icons.hub_outlined,
-            title: 'Network',
-            subtitle: 'Nostr relays',
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => _NetworkScreen(messageService: widget.messageService),
-            )),
-          ),
-          _settingsRow(
-            context,
             icon: Icons.palette_outlined,
             title: 'Appearance',
             subtitle: 'Theme',
@@ -759,123 +750,6 @@ class _MessagingScreenState extends State<_MessagingScreen> {
       style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted.withAlpha(150), letterSpacing: 1.5),
     ),
   );
-}
-
-// ── Network Screen ────────────────────────────────────────────────────────────
-
-class _NetworkScreen extends StatefulWidget {
-  final MessageService messageService;
-  const _NetworkScreen({required this.messageService});
-
-  @override
-  State<_NetworkScreen> createState() => _NetworkScreenState();
-}
-
-class _NetworkScreenState extends State<_NetworkScreen> {
-  void _addRelay() {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Relay'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(labelText: 'Relay URL', hintText: 'wss://relay.example.com'),
-          keyboardType: TextInputType.url,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () async {
-              final url = controller.text.trim();
-              if (url.startsWith('wss://') || url.startsWith('ws://')) {
-                await widget.messageService.nostrService.addRelay(url);
-                setState(() {});
-                if (ctx.mounted) Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _removeRelay(String url) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Remove Relay'),
-        content: Text('Remove $url?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () async {
-              await widget.messageService.nostrService.removeRelay(url);
-              setState(() {});
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Remove', style: TextStyle(color: AppColors.error)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final relayStatuses = widget.messageService.nostrService.relayStatuses;
-    final connected = relayStatuses.values.where((v) => v).length;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Network'),
-        actions: [
-          TextButton.icon(
-            onPressed: _addRelay,
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add'),
-            style: TextButton.styleFrom(foregroundColor: AppColors.mint),
-          ),
-        ],
-      ),
-      body: relayStatuses.isEmpty
-          ? const Center(child: Text('No relays configured', style: TextStyle(color: AppColors.textMuted)))
-          : ListView(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                  child: Text(
-                    '$connected of ${relayStatuses.length} connected',
-                    style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-                  ),
-                ),
-                ...relayStatuses.entries.map((e) => ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                  leading: Container(
-                    width: 10, height: 10,
-                    margin: const EdgeInsets.only(top: 4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: e.value ? AppColors.online : AppColors.error,
-                    ),
-                  ),
-                  title: Text(
-                    e.key,
-                    style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(e.value ? 'Connected' : 'Disconnected',
-                    style: TextStyle(fontSize: 11, color: e.value ? AppColors.online : AppColors.error)),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.textMuted),
-                    onPressed: () => _removeRelay(e.key),
-                  ),
-                )),
-              ],
-            ),
-    );
-  }
 }
 
 // ── Appearance Screen ─────────────────────────────────────────────────────────

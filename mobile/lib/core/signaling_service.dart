@@ -25,7 +25,7 @@ class SignalingService {
   /// Callback receives the full decoded payload map.
   void Function(Map<String, dynamic> payload)? onSignalReceived;
 
-  /// Called when a messaging payload arrives (dm, reaction, delivery_receipt,
+  /// Called when a messaging payload arrives (dm, delivery_receipt,
   /// read_receipt, typing, message_ack). Routed separately from call signals.
   void Function(Map<String, dynamic> payload)? onMessageReceived;
 
@@ -73,7 +73,7 @@ class SignalingService {
 
   // Message types routed to onMessageReceived (not call signals)
   static const _msgTypes = {
-    'dm', 'reaction', 'delivery_receipt', 'read_receipt', 'typing', 'message_ack',
+    'dm', 'delivery_receipt', 'read_receipt', 'typing', 'message_ack',
   };
 
   void _onMessage(dynamic raw) {

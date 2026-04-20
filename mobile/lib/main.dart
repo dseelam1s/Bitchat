@@ -14,7 +14,6 @@ import 'package:bitchat_messenger/core/database_service.dart';
 import 'package:bitchat_messenger/core/nostr_service.dart';
 import 'package:bitchat_messenger/features/mesh/services/bitchat_service.dart';
 import 'package:bitchat_messenger/features/chat/services/message_service.dart';
-import 'package:bitchat_messenger/features/channels/services/channel_service.dart';
 import 'package:bitchat_messenger/core/server_service.dart';
 import 'package:bitchat_messenger/core/signaling_service.dart';
 import 'package:bitchat_messenger/features/calls/services/call_service.dart';
@@ -216,7 +215,6 @@ class _AppInitializerState extends State<AppInitializer>
   double _progress = 0.0;
   DatabaseService? _dbService;
   MessageService? _messageService;
-  ChannelService? _channelService;
   CallService? _callService;
   BitChatService? _bitchatService;
   ContactResolverService? _contactResolver;
@@ -238,7 +236,6 @@ class _AppInitializerState extends State<AppInitializer>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _pulseController.dispose();
-    _channelService?.dispose();
     _messageService?.dispose();
     _callService?.dispose();
     _contactResolver?.dispose();
@@ -362,25 +359,7 @@ class _AppInitializerState extends State<AppInitializer>
       );
       _messageService = messageService;
 
-      final channelService = ChannelService(
-        dbService: dbService,
-        bitChatService: bitchatService,
-        nostrService: nostrService,
-      );
-      _channelService = channelService;
-
-      // Route group invite/removal DMs from MessageService → ChannelService
-      messageService.onGroupInvite = (channelId, channelName, adminPubkey) {
-        channelService.receiveGroupInvite(channelId, channelName, adminPubkey);
-      };
-      messageService.onGroupRemoval = (channelId) {
-        channelService.leavePrivateGroup(channelId);
-      };
-      messageService.onUsernameChanged = (username) {
-        channelService.setUsername(username);
-      };
-
-      // Set up SignalingService — WebSocket call signaling (Nostr is fallback)
+      // Set up SignalingService — WebSocket call signaling
       final signalingService = SignalingService();
 
       // Set up CallService — routes WebRTC signals
@@ -391,12 +370,13 @@ class _AppInitializerState extends State<AppInitializer>
       if (keyManager.publicKey != null) {
         callService.setMyPubkey(keyManager.publicKey!);
       }
+      callService.setMyName(keyManager.username);
       _callService = callService;
 
       // Wire SignalingService into MessageService for real-time send + receive
       messageService.setSignalingService(signalingService);
 
-      // Route messaging payloads (dm, reaction, receipts, ack) into MessageService
+      // Route messaging payloads (dm, receipts, ack) into MessageService
       signalingService.onMessageReceived = (payload) {
         messageService.handleWebSocketPayload(payload);
       };
@@ -436,32 +416,6 @@ class _AppInitializerState extends State<AppInitializer>
             callService.handleCallBusy(callId);
         }
       };
-
-      // Route signals arriving via Nostr (fallback) into CallService
-      messageService.onCallOffer = (callId, callerPubkey, callerName, sdp, sdpType, isVideo) {
-        callService.handleIncomingOffer(
-          callId: callId,
-          callerPubkey: callerPubkey,
-          callerName: callerName,
-          sdp: sdp,
-          sdpType: sdpType,
-          isVideo: isVideo,
-        );
-      };
-      messageService.onCallAnswer = (callId, sdp, sdpType) {
-        callService.handleCallAnswer(callId: callId, sdp: sdp, sdpType: sdpType);
-      };
-      messageService.onCallIce = (callId, candidate, sdpMid, sdpMLineIndex) {
-        callService.handleIceCandidate(
-          callId: callId,
-          candidate: candidate,
-          sdpMid: sdpMid,
-          sdpMLineIndex: sdpMLineIndex,
-        );
-      };
-      messageService.onCallEnded = callService.handleCallEnded;
-      messageService.onCallDeclined = callService.handleCallDeclined;
-      messageService.onCallBusy = callService.handleCallBusy;
 
       // Persist call logs to DB
       callService.onCallLogged = (log) => dbService.insertCallLog(log);
@@ -508,7 +462,7 @@ class _AppInitializerState extends State<AppInitializer>
         });
       }
 
-      // initialize() now returns quickly — Nostr/BLE start in background
+      // initialize() now returns quickly — BLE starts in background
       await messageService.initialize();
 
       // Expose to notification tap handler before showing HomeScreen
@@ -525,13 +479,6 @@ class _AppInitializerState extends State<AppInitializer>
         internetStream: messageService.internetStream,
         nearbyStream: messageService.nearbyChangedStream,
       );
-
-      if (keyManager.publicKey != null) {
-        channelService.start(
-          keyManager.publicKey!,
-          username: keyManager.username,
-        );
-      }
 
       // Foreground service keeps BLE alive when screen locks — not urgent
       ForegroundServiceHelper.start();
@@ -618,7 +565,6 @@ class _AppInitializerState extends State<AppInitializer>
     return HomeScreen(
       dbService: _dbService!,
       messageService: _messageService!,
-      channelService: _channelService!,
       callService: _callService!,
     );
   }

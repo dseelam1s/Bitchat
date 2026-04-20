@@ -119,16 +119,6 @@ class ChannelService {
     // Listen for incoming mesh messages that are channel-related
     _meshMessageSub = _bitChatService.messageStream.listen(_handleMeshMessage);
 
-    // Listen for Nostr channel messages
-    _nostrChannelSub = _nostrService.channelMessageStream.listen(_handleNostrChannelMessage);
-
-    // Subscribe to Nostr for all joined custom channels
-    for (final channel in _activeChannels.values) {
-      if (channel.joined && !channel.isDefault) {
-        _nostrService.subscribeToChannel(channel.id);
-      }
-    }
-
     // Listen for nearby changes to update "Nearby" channel presence
     _nearbySub = _bitChatService.nearbyChangedStream.listen((_) {
       _syncNearbyPresence();
@@ -700,7 +690,6 @@ class ChannelService {
     _presenceCleanupTimer?.cancel();
     _meshMessageSub?.cancel();
     _nearbySub?.cancel();
-    _nostrChannelSub?.cancel();
   }
 
   Future<void> dispose() async {
