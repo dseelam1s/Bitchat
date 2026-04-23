@@ -62,9 +62,9 @@ class ServerService {
   Uri _uri(String path) =>
       Uri.parse('${AppConstants.serverBaseUrl}/api/v1/bitchat/$path');
 
-  Map<String, String> _authHeaders() => {
+  Map<String, String> _authHeaders({bool includeAuth = true}) => {
         'Content-Type': 'application/json',
-        if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
+        if (includeAuth && _accessToken != null) 'Authorization': 'Bearer $_accessToken',
       };
 
   /// POST with JSON body; returns decoded body or null on any error.
@@ -77,7 +77,7 @@ class ServerService {
       if (authenticated) await _loadTokens();
       final res = await _client
           .post(_uri(path),
-              headers: _authHeaders(), body: jsonEncode(body))
+              headers: _authHeaders(includeAuth: authenticated), body: jsonEncode(body))
           .timeout(const Duration(seconds: 10));
       if (res.statusCode >= 200 && res.statusCode < 300) {
         return jsonDecode(res.body) as Map<String, dynamic>;
@@ -88,7 +88,7 @@ class ServerService {
         if (refreshed) {
           final retry = await _client
               .post(_uri(path),
-                  headers: _authHeaders(), body: jsonEncode(body))
+                  headers: _authHeaders(includeAuth: authenticated), body: jsonEncode(body))
               .timeout(const Duration(seconds: 10));
           if (retry.statusCode >= 200 && retry.statusCode < 300) {
             return jsonDecode(retry.body) as Map<String, dynamic>;
@@ -111,7 +111,7 @@ class ServerService {
       if (authenticated) await _loadTokens();
       final uri = _uri(path).replace(queryParameters: queryParams);
       final res = await _client
-          .get(uri, headers: _authHeaders())
+          .get(uri, headers: _authHeaders(includeAuth: authenticated))
           .timeout(const Duration(seconds: 10));
       if (res.statusCode >= 200 && res.statusCode < 300) {
         return jsonDecode(res.body) as Map<String, dynamic>;
