@@ -63,12 +63,29 @@ class CallService {
   // Rate limiting: track last call offer time per remote pubkey
   final Map<String, DateTime> _lastCallOfferTime = {};
 
-  // STUN servers — all free public servers, no account needed
   static const _iceServers = {
     'iceServers': [
-      {'urls': 'stun:stun.l.google.com:19302'},
-      {'urls': 'stun:stun1.l.google.com:19302'},
-      {'urls': 'stun:stun2.l.google.com:19302'},
+      {'urls': 'stun:stun.relay.metered.ca:80'},
+      {
+        'urls': 'turn:global.relay.metered.ca:80',
+        'username': 'abba3756ad83d146ebd152ee',
+        'credential': '5PpHze1hi+3cioWg',
+      },
+      {
+        'urls': 'turn:global.relay.metered.ca:80?transport=tcp',
+        'username': 'abba3756ad83d146ebd152ee',
+        'credential': '5PpHze1hi+3cioWg',
+      },
+      {
+        'urls': 'turn:global.relay.metered.ca:443',
+        'username': 'abba3756ad83d146ebd152ee',
+        'credential': '5PpHze1hi+3cioWg',
+      },
+      {
+        'urls': 'turns:global.relay.metered.ca:443?transport=tcp',
+        'username': 'abba3756ad83d146ebd152ee',
+        'credential': '5PpHze1hi+3cioWg',
+      },
     ]
   };
 
