@@ -1,4 +1,5 @@
 import json
+from urllib.parse import parse_qs
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
@@ -37,7 +38,8 @@ class SignalingConsumer(AsyncWebsocketConsumer):
         logger = logging.getLogger(__name__)
 
         query_string = self.scope.get('query_string', b'').decode()
-        token_str    = self._parse_token(query_string)
+        params    = parse_qs(query_string)
+        token_str = params.get('token', [None])[0]
 
         if not token_str:
             logger.warning('WS rejected: no token in query string')
@@ -45,24 +47,13 @@ class SignalingConsumer(AsyncWebsocketConsumer):
             return
 
         try:
-            token   = AccessToken(token_str)
-            user_id = token['user_id']
+            user_id = await self._validate_token(token_str)
             user    = await self._get_user(user_id)
             if user is None:
-                logger.warning('WS rejected: user_id=%s not found', user_id)
                 await self.close(code=4001)
                 return
             self.pubkey = user.username
-        except (InvalidToken, TokenError) as e:
-            logger.warning('WS rejected: token invalid — %s', e)
-            await self.close(code=4001)
-            return
-        except KeyError as e:
-            logger.warning('WS rejected: missing claim %s', e)
-            await self.close(code=4001)
-            return
-        except Exception as e:
-            logger.warning('WS rejected: unexpected error — %s', e)
+        except Exception:
             await self.close(code=4001)
             return
 
@@ -213,6 +204,7 @@ class SignalingConsumer(AsyncWebsocketConsumer):
                     token=identity.push_token_fcm,
                     title='New Message',
                     body=f'{sender_name} sent you a message',
+                    data={'type': 'message', 'senderPubkey': self.pubkey},
                 )
         except Exception:
             pass
@@ -267,6 +259,11 @@ class SignalingConsumer(AsyncWebsocketConsumer):
             if part.startswith('token='):
                 return part[len('token='):]
         return None
+
+    @database_sync_to_async
+    def _validate_token(self, token_str: str) -> int:
+        token = AccessToken(token_str)
+        return token['user_id']
 
     @staticmethod
     async def _get_user(user_id: int):

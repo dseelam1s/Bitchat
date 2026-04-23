@@ -6,7 +6,7 @@ from rest_framework.response import Response
 
 from bitchat.models import BitChatIdentity, Message
 from apps.common import upload_file
-from apps.push.firebase_utils import send_push
+from apps.push.firebase_utils import send_push  # used in message_send
 from .serializers import ReceiptSerializer, SendMessageSerializer
 
 
@@ -90,27 +90,6 @@ def message_fetch(request):
 
     msgs.update(status=Message.STATUS_DELIVERED, delivered_at=timezone.now())
 
-    # Notify each unique sender once that their messages were delivered.
-    # We iterate `result` (already evaluated above) — iterating `msgs` again
-    # after .update() re-executes the queryset and returns 0 rows because the
-    # status no longer matches STATUS_SENT.
-    notified_senders = set()
-    for item in result:
-        sender_pub = item['sender_pubkey']
-        if sender_pub in notified_senders:
-            continue
-        notified_senders.add(sender_pub)
-        try:
-            sender_identity = BitChatIdentity.objects.get(pubkey=sender_pub)
-            if sender_identity.push_token_fcm:
-                send_push(
-                    token=sender_identity.push_token_fcm,
-                    title='Message delivered',
-                    body='Your message was delivered',
-                )
-        except BitChatIdentity.DoesNotExist:
-            pass
-
     return Response({'messages': result})
 
 
@@ -137,13 +116,6 @@ def message_receipt(request):
         msg.status  = Message.STATUS_READ
         msg.read_at = timezone.now()
         msg.save(update_fields=['status', 'read_at'])
-
-        try:
-            sender_identity = BitChatIdentity.objects.get(pubkey=msg.sender_pubkey)
-            if sender_identity.push_token_fcm:
-                send_push(token=sender_identity.push_token_fcm, title='Message read', body='Your message was read')
-        except BitChatIdentity.DoesNotExist:
-            pass
 
     return Response({'ok': True})
 

@@ -129,11 +129,14 @@ void main() async {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(_androidChannel);
 
-    // Show notification when FCM arrives in foreground
+    // Foreground FCM: only show call notifications — message notifications
+    // are suppressed because the WebSocket already delivers them in real-time.
+    // Background/killed FCM is shown automatically by Android without this handler.
     FirebaseMessaging.onMessage.listen((message) {
+      final notifType = message.data['type'] as String?;
+      if (notifType != 'call') return; // messages arrive via WS; skip duplicate pop-up
       final notification = message.notification;
       if (notification == null) return;
-      final notifType = message.data['type'] as String?;
       final senderPubkey = message.data['senderPubkey'] as String?;
       _localNotifications.show(
         notification.hashCode,
@@ -149,7 +152,6 @@ void main() async {
             icon: '@mipmap/ic_launcher',
           ),
         ),
-        // encode type so tap handler can skip opening chat for calls
         payload: '${notifType ?? ''}|${senderPubkey ?? ''}',
       );
     });
