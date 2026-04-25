@@ -457,14 +457,15 @@ class BleService {
     _chunkBuffer.remove(cid);
     _chunkMeta.remove(cid);
 
-    // Emit as a synthetic message carrying the full base64 in the content field.
-    // BitChatService will decode the base64 to a local file when it receives this.
+    // Emit as a synthetic message. Images carry their base64 in content with a
+    // 'base64img:' prefix so MessageService can decode → save → display.
+    // Voice notes keep empty content for now (handled separately in a future phase).
     final mediaType = meta['mediaType'] as String;
     final syntheticMap = {
       'id': cid,
       'senderPubkey': meta['senderPubkey'],
       'receiverPubkey': meta['receiverPubkey'],
-      'content': '',
+      'content': mediaType == 'image' ? 'base64img:$fullBase64' : '',
       'type': mediaType,
       'timestamp': meta['timestamp'],
       'ttl': 1,
@@ -473,9 +474,7 @@ class BleService {
       'meshEncrypted': 0,
       'senderName': meta['senderName'],
       'duration': 0,
-      // embed the full base64 under the same key BitChatService expects
       if (mediaType == 'voice_note') 'voiceData': fullBase64,
-      if (mediaType == 'image') 'imageData': fullBase64,
     };
 
     if (_seenMessageIds.contains(cid)) return;

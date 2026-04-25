@@ -67,9 +67,22 @@ TEMPLATES = [
 WSGI_APPLICATION = 'bitchat_api.wsgi.application'
 ASGI_APPLICATION = 'bitchat_api.asgi.application'
 
-_db_engine = config('DB_ENGINE', default='sqlite')
+_database_url = config('DATABASE_URL', default='')
 
-if _db_engine == 'postgresql':
+if _database_url:
+    # Render / cloud: single DATABASE_URL env var (auto-injected by Render when you
+    # attach a PostgreSQL database). CONN_MAX_AGE reuses connections across requests
+    # instead of opening a new one per request — critical on Render's connection limits.
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.parse(
+            _database_url,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    }
+elif config('DB_ENGINE', default='sqlite') == 'postgresql':
+    # Manual PostgreSQL config via individual env vars (self-hosted / local Docker)
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -78,10 +91,12 @@ if _db_engine == 'postgresql':
             'PASSWORD': config('DB_PASSWORD'),
             'HOST': config('DB_HOST', default='localhost'),
             'PORT': config('DB_PORT', default='5432'),
+            'CONN_MAX_AGE': 600,
+            'CONN_HEALTH_CHECKS': True,
         }
     }
 else:
-    # Default: SQLite — zero setup, perfect for development
+    # Default: SQLite — zero setup, perfect for local development only
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -163,4 +178,21 @@ if CLOUDINARY_CLOUD_NAME:
         api_key=CLOUDINARY_API_KEY,
         api_secret=CLOUDINARY_API_SECRET,
         secure=True,          # always return https:// URLs
+    )
+
+# ── Error tracking (Sentry) ───────────────────────────────────────────────────
+# Set SENTRY_DSN in Render environment variables.
+# Leave unset locally — Sentry is silent when DSN is absent.
+SENTRY_DSN = config('SENTRY_DSN', default='')
+
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        traces_sample_rate=0.1,   # capture 10% of requests for performance data
+        send_default_pii=False,   # never send user PII — privacy-first app
+        environment='production' if not DEBUG else 'development',
     )

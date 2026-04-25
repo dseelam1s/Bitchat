@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:nostr_tools/nostr_tools.dart' show Nip04;
@@ -391,6 +393,160 @@ class MessageService {
     _ttl = ttl;
   }
 
+  /// Send an image message. Routes to the online (Cloudinary) or offline (BLE chunks) path.
+  /// Shows a local thumbnail immediately regardless of which path is taken.
+  /// Returns the message ID on success, or null on failure.
+  Future<String?> sendImageMessage(File imageFile, String receiverPubkey) async {
+    if (_keyManager.publicKey == null) return null;
+
+    final canOnline = _hasInternet &&
+        ServerService().isAuthenticated &&
+        _keyManager.privateKey != null;
+    final canBle = _shouldUseOffline();
+
+    if (!canOnline && !canBle) return null;
+
+    final messageId = _keyManager.generateMessageId();
+    final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+    // Optimistic insert so UI shows local thumbnail immediately on both paths
+    final optimistic = Message(
+      id: messageId,
+      senderPubkey: _keyManager.publicKey!,
+      receiverPubkey: receiverPubkey,
+      content: 'local:${imageFile.path}',
+      type: 'image',
+      timestamp: timestamp,
+      senderName: _keyManager.username,
+      status: 'pending',
+    );
+    await _dbService.insertMessage(optimistic);
+    _messageController.add(optimistic);
+
+    if (canOnline) {
+      return await _sendImageOnline(imageFile, receiverPubkey, messageId, timestamp, optimistic);
+    } else {
+      return await _sendImageViaBle(imageFile, receiverPubkey, messageId, timestamp, optimistic);
+    }
+  }
+
+  /// Online path: compress → upload to Cloudinary → send NIP-44 encrypted URL.
+  Future<String?> _sendImageOnline(
+    File imageFile,
+    String receiverPubkey,
+    String messageId,
+    int timestamp,
+    Message optimistic,
+  ) async {
+    try {
+      final url = await ServerService().uploadChatImage(imageFile);
+
+      // Store plaintext URL so the bubble renders after reload (both sender and receiver)
+      await _dbService.updateMessageContent(messageId, url);
+      _messageController.add(optimistic.copyWith(content: url));
+
+      final encryptedUrl = await _nip44.encrypt(
+        _keyManager.privateKey!,
+        receiverPubkey,
+        url,
+      );
+
+      bool sent = false;
+
+      if (_signalingService?.isConnected == true) {
+        sent = _signalingService!.send({
+          'type': 'dm',
+          'recipientPubkey': receiverPubkey,
+          'messageId': messageId,
+          'encryptedContent': encryptedUrl,
+          'timestamp': timestamp,
+          'senderName': _keyManager.username ?? '',
+          'messageType': 'image',
+        });
+      }
+
+      if (!sent) {
+        sent = await ServerService().sendOnlineMessage(
+          messageId: messageId,
+          receiverPubkey: receiverPubkey,
+          encryptedContent: encryptedUrl,
+          timestamp: timestamp,
+          messageType: 'image',
+          senderName: _keyManager.username ?? '',
+        );
+      }
+
+      final finalStatus = sent ? 'sent' : 'failed';
+      await _dbService.updateMessageStatus(messageId, finalStatus);
+      _messageController.add(optimistic.copyWith(content: url, status: finalStatus));
+      return messageId;
+    } catch (_) {
+      await _dbService.updateMessageStatus(messageId, 'failed');
+      _messageController.add(optimistic.copyWith(status: 'failed'));
+      return null;
+    }
+  }
+
+  /// BLE offline path: read bytes → validate size → copy to stable path →
+  /// base64-encode → send as 180-byte chunks.
+  Future<String?> _sendImageViaBle(
+    File imageFile,
+    String receiverPubkey,
+    String messageId,
+    int timestamp,
+    Message optimistic,
+  ) async {
+    try {
+      final bytes = await imageFile.readAsBytes();
+
+      // Hard reject: >150 KB raw is ~200 KB base64 → ~1100 chunks → unreliable over BLE.
+      // The call site (chat_screen.dart) already checks this, but guard here too for
+      // API safety and to prevent corrupted transfers from ever starting.
+      if (bytes.lengthInBytes > 150 * 1024) {
+        await _dbService.updateMessageStatus(messageId, 'failed');
+        _messageController.add(optimistic.copyWith(status: 'failed'));
+        return null;
+      }
+
+      // Copy image to app documents directory so the bubble keeps showing
+      // if ImagePicker's temp cache is cleared before the user reopens the chat.
+      final dir = await getApplicationDocumentsDirectory();
+      final stablePath = '${dir.path}/img_out_$messageId.jpg';
+      await imageFile.copy(stablePath);
+      await _dbService.updateMessageContent(messageId, 'local:$stablePath');
+      _messageController.add(optimistic.copyWith(content: 'local:$stablePath'));
+
+      final b64 = base64Encode(bytes);
+
+      // Message object carries the sender/receiver/timestamp metadata for chunk headers
+      final msg = Message(
+        id: messageId,
+        senderPubkey: _keyManager.publicKey!,
+        receiverPubkey: receiverPubkey,
+        content: '',
+        type: 'image',
+        timestamp: timestamp,
+        senderName: _keyManager.username,
+        transport: 'bitchat',
+      );
+
+      final sent = await _bitchatService.sendMediaChunked(
+        message: msg,
+        mediaType: 'image',
+        base64Data: b64,
+      );
+
+      final status = sent ? 'sent' : 'failed';
+      await _dbService.updateMessageStatus(messageId, status);
+      _messageController.add(optimistic.copyWith(content: 'local:$stablePath', status: status));
+      return sent ? messageId : null;
+    } catch (_) {
+      await _dbService.updateMessageStatus(messageId, 'failed');
+      _messageController.add(optimistic.copyWith(status: 'failed'));
+      return null;
+    }
+  }
+
   Future<String?> sendMessage(String receiverPubkey, String content) async {
     if (_keyManager.publicKey == null) return null;
     final message = Message(
@@ -618,7 +774,18 @@ class MessageService {
     // Read receipts, group invites, and call signals all need plaintext content.
     final decrypted = message.meshEncrypted ? await _decryptFromMesh(message) : message;
 
-    // ── Step 4: JSON-wrapped sub-types (read receipts, invites, call signals) ─
+    // ── Step 4: BLE image — decode base64, save to disk, store local path ───────
+    // Must happen before the JSON parse because base64img: content is not JSON.
+    // receiverPubkey guard is critical: BLE is broadcast, every device nearby
+    // receives all chunks — only the intended recipient should save the file.
+    if (decrypted.type == 'image' && decrypted.content.startsWith('base64img:')) {
+      if (decrypted.receiverPubkey == _keyManager.publicKey) {
+        await _handleBleReceivedImage(decrypted);
+      }
+      return;
+    }
+
+    // ── Step 5: JSON-wrapped sub-types (read receipts, invites, call signals) ─
     try {
       final parsed = jsonDecode(decrypted.content);
       if (parsed is Map) {
@@ -682,7 +849,7 @@ class MessageService {
       // Not JSON — regular text/voice/image message, continue to storage
     }
 
-    // ── Step 6: Regular text messages ────────────────────────────────────────
+    // ── Step 6: Regular text / image (URL) / voice_note messages ────────────
     // In-memory guard prevents duplicate emit when Nostr + BLE deliver
     // the same message concurrently before either DB write commits.
     if (_processingIds.contains(decrypted.id)) return;
@@ -699,6 +866,45 @@ class MessageService {
     // their profile from server so they show with a name instead of a raw pubkey.
     _resolveUnknownSender(decrypted.senderPubkey);
 
+  }
+
+  /// Decode a BLE-received image (base64img: prefix), save bytes to disk, and
+  /// store the message with a local file path so the bubble can render it.
+  Future<void> _handleBleReceivedImage(Message message) async {
+    // In-memory dedup: guards against the race where the same chunks arrive
+    // twice (e.g. via two connected peers relaying the same transfer).
+    if (_processingIds.contains(message.id)) return;
+    _processingIds.add(message.id);
+
+    // DB dedup: handles app-restart scenarios where the message already landed
+    final seen = await _dbService.hasSeenMessage(message.id);
+    if (seen) return;
+
+    try {
+      final b64 = message.content.substring(10); // strip 'base64img:'
+
+      // Validate that the string is non-empty before attempting to decode —
+      // a corrupt/truncated chunk assembly would otherwise throw FormatException
+      if (b64.isEmpty) {
+        _processingIds.remove(message.id); // allow retry if more chunks arrive
+        return;
+      }
+
+      final bytes = base64Decode(b64); // throws FormatException on bad base64
+
+      final dir = await getApplicationDocumentsDirectory();
+      final path = '${dir.path}/img_ble_${message.id}.jpg';
+      await File(path).writeAsBytes(bytes, flush: true);
+
+      final stored = message.copyWith(content: 'local:$path', meshEncrypted: false);
+      await _dbService.insertMessage(stored);
+      _messageController.add(stored);
+      _resolveUnknownSender(stored.senderPubkey);
+    } catch (_) {
+      // Corrupt base64, disk full, or IO error — remove from processing set so
+      // a clean re-delivery (if sender retransmits) can be processed correctly.
+      _processingIds.remove(message.id);
+    }
   }
 
   Future<void> _onDeliveryReceipt(Map<String, String> receipt) async {
@@ -784,6 +990,17 @@ class MessageService {
   Future<void> _retryPendingMessages() async {
     final pending = await _dbService.getPendingMessages();
     for (final message in pending) {
+      // Image/voice_note messages stored with a local file path cannot be retried
+      // from DB content alone — we'd need to re-read the file bytes and re-upload
+      // (online) or re-chunk (BLE). Both are non-trivial and risk sending a stale
+      // path string as the message content. The user should resend manually.
+      // Messages with http:// content (upload succeeded, WebSocket/REST failed)
+      // DO fall through here and retry correctly via _trySendServer.
+      if ((message.type == 'image' || message.type == 'voice_note') &&
+          message.content.startsWith('local:')) {
+        continue;
+      }
+
       bool sent = false;
 
       if (_shouldUseOnline()) {

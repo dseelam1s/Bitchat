@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -273,6 +274,63 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       }
     });
+  }
+
+  Future<void> _sendImageMessage() async {
+    final hasInternet = widget.messageService.hasInternet;
+    final hasBle = widget.messageService.hasNearbyDevices;
+
+    if (!hasInternet && !hasBle) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No connection available — connect to internet or be near another BitChat user'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+
+    final picker = ImagePicker();
+    // Use heavier compression for BLE: 640px / quality 30 keeps raw bytes under 80 KB.
+    // Online path can afford higher quality since only a URL travels over the wire.
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: hasInternet ? 70 : 30,
+      maxWidth: hasInternet ? 1280 : 640,
+      maxHeight: hasInternet ? 1280 : 640,
+    );
+    if (picked == null) return;
+
+    final file = File(picked.path);
+
+    // For the BLE path: reject if still too large after picker compression.
+    // Anything >150 KB raw would generate >1100 BLE chunks and become unreliable.
+    if (!hasInternet) {
+      final sizeBytes = await file.length();
+      if (sizeBytes > 150 * 1024) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Image too large for offline sending — connect to internet to send this photo'),
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    final result = await widget.messageService.sendImageMessage(file, widget.contactPubkey);
+    if (result == null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Image send failed — check your connection'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _sendMessage() async {
@@ -561,7 +619,12 @@ class _ChatScreenState extends State<ChatScreen> {
                         return const SizedBox.shrink();
                       }
                       final isMe = msg.senderPubkey == widget.messageService.publicKey;
-                      final retryCallback = isMe
+                      // Image/voice messages stored with a local path can't be auto-retried —
+                      // the file bytes are not in the DB. Hide the retry hint for these.
+                      final canRetry = isMe &&
+                          !(msg.type == 'image' && msg.content.startsWith('local:')) &&
+                          !(msg.type == 'voice_note' && msg.content.startsWith('local:'));
+                      final retryCallback = canRetry
                           ? () => widget.messageService.retryPendingMessages()
                           : null;
                       return _Bubble(
@@ -587,6 +650,24 @@ class _ChatScreenState extends State<ChatScreen> {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
+                            // Image attachment — available online (Cloudinary) or via BLE (chunked)
+                            if (widget.messageService.hasInternet || widget.messageService.hasNearbyDevices)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 4),
+                                child: SizedBox(
+                                  width: 42, height: 42,
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(12),
+                                      onTap: _sendImageMessage,
+                                      child: Icon(Icons.image_outlined, size: 22,
+                                          color: Theme.of(context).colorScheme.onSurface.withAlpha(120)),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             Expanded(
                               child: Container(
                                 decoration: BoxDecoration(
@@ -726,9 +807,19 @@ class _Bubble extends StatelessWidget {
     final textColor = isMe ? sentTextColor : recvTextColor;
     final metaColor = isMe ? sentMetaColor : recvMetaColor;
 
+    final isImage = message.type == 'image';
+    final timeRow = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(_time(message.timestamp), style: TextStyle(fontSize: 10, color: metaColor)),
+      ],
+    );
+
     final bubble = Container(
       margin: const EdgeInsets.only(bottom: 5),
-      padding: const EdgeInsets.fromLTRB(13, 9, 13, 7),
+      padding: isImage
+          ? const EdgeInsets.fromLTRB(6, 6, 6, 6)
+          : const EdgeInsets.fromLTRB(13, 9, 13, 7),
       constraints: BoxConstraints(
         maxWidth: MediaQuery.of(context).size.width * 0.75,
       ),
@@ -742,29 +833,24 @@ class _Bubble extends StatelessWidget {
         ),
         border: Border.all(color: bubbleBorder),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            message.content,
-            style: TextStyle(
-              color: textColor,
-              fontSize: 14,
-              height: 1.35,
+      child: isImage
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildImageContent(context),
+                const SizedBox(height: 4),
+                timeRow,
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(message.content, style: TextStyle(color: textColor, fontSize: 14, height: 1.35)),
+                const SizedBox(height: 3),
+                timeRow,
+              ],
             ),
-          ),
-          const SizedBox(height: 3),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _time(message.timestamp),
-                style: TextStyle(fontSize: 10, color: metaColor),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
 
     final isFailed = isMe && message.status == 'failed';
@@ -798,6 +884,48 @@ class _Bubble extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildImageContent(BuildContext context) {
+    final content = message.content;
+    const size = 200.0;
+    const radius = BorderRadius.all(Radius.circular(10));
+
+    if (content.startsWith('local:')) {
+      final path = content.substring(6);
+      return ClipRRect(
+        borderRadius: radius,
+        child: Image.file(
+          File(path),
+          width: size, height: size, fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const SizedBox(
+            width: size, height: size,
+            child: Center(child: Icon(Icons.broken_image_outlined)),
+          ),
+        ),
+      );
+    }
+    if (content.startsWith('http')) {
+      return ClipRRect(
+        borderRadius: radius,
+        child: CachedNetworkImage(
+          imageUrl: content,
+          width: size, height: size, fit: BoxFit.cover,
+          placeholder: (_, __) => const SizedBox(
+            width: size, height: size,
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.mint)),
+          ),
+          errorWidget: (_, __, ___) => const SizedBox(
+            width: size, height: size,
+            child: Center(child: Icon(Icons.broken_image_outlined)),
+          ),
+        ),
+      );
+    }
+    return const SizedBox(
+      width: size, height: size,
+      child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.mint)),
     );
   }
 

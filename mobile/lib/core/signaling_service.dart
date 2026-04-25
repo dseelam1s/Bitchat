@@ -73,7 +73,7 @@ class SignalingService {
 
   // Message types routed to onMessageReceived (not call signals)
   static const _msgTypes = {
-    'dm', 'delivery_receipt', 'read_receipt', 'typing', 'message_ack',
+    'dm', 'delivery_receipt', 'read_receipt', 'typing', 'message_ack', 'image',
   };
 
   void _onMessage(dynamic raw) {

@@ -524,6 +524,21 @@ class BitChatService {
     // BLE excluded intentionally — see doc comment above
   }
 
+  /// Send an image over BLE by splitting base64 data into 180-byte chunks.
+  /// Returns true if at least one chunk was sent to at least one peer.
+  Future<bool> sendMediaChunked({
+    required Message message,
+    required String mediaType,
+    required String base64Data,
+  }) async {
+    if (!_bleActive) return false;
+    return _bleService.sendMediaChunked(
+      message: message,
+      mediaType: mediaType,
+      base64Data: base64Data,
+    );
+  }
+
   Future<void> sendMessage(Message message) async {
     _seenMessageIds.add(message.id);
     final bytes = Uint8List.fromList(utf8.encode(jsonEncode(message.toMap())));

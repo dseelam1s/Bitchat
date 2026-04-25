@@ -366,6 +366,55 @@ class ServerService {
     }
   }
 
+  /// Upload a chat image to Cloudinary via the server.
+  ///
+  /// Returns the public URL on success, or throws a [ServerUploadException] on failure.
+  Future<String> uploadChatImage(File imageFile) async {
+    final reachable = await ping();
+    if (!reachable) throw ServerUploadException('Server unreachable — check your connection');
+
+    await _loadTokens();
+    if (_accessToken == null) throw ServerUploadException('Not signed in to server');
+
+    try {
+      final mimeType = lookupMimeType(imageFile.path) ?? 'image/jpeg';
+      final mimeTypeParts = mimeType.split('/');
+
+      Future<http.Response> doUpload() async {
+        final uri = _uri('messages/image/upload/');
+        final request = http.MultipartRequest('POST', uri)
+          ..headers['Authorization'] = 'Bearer $_accessToken'
+          ..files.add(await http.MultipartFile.fromPath(
+            'image',
+            imageFile.path,
+            contentType: MediaType(mimeTypeParts[0], mimeTypeParts[1]),
+          ));
+        final streamed = await request.send().timeout(const Duration(seconds: 30));
+        return http.Response.fromStream(streamed);
+      }
+
+      var response = await doUpload();
+
+      if (response.statusCode == 401 && _refreshToken != null) {
+        final refreshed = await _refreshAccessToken();
+        if (refreshed) response = await doUpload();
+      }
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final url = data['url'] as String?;
+        if (url == null || url.isEmpty) throw ServerUploadException('Server returned no URL');
+        return url;
+      }
+      if (response.statusCode == 413) throw ServerUploadException('Image too large — please choose a smaller photo');
+      throw ServerUploadException('Upload failed — please try again');
+    } on ServerUploadException {
+      rethrow;
+    } catch (_) {
+      throw ServerUploadException('Upload failed — please try again');
+    }
+  }
+
   /// Update display name and/or profile picture URL for the authenticated user.
   ///
   /// [profilePictureUrl] should be a URL already uploaded to cloud storage by the client.

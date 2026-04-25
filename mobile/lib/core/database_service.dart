@@ -238,7 +238,7 @@ class DatabaseService {
     final db = await database;
     final maps = await db.rawQuery(
       "SELECT * FROM messages WHERE senderPubkey = ? AND receiverPubkey = ? "
-      "AND status != 'read' AND type IN ('text')",
+      "AND status != 'read' AND type IN ('text', 'image', 'voice_note')",
       [senderPubkey, myPubkey],
     );
     return maps.map((m) => Message.fromMap(m)).toList();
@@ -303,7 +303,7 @@ class DatabaseService {
     // Only retry actual chat messages — never retry ephemeral/metadata types
     final maps = await db.rawQuery(
       "SELECT * FROM messages WHERE status IN ('pending', 'failed') "
-      "AND type IN ('text', 'read_receipt')",
+      "AND type IN ('dm', 'text', 'image', 'voice_note', 'read_receipt')",
     );
     return maps.map((m) => Message.fromMap(m)).toList();
   }
@@ -482,7 +482,7 @@ class DatabaseService {
           CASE WHEN senderPubkey = ? THEN receiverPubkey ELSE senderPubkey END AS contactPubkey,
           MAX(timestamp) AS maxTs
         FROM messages
-        WHERE type IN ('text') AND (senderPubkey = ? OR receiverPubkey = ?)
+        WHERE type IN ('text', 'image', 'voice_note') AND (senderPubkey = ? OR receiverPubkey = ?)
         GROUP BY contactPubkey
       ) latest
       ON (
@@ -490,7 +490,7 @@ class DatabaseService {
         OR (m.senderPubkey = latest.contactPubkey AND m.receiverPubkey = ?)
       )
       AND m.timestamp = latest.maxTs
-      AND m.type IN ('text')
+      AND m.type IN ('text', 'image', 'voice_note')
       ORDER BY m.timestamp DESC, m.rowid DESC
     ''', [myPubkey, myPubkey, myPubkey, myPubkey, myPubkey]);
 
@@ -516,7 +516,7 @@ class DatabaseService {
       SELECT senderPubkey, COUNT(*) as cnt
       FROM messages
       WHERE receiverPubkey = ? AND status != 'read'
-        AND type IN ('text')
+        AND type IN ('text', 'image', 'voice_note')
       GROUP BY senderPubkey
     ''', [myPubkey]);
 
@@ -537,7 +537,7 @@ class DatabaseService {
     await db.rawUpdate(
       "UPDATE messages SET status = 'read' "
       "WHERE senderPubkey = ? AND receiverPubkey = ? AND status != 'read' "
-      "AND type IN ('text')",
+      "AND type IN ('text', 'image', 'voice_note')",
       [contactPubkey, myPubkey],
     );
   }
