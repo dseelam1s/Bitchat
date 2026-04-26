@@ -16,6 +16,8 @@ class BoundedSet<T> {
     }
   }
 
+  bool remove(T value) => _set.remove(value);
+
   void clear() => _set.clear();
 
   int get length => _set.length;

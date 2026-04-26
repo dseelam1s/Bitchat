@@ -3,9 +3,38 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from django.db import models
 from bitchat.models import BitChatIdentity
 from apps.common import identity_or_404, picture_url, upload_file
 from .serializers import ProfileUpdateSerializer
+
+
+# ── Profile Search ────────────────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def profile_search(request):
+    """Search public profiles by display_name or short_id.
+    GET /profiles/search/?q=alice
+    Returns up to 20 matches ordered by display_name.
+    """
+    q = request.query_params.get('q', '').strip()
+    if len(q) < 2:
+        return Response({'detail': 'Query must be at least 2 characters.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    results = BitChatIdentity.objects.filter(
+        is_public=True,
+    ).filter(
+        models.Q(display_name__icontains=q) | models.Q(short_id__icontains=q)
+    ).order_by('display_name')[:20]
+
+    return Response([{
+        'pubkey':               r.pubkey,
+        'short_id':             r.short_id,
+        'display_name':         r.display_name,
+        'bio':                  r.bio,
+        'profile_picture_url':  picture_url(r),
+    } for r in results])
 
 
 # ── Profile Get ───────────────────────────────────────────────────────────────
@@ -19,12 +48,41 @@ def profile_get(request, pubkey):
     except BitChatIdentity.DoesNotExist:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+    if not identity.is_public:
+        return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
     return Response({
-        'pubkey':               identity.pubkey,
-        'short_id':             identity.short_id,
-        'display_name':         identity.display_name,
-        'profile_picture_url':  picture_url(identity),
-        'created_at':           identity.created_at,
+        'pubkey':                  identity.pubkey,
+        'short_id':                identity.short_id,
+        'display_name':            identity.display_name,
+        'bio':                     identity.bio,
+        'profile_picture_url':     picture_url(identity),
+        'is_discoverable_nearby':  identity.is_discoverable_nearby,
+        'created_at':              identity.created_at,
+    })
+
+
+# ── Own Profile (authenticated read) ─────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def profile_me(request):
+    """Return the authenticated user's own full profile — skips is_public check.
+    GET /profile/me/
+    """
+    identity, err = identity_or_404(request.user.username)
+    if err:
+        return err
+
+    return Response({
+        'pubkey':                  identity.pubkey,
+        'short_id':                identity.short_id,
+        'display_name':            identity.display_name,
+        'bio':                     identity.bio,
+        'profile_picture_url':     picture_url(identity),
+        'is_public':               identity.is_public,
+        'is_discoverable_nearby':  identity.is_discoverable_nearby,
+        'created_at':              identity.created_at,
     })
 
 
@@ -44,11 +102,14 @@ def profile_update(request):
 
     serializer.save()
     return Response({
-        'pubkey':               identity.pubkey,
-        'short_id':             identity.short_id,
-        'display_name':         identity.display_name,
-        'profile_picture_url':  picture_url(identity),
-        'created_at':           identity.created_at,
+        'pubkey':                  identity.pubkey,
+        'short_id':                identity.short_id,
+        'display_name':            identity.display_name,
+        'bio':                     identity.bio,
+        'profile_picture_url':     picture_url(identity),
+        'is_public':               identity.is_public,
+        'is_discoverable_nearby':  identity.is_discoverable_nearby,
+        'created_at':              identity.created_at,
     })
 
 

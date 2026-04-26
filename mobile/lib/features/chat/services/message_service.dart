@@ -242,7 +242,9 @@ class MessageService {
     _bitchatSub = _bitchatService.messageStream.listen(_onMessageReceived);
     _nearbySub = _bitchatService.nearbyChangedStream.listen(_onNearbyChanged);
     _meshRelayServerSub = _bitchatService.relayToNostrStream.listen(_onMeshRelayToServer);
-    _deliveryReceiptSub = _bitchatService.deliveryReceiptStream.listen(_onDeliveryReceipt);
+    // BLE delivery receipts are unreliable — only WebSocket receipts update tick
+    // status. Drain the stream to prevent backpressure but discard the events.
+    _deliveryReceiptSub = _bitchatService.deliveryReceiptStream.listen((_) {});
 
     _connectivitySub = _connectivity.onConnectivityChanged.listen(_onConnectivityChanged);
     await _checkConnectivity();
@@ -394,27 +396,27 @@ class MessageService {
   }
 
   /// Send an image message. Routes to the online (Cloudinary) or offline (BLE chunks) path.
-  /// Shows a local thumbnail immediately regardless of which path is taken.
-  /// Returns the message ID on success, or null on failure.
+  /// Always stores a pending bubble immediately — sends when connectivity is available,
+  /// or queues for the retry timer if offline.
+  /// Returns the message ID (always, unless key is missing).
   Future<String?> sendImageMessage(File imageFile, String receiverPubkey) async {
     if (_keyManager.publicKey == null) return null;
-
-    final canOnline = _hasInternet &&
-        ServerService().isAuthenticated &&
-        _keyManager.privateKey != null;
-    final canBle = _shouldUseOffline();
-
-    if (!canOnline && !canBle) return null;
 
     final messageId = _keyManager.generateMessageId();
     final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
-    // Optimistic insert so UI shows local thumbnail immediately on both paths
+    // Copy to stable path immediately — ImagePicker temp cache may be cleared
+    // before connectivity returns if the message stays pending offline.
+    final dir = await getApplicationDocumentsDirectory();
+    final stablePath = '${dir.path}/img_out_$messageId.jpg';
+    await imageFile.copy(stablePath);
+    final stableFile = File(stablePath);
+
     final optimistic = Message(
       id: messageId,
       senderPubkey: _keyManager.publicKey!,
       receiverPubkey: receiverPubkey,
-      content: 'local:${imageFile.path}',
+      content: 'local:$stablePath',
       type: 'image',
       timestamp: timestamp,
       senderName: _keyManager.username,
@@ -423,11 +425,22 @@ class MessageService {
     await _dbService.insertMessage(optimistic);
     _messageController.add(optimistic);
 
+    final canOnline = _hasInternet &&
+        ServerService().isAuthenticated &&
+        _keyManager.privateKey != null;
+    final canBle = _shouldUseOffline();
+
+    if (!canOnline && !canBle) return messageId; // queued, retry timer will send
+
     if (canOnline) {
-      return await _sendImageOnline(imageFile, receiverPubkey, messageId, timestamp, optimistic);
-    } else {
-      return await _sendImageViaBle(imageFile, receiverPubkey, messageId, timestamp, optimistic);
+      return await _sendImageOnline(stableFile, receiverPubkey, messageId, timestamp, optimistic);
     }
+
+    // BLE only — skip if too large, keep pending until internet is available
+    final sizeBytes = await stableFile.length();
+    if (sizeBytes > 150 * 1024) return messageId;
+
+    return await _sendImageViaBle(stableFile, receiverPubkey, messageId, timestamp, optimistic);
   }
 
   /// Online path: compress → upload to Cloudinary → send NIP-44 encrypted URL.
@@ -481,8 +494,7 @@ class MessageService {
       _messageController.add(optimistic.copyWith(content: url, status: finalStatus));
       return messageId;
     } catch (_) {
-      await _dbService.updateMessageStatus(messageId, 'failed');
-      _messageController.add(optimistic.copyWith(status: 'failed'));
+      // Upload/send failed — keep as pending, retry timer will retry
       return null;
     }
   }
@@ -500,13 +512,8 @@ class MessageService {
       final bytes = await imageFile.readAsBytes();
 
       // Hard reject: >150 KB raw is ~200 KB base64 → ~1100 chunks → unreliable over BLE.
-      // The call site (chat_screen.dart) already checks this, but guard here too for
-      // API safety and to prevent corrupted transfers from ever starting.
-      if (bytes.lengthInBytes > 150 * 1024) {
-        await _dbService.updateMessageStatus(messageId, 'failed');
-        _messageController.add(optimistic.copyWith(status: 'failed'));
-        return null;
-      }
+      // Keep as pending instead of failing — will retry via internet when available.
+      if (bytes.lengthInBytes > 150 * 1024) return null;
 
       // Copy image to app documents directory so the bubble keeps showing
       // if ImagePicker's temp cache is cleared before the user reopens the chat.
@@ -578,10 +585,9 @@ class MessageService {
 
     if (sent) {
       await _dbService.updateMessageStatus(message.id, 'sent');
-    } else {
-      await _dbService.updateMessageStatus(message.id, 'failed');
-      _messageController.add(message.copyWith(status: 'failed'));
     }
+    // On first failure keep status as 'pending' — retry timer will escalate
+    // to 'failed' after 2 minutes if connectivity is available but send keeps failing.
 
     return message.id;
   }
@@ -760,15 +766,11 @@ class MessageService {
     if (message.type == AppConstants.typeTypingIndicator) return;
 
     // ── Step 2: Delivery receipts — never encrypted, handle immediately ───────
-    if (message.type == 'delivery_receipt') {
-      if (message.content.isNotEmpty) {
-        await _onDeliveryReceipt({
-          'messageId': message.content,
-          'receiverPubkey': message.senderPubkey,
-        });
-      }
-      return;
-    }
+    // BLE delivery receipts are unreliable (sender may no longer be in range),
+    // so only WebSocket receipts update tick status. The WS handler intercepts
+    // delivery_receipt before calling _onMessageReceived, so anything reaching
+    // here with that type came via BLE — drop it.
+    if (message.type == 'delivery_receipt') return;
 
     // ── Step 3: Decrypt before ALL other type-specific handling ───────────────
     // Read receipts, group invites, and call signals all need plaintext content.
@@ -790,9 +792,14 @@ class MessageService {
       final parsed = jsonDecode(decrypted.content);
       if (parsed is Map) {
         if (parsed['type'] == 'read_receipt') {
-          final originalMessageId = parsed['originalMessageId'] as String?;
-          if (originalMessageId != null && originalMessageId.isNotEmpty) {
-            await _onReadReceipt(originalMessageId, decrypted.senderPubkey);
+          // Only server-delivered read receipts update tick status.
+          // BLE-originated messages always have transport == 'bitchat'; drop those
+          // so blue ticks only appear when the server confirms the read.
+          if (message.transport != 'bitchat') {
+            final originalMessageId = parsed['originalMessageId'] as String?;
+            if (originalMessageId != null && originalMessageId.isNotEmpty) {
+              await _onReadReceipt(originalMessageId, decrypted.senderPubkey);
+            }
           }
           return;
         }
@@ -861,6 +868,13 @@ class MessageService {
     await _dbService.insertMessage(decrypted);
     _messageController.add(decrypted);
 
+    // If this message carries the sender's display name and our DB entry for them
+    // has no name yet, persist it now so the chats list and chat header show it
+    // immediately without waiting for a server profile fetch.
+    if (decrypted.senderName?.isNotEmpty == true) {
+      await _dbService.updateContactNameIfEmpty(decrypted.senderPubkey, decrypted.senderName!);
+    }
+
     // Do NOT auto-add sender to contacts — user must do this explicitly.
     // If sender has no name/photo yet and we have internet, silently fetch
     // their profile from server so they show with a name instead of a raw pubkey.
@@ -899,6 +913,9 @@ class MessageService {
       final stored = message.copyWith(content: 'local:$path', meshEncrypted: false);
       await _dbService.insertMessage(stored);
       _messageController.add(stored);
+      if (stored.senderName?.isNotEmpty == true) {
+        await _dbService.updateContactNameIfEmpty(stored.senderPubkey, stored.senderName!);
+      }
       _resolveUnknownSender(stored.senderPubkey);
     } catch (_) {
       // Corrupt base64, disk full, or IO error — remove from processing set so
@@ -911,8 +928,9 @@ class MessageService {
     final messageId = receipt['messageId'];
     if (messageId == null) return;
 
-    // Update the message status to 'delivered' in our DB
-    await _dbService.updateMessageStatus(messageId, 'delivered');
+    // Use updateMessageStatusIfHigher — a late delivery receipt must not
+    // downgrade a message that's already at 'read'.
+    await _dbService.updateMessageStatusIfHigher(messageId, 'delivered');
 
     // Notify UI by emitting a synthetic status update
     try {
@@ -990,14 +1008,12 @@ class MessageService {
   Future<void> _retryPendingMessages() async {
     final pending = await _dbService.getPendingMessages();
     for (final message in pending) {
-      // Image/voice_note messages stored with a local file path cannot be retried
-      // from DB content alone — we'd need to re-read the file bytes and re-upload
-      // (online) or re-chunk (BLE). Both are non-trivial and risk sending a stale
-      // path string as the message content. The user should resend manually.
+      // Image messages with a local file path need special retry — re-read bytes
+      // and re-upload/re-chunk rather than sending the raw path string.
       // Messages with http:// content (upload succeeded, WebSocket/REST failed)
-      // DO fall through here and retry correctly via _trySendServer.
-      if ((message.type == 'image' || message.type == 'voice_note') &&
-          message.content.startsWith('local:')) {
+      // fall through to the normal _trySendServer path below.
+      if (message.type == 'image' && message.content.startsWith('local:')) {
+        await _retryPendingImage(message);
         continue;
       }
 
@@ -1013,7 +1029,6 @@ class MessageService {
 
       if (sent) {
         await _dbService.updateMessageStatus(message.id, 'sent');
-        // Notify UI so tick mark updates from pending → sent without manual refresh
         _messageController.add(Message(
           id: message.id,
           senderPubkey: message.senderPubkey,
@@ -1023,7 +1038,65 @@ class MessageService {
           timestamp: message.timestamp,
           status: 'sent',
         ));
+      } else if (_shouldUseOnline() || _shouldUseOffline()) {
+        // Has connectivity but still failing — escalate to 'failed' after 2 minutes.
+        // Images are excluded: a large image pending BLE-only should wait for internet
+        // rather than being marked failed after 2 minutes.
+        final isImageWithLocalPath = message.type == 'image' && message.content.startsWith('local:');
+        if (!isImageWithLocalPath) {
+          final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+          final ageSeconds = nowSeconds - message.timestamp;
+          if (ageSeconds >= 120 && message.status == 'pending') {
+            await _dbService.updateMessageStatus(message.id, 'failed');
+            _messageController.add(Message(
+              id: message.id,
+              senderPubkey: message.senderPubkey,
+              receiverPubkey: message.receiverPubkey,
+              content: '',
+              type: 'status_update',
+              timestamp: message.timestamp,
+              status: 'failed',
+            ));
+          }
+        }
       }
+    }
+  }
+
+  Future<void> _retryPendingImage(Message message) async {
+    final localPath = message.content.substring('local:'.length);
+    final file = File(localPath);
+
+    if (!await file.exists()) {
+      await _dbService.updateMessageStatus(message.id, 'failed');
+      _messageController.add(Message(
+        id: message.id,
+        senderPubkey: message.senderPubkey,
+        receiverPubkey: message.receiverPubkey,
+        content: '',
+        type: 'status_update',
+        timestamp: message.timestamp,
+        status: 'failed',
+      ));
+      return;
+    }
+
+    final canOnline = _hasInternet &&
+        ServerService().isAuthenticated &&
+        _keyManager.privateKey != null;
+    final canBle = _shouldUseOffline();
+
+    if (!canOnline && !canBle) return; // still no path, keep pending
+
+    if (canOnline) {
+      await _sendImageOnline(
+          file, message.receiverPubkey, message.id, message.timestamp, message);
+    } else {
+      // BLE only — skip if too large, keep pending until internet is available
+      final sizeBytes = await file.length();
+      if (sizeBytes > 150 * 1024) return;
+      await _sendImageViaBle(
+          file, message.receiverPubkey, message.id, message.timestamp, message);
     }
   }
 

@@ -102,13 +102,13 @@ class _ChatsScreenState extends State<ChatsScreen> {
     });
   }
 
-  void _openDm(Contact contact) {
+  void _openDm(Contact contact, {String? resolvedName}) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ChatScreen(
           contactPubkey: contact.pubkey,
-          contactName: contact.name,
+          contactName: resolvedName ?? contact.name,
           contactProfilePictureUrl: contact.profilePictureUrl,
           contactProfilePictureLocalPath: contact.profilePictureLocalPath,
           messageService: widget.messageService,
@@ -340,7 +340,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () => _openDm(contact),
+          onTap: () => _openDm(contact, resolvedName: label),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(

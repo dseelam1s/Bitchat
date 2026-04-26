@@ -384,6 +384,18 @@ class DatabaseService {
     );
   }
 
+  /// Updates contact name only if currently null/empty (auto-populate from message).
+  /// Never overwrites a user-customized name.
+  Future<void> updateContactNameIfEmpty(String pubkey, String name) async {
+    final db = await database;
+    await db.update(
+      'contacts',
+      {'name': name},
+      where: "pubkey = ? AND (name IS NULL OR name = '') AND (isNameCustomized IS NULL OR isNameCustomized = 0)",
+      whereArgs: [pubkey],
+    );
+  }
+
   // Create a contact if it doesn't already exist (for unknown senders)
   /// Inserts contact if not already present. Returns true if newly created.
   Future<bool> ensureContact(String pubkey, {String? name}) async {

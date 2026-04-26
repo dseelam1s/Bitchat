@@ -278,23 +278,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendImageMessage() async {
     final hasInternet = widget.messageService.hasInternet;
-    final hasBle = widget.messageService.hasNearbyDevices;
-
-    if (!hasInternet && !hasBle) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No connection available — connect to internet or be near another BitChat user'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-      return;
-    }
 
     final picker = ImagePicker();
-    // Use heavier compression for BLE: 640px / quality 30 keeps raw bytes under 80 KB.
-    // Online path can afford higher quality since only a URL travels over the wire.
+    // Use better quality when online; BLE path gets compressed further in the service.
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: hasInternet ? 70 : 30,
@@ -303,34 +289,9 @@ class _ChatScreenState extends State<ChatScreen> {
     );
     if (picked == null) return;
 
-    final file = File(picked.path);
-
-    // For the BLE path: reject if still too large after picker compression.
-    // Anything >150 KB raw would generate >1100 BLE chunks and become unreliable.
-    if (!hasInternet) {
-      final sizeBytes = await file.length();
-      if (sizeBytes > 150 * 1024) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Image too large for offline sending — connect to internet to send this photo'),
-              duration: Duration(seconds: 4),
-            ),
-          );
-        }
-        return;
-      }
-    }
-
-    final result = await widget.messageService.sendImageMessage(file, widget.contactPubkey);
-    if (result == null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Image send failed — check your connection'),
-          duration: Duration(seconds: 3),
-        ),
-      );
-    }
+    // Always queues as pending — sends immediately if connected, or waits for
+    // connectivity and retries automatically. No upfront connectivity check needed.
+    await widget.messageService.sendImageMessage(File(picked.path), widget.contactPubkey);
   }
 
   void _sendMessage() async {
@@ -627,10 +588,13 @@ class _ChatScreenState extends State<ChatScreen> {
                       final retryCallback = canRetry
                           ? () => widget.messageService.retryPendingMessages()
                           : null;
+                      final hasConn = widget.messageService.hasInternet ||
+                          widget.messageService.hasNearbyDevices;
                       return _Bubble(
                         message: msg,
                         isMe: isMe,
                         onRetry: retryCallback,
+                        hasConnectivity: hasConn,
                       );
                     },
                   ),
@@ -650,24 +614,24 @@ class _ChatScreenState extends State<ChatScreen> {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            // Image attachment — available online (Cloudinary) or via BLE (chunked)
-                            if (widget.messageService.hasInternet || widget.messageService.hasNearbyDevices)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 4),
-                                child: SizedBox(
-                                  width: 42, height: 42,
-                                  child: Material(
-                                    color: Colors.transparent,
+                            // Image attachment — always visible; tap handler shows
+                            // a snackbar if there's no connectivity at send time.
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: SizedBox(
+                                width: 42, height: 42,
+                                child: Material(
+                                  color: Colors.transparent,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: InkWell(
                                     borderRadius: BorderRadius.circular(12),
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(12),
-                                      onTap: _sendImageMessage,
-                                      child: Icon(Icons.image_outlined, size: 22,
-                                          color: Theme.of(context).colorScheme.onSurface.withAlpha(120)),
-                                    ),
+                                    onTap: _sendImageMessage,
+                                    child: Icon(Icons.image_outlined, size: 22,
+                                        color: Theme.of(context).colorScheme.onSurface.withAlpha(120)),
                                   ),
                                 ),
                               ),
+                            ),
                             Expanded(
                               child: Container(
                                 decoration: BoxDecoration(
@@ -775,11 +739,13 @@ class _Bubble extends StatelessWidget {
   final Message message;
   final bool isMe;
   final VoidCallback? onRetry;
+  final bool hasConnectivity;
 
   const _Bubble({
     required this.message,
     required this.isMe,
     this.onRetry,
+    this.hasConnectivity = true,
   });
 
   @override
@@ -808,10 +774,32 @@ class _Bubble extends StatelessWidget {
     final metaColor = isMe ? sentMetaColor : recvMetaColor;
 
     final isImage = message.type == 'image';
+
+    // Status icon shown next to timestamp for outgoing messages
+    Widget? statusIcon;
+    if (isMe) {
+      switch (message.status) {
+        case 'pending':
+          statusIcon = Icon(Icons.schedule, size: 11, color: metaColor);
+        case 'sent':
+          statusIcon = Icon(Icons.done, size: 11, color: metaColor);
+        case 'delivered':
+          statusIcon = Icon(Icons.done_all, size: 11, color: metaColor);
+        case 'read':
+          statusIcon = Icon(Icons.done_all, size: 11, color: AppColors.mint);
+        case 'failed':
+          statusIcon = Icon(Icons.error_outline, size: 11, color: AppColors.error.withAlpha(180));
+      }
+    }
+
     final timeRow = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(_time(message.timestamp), style: TextStyle(fontSize: 10, color: metaColor)),
+        if (statusIcon != null) ...[
+          const SizedBox(width: 3),
+          statusIcon,
+        ],
       ],
     );
 
@@ -853,7 +841,22 @@ class _Bubble extends StatelessWidget {
             ),
     );
 
-    final isFailed = isMe && message.status == 'failed';
+    // Failed with connectivity = genuine failure after 2-min retry window.
+    // The red ! is already shown in timeRow; add a small text label beneath.
+    // Failed without connectivity = clock icon in timeRow is enough — no extra text.
+    // Pending = clock in timeRow, no label needed.
+    final showFailedLabel = isMe && message.status == 'failed' && hasConnectivity;
+
+    Widget? statusHint;
+    if (showFailedLabel) {
+      statusHint = Padding(
+        padding: const EdgeInsets.only(bottom: 4, right: 4),
+        child: Text(
+          'Not delivered',
+          style: TextStyle(fontSize: 10, color: AppColors.error.withAlpha(180)),
+        ),
+      );
+    }
 
     return GestureDetector(
       onLongPress: () => _showMessageMenu(context),
@@ -863,24 +866,7 @@ class _Bubble extends StatelessWidget {
           crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             bubble,
-            if (isFailed && onRetry != null)
-              GestureDetector(
-                onTap: onRetry,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 4, right: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.error_outline, size: 11, color: AppColors.error.withAlpha(180)),
-                      const SizedBox(width: 3),
-                      Text(
-                        'Not delivered · Tap to retry',
-                        style: TextStyle(fontSize: 10, color: AppColors.error.withAlpha(180)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            if (statusHint != null) statusHint,
           ],
         ),
       ),

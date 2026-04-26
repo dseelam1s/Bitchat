@@ -36,6 +36,13 @@ class BitChatIdentity(models.Model):
     # Published in Nostr kind:0, fetched by other clients.
     profile_picture_url = models.URLField(max_length=512, blank=True)
 
+    # Public-facing bio shown on the profile screen.
+    bio = models.CharField(max_length=150, blank=True)
+
+    # Discovery visibility flags — both default to True (public by default).
+    is_public             = models.BooleanField(default=True)   # appears in search
+    is_discoverable_nearby = models.BooleanField(default=True)  # appears in BLE nearby list
+
     # Contact list backup — NIP-44 encrypted JSON blob, server cannot read it.
     # Format (before encryption): [{"pubkey": "...", "name": "..."}, ...]
     contacts_backup = models.TextField(blank=True)
@@ -188,3 +195,39 @@ class PendingMessage(models.Model):
 
     def __str__(self):
         return f'Msg {self.message_id[:8]}... → {self.receiver_pubkey[:8]}...'
+
+
+class ConnectionRequest(models.Model):
+    """
+    Mutual connection request between two users.
+    A sends a request to B → pending.
+    B accepts → accepted (both become connections).
+    B declines → declined (A is not notified — privacy).
+    Unique constraint prevents duplicate requests in the same direction.
+    """
+    STATUS_PENDING  = 'pending'
+    STATUS_ACCEPTED = 'accepted'
+    STATUS_DECLINED = 'declined'
+    STATUS_CHOICES  = [
+        (STATUS_PENDING,  'Pending'),
+        (STATUS_ACCEPTED, 'Accepted'),
+        (STATUS_DECLINED, 'Declined'),
+    ]
+
+    from_pubkey = models.CharField(max_length=128, db_index=True)
+    to_pubkey   = models.CharField(max_length=128, db_index=True)
+    status      = models.CharField(max_length=16, default=STATUS_PENDING, choices=STATUS_CHOICES)
+    created_at  = models.DateTimeField(auto_now_add=True)
+    updated_at  = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [('from_pubkey', 'to_pubkey')]
+        indexes = [
+            models.Index(fields=['to_pubkey', 'status']),
+            models.Index(fields=['from_pubkey', 'status']),
+        ]
+        verbose_name = 'Connection Request'
+        verbose_name_plural = 'Connection Requests'
+
+    def __str__(self):
+        return f'{self.from_pubkey[:8]}→{self.to_pubkey[:8]} [{self.status}]'

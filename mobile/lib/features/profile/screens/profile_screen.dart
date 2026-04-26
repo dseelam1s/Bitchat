@@ -26,7 +26,11 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _usernameController;
+  late TextEditingController _bioController;
   bool _isEditingUsername = false;
+  bool _isEditingBio = false;
+  bool _isPublic = true;
+  bool _isDiscoverableNearby = true;
   String? _profilePictureUrl;
   String? _localProfilePicturePath;
 
@@ -36,7 +40,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _usernameController = TextEditingController(
       text: widget.messageService.username ?? '',
     );
+    _bioController = TextEditingController();
     _loadProfilePicture();
+    _loadProfileSettings();
   }
 
   Future<void> _loadProfilePicture() async {
@@ -49,8 +55,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() => _localProfilePicturePath = cached);
     }
 
-    // Fetch latest from server and refresh cache
-    final result = await ServerService().getProfile(pubkey);
+    // Fetch latest from server — use authenticated endpoint so private users work too
+    final result = await ServerService().getMyProfile();
     final url = result?['profile_picture_url'] as String?;
     if (url != null && url.isNotEmpty && mounted) {
       setState(() => _profilePictureUrl = url);
@@ -61,9 +67,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _loadProfileSettings() async {
+    final result = await ServerService().getMyProfile();
+    if (result != null && mounted) {
+      setState(() {
+        _bioController.text = result['bio'] as String? ?? '';
+        _isPublic = result['is_public'] as bool? ?? true;
+        _isDiscoverableNearby = result['is_discoverable_nearby'] as bool? ?? true;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _usernameController.dispose();
+    _bioController.dispose();
     super.dispose();
   }
 
@@ -74,6 +92,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(name.isNotEmpty ? 'Username updated' : 'Username cleared')),
     );
+  }
+
+  Future<void> _saveBio() async {
+    final bio = _bioController.text.trim();
+    FocusScope.of(context).unfocus();
+    await ServerService().updateProfile(bio: bio);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bio updated')),
+      );
+    }
+  }
+
+  Future<void> _togglePublic(bool value) async {
+    setState(() => _isPublic = value);
+    await ServerService().updateProfile(isPublic: value);
+  }
+
+  Future<void> _toggleDiscoverableNearby(bool value) async {
+    setState(() => _isDiscoverableNearby = value);
+    await ServerService().updateProfile(isDiscoverableNearby: value);
   }
 
   Future<void> _showProfilePictureOptions() async {
@@ -331,7 +370,125 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: EdgeInsets.symmetric(horizontal: 20),
             child: Divider(height: 1, color: AppColors.divider),
           ),
-          const SizedBox(height: 8),
+
+          // ── Bio ─────────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+            child: _isEditingBio
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _bioController,
+                          autofocus: true,
+                          maxLength: 150,
+                          maxLines: 2,
+                          style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                          decoration: const InputDecoration(
+                            hintText: 'Write a short bio…',
+                            hintStyle: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                            isDense: true,
+                            filled: false,
+                            counterStyle: TextStyle(fontSize: 10, color: AppColors.textMuted),
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () { _saveBio(); setState(() => _isEditingBio = false); },
+                        child: const Padding(
+                          padding: EdgeInsets.only(left: 8, bottom: 2),
+                          child: Icon(Icons.check_circle, size: 20, color: AppColors.mint),
+                        ),
+                      ),
+                    ],
+                  )
+                : GestureDetector(
+                    onTap: () => setState(() => _isEditingBio = true),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _bioController.text.isNotEmpty
+                                ? _bioController.text
+                                : 'Tap to add a bio…',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: _bioController.text.isNotEmpty
+                                  ? AppColors.textMuted
+                                  : AppColors.textMuted.withAlpha(100),
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Icon(Icons.edit, size: 13, color: AppColors.textMuted.withAlpha(80)),
+                      ],
+                    ),
+                  ),
+          ),
+
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Divider(height: 1, color: AppColors.divider),
+          ),
+
+          // ── Discovery & Privacy ─────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+            child: Text(
+              'DISCOVERY',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textMuted.withAlpha(150),
+                letterSpacing: 1.5,
+              ),
+            ),
+          ),
+          SwitchListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+            secondary: Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.mint.withAlpha(15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.public_outlined, color: AppColors.mint, size: 20),
+            ),
+            title: const Text('Public profile', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+            subtitle: const Text('Others can search and view your profile', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+            value: _isPublic,
+            activeTrackColor: AppColors.mint,
+            onChanged: _togglePublic,
+          ),
+          SwitchListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+            secondary: Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.teal.withAlpha(15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.bluetooth_searching_outlined, color: AppColors.teal, size: 20),
+            ),
+            title: const Text('Discoverable nearby', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+            subtitle: const Text('Show up when people scan for nearby users', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+            value: _isDiscoverableNearby,
+            activeTrackColor: AppColors.teal,
+            onChanged: _isPublic ? _toggleDiscoverableNearby : null,
+          ),
+
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            child: Divider(height: 1, color: AppColors.divider),
+          ),
+          const SizedBox(height: 4),
 
           // ── Settings rows ───────────────────────────────────────────────
           _settingsRow(

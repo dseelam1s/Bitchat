@@ -7,6 +7,7 @@ import 'package:bitchat_messenger/features/chat/services/message_service.dart';
 import 'package:bitchat_messenger/features/calls/screens/incoming_call_screen.dart';
 import 'package:bitchat_messenger/features/chat/screens/chats_screen.dart';
 import 'package:bitchat_messenger/features/contacts/screens/contacts_screen.dart';
+import 'package:bitchat_messenger/features/discovery/screens/discovery_screen.dart';
 import 'package:bitchat_messenger/features/profile/screens/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -77,7 +78,11 @@ class _HomeScreenState extends State<HomeScreen> {
         messageService: widget.messageService,
         callService: widget.callService,
       ),
-      // Tab 2 — Profile + Settings
+      // Tab 2 — Discover (Nearby + Search)
+      DiscoveryScreen(
+        messageService: widget.messageService,
+      ),
+      // Tab 3 — Profile + Settings
       ProfileScreen(
         messageService: widget.messageService,
       ),
@@ -147,6 +152,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               selectedIcon: const Icon(Icons.chat_bubble, size: 22),
               label: 'Chats',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.explore_outlined, size: 22),
+              selectedIcon: Icon(Icons.explore, size: 22),
+              label: 'Discover',
             ),
             const NavigationDestination(
               icon: Icon(Icons.person_outline, size: 22),

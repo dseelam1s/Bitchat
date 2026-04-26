@@ -101,6 +101,39 @@ class ServerService {
     }
   }
 
+  /// PATCH with JSON body; returns decoded response or null on any error.
+  Future<Map<String, dynamic>?> _patch(
+    String path,
+    Map<String, dynamic> body, {
+    bool authenticated = false,
+  }) async {
+    try {
+      if (authenticated) await _loadTokens();
+      final res = await _client
+          .patch(_uri(path),
+              headers: _authHeaders(includeAuth: authenticated), body: jsonEncode(body))
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+      if (res.statusCode == 401 && authenticated && _refreshToken != null) {
+        final refreshed = await _refreshAccessToken();
+        if (refreshed) {
+          final retry = await _client
+              .patch(_uri(path),
+                  headers: _authHeaders(includeAuth: authenticated), body: jsonEncode(body))
+              .timeout(const Duration(seconds: 10));
+          if (retry.statusCode >= 200 && retry.statusCode < 300) {
+            return jsonDecode(retry.body) as Map<String, dynamic>;
+          }
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// GET with optional query params; returns decoded body or null on any error.
   Future<Map<String, dynamic>?> _get(
     String path, {
@@ -115,6 +148,40 @@ class ServerService {
           .timeout(const Duration(seconds: 10));
       if (res.statusCode >= 200 && res.statusCode < 300) {
         return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// GET that expects a JSON array response. Returns null on error.
+  Future<List<dynamic>?> _getList(
+    String path, {
+    Map<String, String>? queryParams,
+    bool authenticated = false,
+  }) async {
+    try {
+      if (authenticated) await _loadTokens();
+      final uri = _uri(path).replace(queryParameters: queryParams);
+      final res = await _client
+          .get(uri, headers: _authHeaders(includeAuth: authenticated))
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final decoded = jsonDecode(res.body);
+        return decoded is List ? decoded : null;
+      }
+      if (res.statusCode == 401 && authenticated && _refreshToken != null) {
+        final refreshed = await _refreshAccessToken();
+        if (refreshed) {
+          final retry = await _client
+              .get(uri, headers: _authHeaders(includeAuth: true))
+              .timeout(const Duration(seconds: 10));
+          if (retry.statusCode >= 200 && retry.statusCode < 300) {
+            final decoded = jsonDecode(retry.body);
+            return decoded is List ? decoded : null;
+          }
+        }
       }
       return null;
     } catch (_) {
@@ -415,19 +482,80 @@ class ServerService {
     }
   }
 
-  /// Update display name and/or profile picture URL for the authenticated user.
-  ///
-  /// [profilePictureUrl] should be a URL already uploaded to cloud storage by the client.
+  /// Update display name, profile picture URL, bio, or discovery flags.
   Future<bool> updateProfile({
     String? displayName,
     String? profilePictureUrl,
+    String? bio,
+    bool? isPublic,
+    bool? isDiscoverableNearby,
   }) async {
     final body = <String, dynamic>{};
     if (displayName != null) body['display_name'] = displayName;
     if (profilePictureUrl != null) body['profile_picture_url'] = profilePictureUrl;
+    if (bio != null) body['bio'] = bio;
+    if (isPublic != null) body['is_public'] = isPublic;
+    if (isDiscoverableNearby != null) body['is_discoverable_nearby'] = isDiscoverableNearby;
     if (body.isEmpty) return true;
-    final result = await _post('profile/', body, authenticated: true);
+    final result = await _patch('profile/', body, authenticated: true);
     return result != null;
+  }
+
+  /// Fetch the authenticated user's own profile (works even when is_public=false).
+  Future<Map<String, dynamic>?> getMyProfile() async {
+    return _get('profile/me/', authenticated: true);
+  }
+
+  // ── Discovery: search ────────────────────────────────────────────────────
+
+  /// Search public profiles by display_name or short_id. Returns up to 20 results.
+  Future<List<Map<String, dynamic>>?> searchProfiles(String query) async {
+    final list = await _getList('profiles/search/', queryParams: {'q': query});
+    return list?.cast<Map<String, dynamic>>();
+  }
+
+  // ── Discovery: connections ───────────────────────────────────────────────
+
+  /// Send a connection request to another user.
+  Future<bool> sendConnectionRequest(String toPubkey) async {
+    final result = await _post(
+      'connections/request/',
+      {'to_pubkey': toPubkey},
+      authenticated: true,
+    );
+    return result != null;
+  }
+
+  /// Accept an incoming connection request.
+  Future<bool> acceptConnectionRequest(int requestId) async {
+    final result = await _post(
+      'connections/$requestId/accept/',
+      {},
+      authenticated: true,
+    );
+    return result != null;
+  }
+
+  /// Decline an incoming connection request.
+  Future<bool> declineConnectionRequest(int requestId) async {
+    final result = await _post(
+      'connections/$requestId/decline/',
+      {},
+      authenticated: true,
+    );
+    return result != null;
+  }
+
+  /// List incoming pending connection requests.
+  Future<List<Map<String, dynamic>>?> getPendingConnectionRequests() async {
+    final list = await _getList('connections/pending/', authenticated: true);
+    return list?.cast<Map<String, dynamic>>();
+  }
+
+  /// List all accepted connections.
+  Future<List<Map<String, dynamic>>?> getConnections() async {
+    final list = await _getList('connections/', authenticated: true);
+    return list?.cast<Map<String, dynamic>>();
   }
 
   // ── Contacts Backup ──────────────────────────────────────────────────────

@@ -17,7 +17,14 @@ from apps.identity.views import (
     contacts_backup_fetch,
 )
 from apps.push.views import push_token, notify
-from apps.profile.views import profile_get, profile_update, profile_picture_upload
+from apps.profile.views import profile_get, profile_me, profile_update, profile_picture_upload, profile_search
+from apps.connections.views import (
+    connection_request_send,
+    connection_request_accept,
+    connection_request_decline,
+    connection_requests_pending,
+    connections_list,
+)
 from apps.messaging.views import (
     message_send,
     message_fetch,
