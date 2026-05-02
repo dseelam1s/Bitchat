@@ -754,19 +754,18 @@ class _Bubble extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final cs = theme.colorScheme;
 
-    // Sent bubble: solid mint in light mode, faint tint in dark mode
-    final sentBgColor = isDark ? AppColors.mint.withAlpha(20) : AppColors.mint;
-    final sentBorderColor = isDark ? AppColors.mint.withAlpha(35) : AppColors.mintDark;
-    final sentTextColor = isDark ? cs.onSurface : Colors.white;
-    final sentMetaColor = isDark
-        ? cs.onSurface.withAlpha(80)
-        : Colors.white.withAlpha(180);
+    // Sent bubble: sunny yellow in light; dark gray in dark
+    const sentColor = Color(0xFFEBDE73);
+    final sentBgColor = isDark ? const Color(0xFF2C2C2E) : sentColor;
+    final sentBorderColor = Colors.transparent;
+    final sentTextColor = cs.onSurface;
+    final sentMetaColor = cs.onSurface.withAlpha(120);
 
-    // Received bubble: card color
-    final recvBgColor = theme.cardColor;
-    final recvBorderColor = theme.dividerColor.withAlpha(60);
+    // Received bubble: light gray in light; darker gray in dark
+    final recvBgColor = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F0F0);
+    final recvBorderColor = Colors.transparent;
     final recvTextColor = cs.onSurface;
-    final recvMetaColor = cs.onSurface.withAlpha(80);
+    final recvMetaColor = cs.onSurface.withAlpha(100);
 
     final bubbleBg = isMe ? sentBgColor : recvBgColor;
     final bubbleBorder = isMe ? sentBorderColor : recvBorderColor;
@@ -786,7 +785,7 @@ class _Bubble extends StatelessWidget {
         case 'delivered':
           statusIcon = Icon(Icons.done_all, size: 11, color: metaColor);
         case 'read':
-          statusIcon = Icon(Icons.done_all, size: 11, color: AppColors.mint);
+          statusIcon = Icon(Icons.done_all, size: 11, color: AppColors.online);
         case 'failed':
           statusIcon = Icon(Icons.error_outline, size: 11, color: AppColors.error.withAlpha(180));
       }
@@ -813,13 +812,8 @@ class _Bubble extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: bubbleBg,
-        borderRadius: BorderRadius.only(
-          topLeft: const Radius.circular(16),
-          topRight: const Radius.circular(16),
-          bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
-          bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
-        ),
-        border: Border.all(color: bubbleBorder),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: bubbleBorder, width: 0.5),
       ),
       child: isImage
           ? Column(

@@ -2,61 +2,68 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
-  // ── Brand palette ─────────────────────────────────────────────────────────
-  // Primary: Electric Indigo — vivid, digital, alive — not corporate blue
-  static const Color primary       = Color(0xFF4F6FFF);  // electric blue-indigo
-  static const Color primaryBright = Color(0xFF6B88FF);  // hover / lighter
-  static const Color primarySoft   = Color(0xFF3352CC);  // pressed / deeper
+  // ── Accent ────────────────────────────────────────────────────────────────
+  static const Color primary       = Color(0xFFEBDE73);  // sunny yellow — light mode accent
+  static const Color primaryDark   = Color(0xFFFFFFFF);  // white — dark mode
 
-  // Danger/Alert: Signal Red — calls, errors, alerts
-  static const Color signal     = Color(0xFFFF4455);
-  static const Color signalSoft = Color(0xFFFF6B78);
-
-  // Legacy aliases — existing screens continue to compile unchanged
+  // ── Legacy aliases (existing screens compile unchanged) ───────────────────
   static const Color teal      = primary;
-  static const Color tealLight = primaryBright;
-  static const Color tealSoft  = primaryBright;
+  static const Color tealLight = Color(0xFF333333);
+  static const Color tealSoft  = Color(0xFF333333);
   static const Color mint      = primary;
-  static const Color mintDark  = primaryBright;
-  static const Color mintSoft  = primaryBright;
+  static const Color mintDark  = Color(0xFF333333);
+  static const Color mintSoft  = Color(0xFF333333);
   static const Color blue      = primary;
-  static const Color blueDark  = primaryBright;
-  static const Color amber     = signal;      // badge / highlight fallback
-  static const Color amberSoft = signalSoft;
+  static const Color blueDark  = Color(0xFF333333);
+  static const Color amber     = Color(0xFFFF9500);
+  static const Color amberSoft = Color(0xFFFFB340);
 
-  // ── Dark theme palette ────────────────────────────────────────────────────
-  // Deep navy — not pure black, has blue depth so primary color glows in it
-  static const Color bg            = Color(0xFF0C1120);  // midnight navy
-  static const Color surface       = Color(0xFF131B2E);  // dark panel
-  static const Color card          = Color(0xFF192035);  // lifted card
-  static const Color cardHover     = Color(0xFF1F2840);
-  static const Color divider       = Color(0xFF263051);
-  static const Color inputBg       = Color(0xFF101626);
-  static const Color textPrimary   = Color(0xFFEEF0FF);  // blue-white — feels in-universe
-  static const Color textSecondary = Color(0xFF7B8DB0);
-  static const Color textMuted     = Color(0xFF3D4D6E);
+  // ── Light theme ───────────────────────────────────────────────────────────
+  static const Color bg            = Color(0xFFFFFFFF);  // pure cold white
+  static const Color surface       = Color(0xFFFAFAFA);
+  static const Color card          = Color(0xFFF5F5F5);
+  static const Color cardHover     = Color(0xFFEFEFEF);
+  static const Color divider       = Color(0xFFE8E8E8);
+  static const Color inputBg       = Color(0xFFF2F2F2);
+  static const Color textPrimary   = Color(0xFF000000);
+  static const Color textSecondary = Color(0xFF333333);
+  static const Color textMuted     = Color(0xFF8E8E8E);
 
-  // ── Light theme palette ───────────────────────────────────────────────────
-  static const Color lightBg            = Color(0xFFF4F6FF);  // slight blue tint
-  static const Color lightSurface       = Color(0xFFFFFFFF);
-  static const Color lightCard          = Color(0xFFFFFFFF);
-  static const Color lightCardHover     = Color(0xFFECEFFF);
-  static const Color lightDivider       = Color(0xFFD6DAEE);
-  static const Color lightInputBg       = Color(0xFFECEFFF);
-  static const Color lightTextPrimary   = Color(0xFF0C1120);
-  static const Color lightTextSecondary = Color(0xFF4A5A80);
-  static const Color lightTextMuted     = Color(0xFF8A9BBF);
+  // Legacy light aliases
+  static const Color lightBg            = bg;
+  static const Color lightSurface       = surface;
+  static const Color lightCard          = card;
+  static const Color lightCardHover     = cardHover;
+  static const Color lightDivider       = divider;
+  static const Color lightInputBg       = inputBg;
+  static const Color lightTextPrimary   = textPrimary;
+  static const Color lightTextSecondary = textSecondary;
+  static const Color lightTextMuted     = textMuted;
 
-  // ── Status — shared ───────────────────────────────────────────────────────
-  static const Color online    = Color(0xFF22C55E);   // green — reachable
-  static const Color offline   = Color(0xFF3D4D6E);   // muted — not reachable
+  // ── Dark theme (iOS-style pure black) ─────────────────────────────────────
+  static const Color darkBg            = Color(0xFF000000);
+  static const Color darkSurface       = Color(0xFF1C1C1E);
+  static const Color darkCard          = Color(0xFF2C2C2E);
+  static const Color darkCardHover     = Color(0xFF3A3A3C);
+  static const Color darkDivider       = Color(0xFF38383A);
+  static const Color darkInputBg       = Color(0xFF1C1C1E);
+  static const Color darkTextPrimary   = Color(0xFFFFFFFF);
+  static const Color darkTextSecondary = Color(0xFFAEAEB2);
+  static const Color darkTextMuted     = Color(0xFF636366);
+
+  // ── Status ────────────────────────────────────────────────────────────────
+  static const Color online    = Color(0xFF34C759);  // iOS green
+  static const Color offline   = Color(0xFF8E8E8E);
   static const Color delivered = primary;
-  static const Color error     = signal;
+  static const Color error     = Color(0xFFFF3B30);  // iOS red
+  static const Color signal    = error;
+  static const Color signalSoft = Color(0xFFFF6961);
 }
 
 class AppTheme {
-  static ThemeData get darkTheme => _build(
-        brightness: Brightness.dark,
+  static ThemeData get lightTheme => _build(
+        brightness: Brightness.light,
+        primaryColor: AppColors.primary,
         bg: AppColors.bg,
         surface: AppColors.surface,
         card: AppColors.card,
@@ -67,20 +74,22 @@ class AppTheme {
         textMuted: AppColors.textMuted,
       );
 
-  static ThemeData get lightTheme => _build(
-        brightness: Brightness.light,
-        bg: AppColors.lightBg,
-        surface: AppColors.lightSurface,
-        card: AppColors.lightCard,
-        divider: AppColors.lightDivider,
-        inputBg: AppColors.lightInputBg,
-        textPrimary: AppColors.lightTextPrimary,
-        textSecondary: AppColors.lightTextSecondary,
-        textMuted: AppColors.lightTextMuted,
+  static ThemeData get darkTheme => _build(
+        brightness: Brightness.dark,
+        primaryColor: AppColors.primaryDark,
+        bg: AppColors.darkBg,
+        surface: AppColors.darkSurface,
+        card: AppColors.darkCard,
+        divider: AppColors.darkDivider,
+        inputBg: AppColors.darkInputBg,
+        textPrimary: AppColors.darkTextPrimary,
+        textSecondary: AppColors.darkTextSecondary,
+        textMuted: AppColors.darkTextMuted,
       );
 
   static ThemeData _build({
     required Brightness brightness,
+    required Color primaryColor,
     required Color bg,
     required Color surface,
     required Color card,
@@ -90,6 +99,8 @@ class AppTheme {
     required Color textSecondary,
     required Color textMuted,
   }) {
+    final isDark = brightness == Brightness.dark;
+
     final baseTextTheme = GoogleFonts.interTextTheme().copyWith(
       displayLarge:   TextStyle(color: textPrimary, fontWeight: FontWeight.w700),
       displayMedium:  TextStyle(color: textPrimary, fontWeight: FontWeight.w700),
@@ -111,13 +122,13 @@ class AppTheme {
     return ThemeData(
       brightness: brightness,
       scaffoldBackgroundColor: bg,
-      primaryColor: AppColors.primary,
+      primaryColor: primaryColor,
       textTheme: baseTextTheme,
       colorScheme: ColorScheme(
         brightness: brightness,
-        primary: AppColors.primary,
-        onPrimary: Colors.white,
-        secondary: AppColors.signal,
+        primary: primaryColor,
+        onPrimary: isDark ? Colors.black : Colors.white,
+        secondary: AppColors.error,
         onSecondary: Colors.white,
         surface: surface,
         onSurface: textPrimary,
@@ -132,49 +143,51 @@ class AppTheme {
         centerTitle: false,
         titleTextStyle: GoogleFonts.inter(
           color: textPrimary,
-          fontSize: 20,
+          fontSize: 18,
           fontWeight: FontWeight.w700,
-          letterSpacing: -0.3,
+          letterSpacing: -0.5,
         ),
-        iconTheme: IconThemeData(color: textSecondary),
+        iconTheme: IconThemeData(color: textPrimary),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: surface,
+        backgroundColor: bg,
         surfaceTintColor: Colors.transparent,
-        indicatorColor: AppColors.primary.withAlpha(30),
+        shadowColor: Colors.transparent,
+        indicatorColor: Colors.transparent,  // no pill
+        height: 56,
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: AppColors.primary);
+            return IconThemeData(color: textPrimary, size: 24);
           }
-          return IconThemeData(color: textMuted);
+          return IconThemeData(color: textMuted, size: 24);
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return GoogleFonts.inter(
-              color: AppColors.primary,
-              fontSize: 11,
+              color: textPrimary,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
             );
           }
-          return GoogleFonts.inter(color: textMuted, fontSize: 11);
+          return GoogleFonts.inter(color: textMuted, fontSize: 10);
         }),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: primaryColor,
+        foregroundColor: isDark ? Colors.black : Colors.white,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       cardTheme: CardThemeData(
         color: card,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: card,
+        backgroundColor: isDark ? AppColors.darkCard : Colors.white,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         titleTextStyle: GoogleFonts.inter(
           color: textPrimary,
           fontSize: 17,
@@ -184,48 +197,61 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: inputBg,
-        hintStyle: TextStyle(color: textMuted),
+        hintStyle: TextStyle(color: textMuted, fontSize: 15),
         labelStyle: TextStyle(color: textSecondary),
-        prefixIconColor: textSecondary,
-        suffixIconColor: textSecondary,
+        prefixIconColor: textMuted,
+        suffixIconColor: textMuted,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: divider.withAlpha(140)),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: divider.withAlpha(140)),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: primaryColor, width: 1.5),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
       sliderTheme: SliderThemeData(
-        activeTrackColor: AppColors.primary,
+        activeTrackColor: primaryColor,
         inactiveTrackColor: divider,
-        thumbColor: AppColors.primary,
-        overlayColor: AppColors.primary.withAlpha(25),
-        valueIndicatorColor: AppColors.primary,
-        valueIndicatorTextStyle: const TextStyle(
-          color: Colors.white,
+        thumbColor: primaryColor,
+        overlayColor: primaryColor.withAlpha(20),
+        valueIndicatorColor: primaryColor,
+        valueIndicatorTextStyle: TextStyle(
+          color: isDark ? Colors.black : Colors.white,
           fontWeight: FontWeight.w600,
         ),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: card,
-        contentTextStyle: TextStyle(color: textPrimary, fontSize: 13),
+        backgroundColor: isDark ? AppColors.darkCard : AppColors.textPrimary,
+        contentTextStyle: TextStyle(
+          color: isDark ? AppColors.darkTextPrimary : Colors.white,
+          fontSize: 13,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         behavior: SnackBarBehavior.floating,
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+        style: TextButton.styleFrom(foregroundColor: primaryColor),
       ),
       dividerTheme: DividerThemeData(
         color: divider,
         thickness: 0.5,
         space: 0,
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return Colors.white;
+          return isDark ? AppColors.darkTextMuted : Colors.white;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return primaryColor;
+          return isDark ? AppColors.darkDivider : AppColors.divider;
+        }),
       ),
       useMaterial3: true,
     );
