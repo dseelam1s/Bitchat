@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
   // ── Accent ────────────────────────────────────────────────────────────────
-  static const Color primary       = Color(0xFFEBDE73);  // sunny yellow — light mode accent
+  static const Color primary       = Color(0xFF000000);  // black — light mode accent
   static const Color primaryDark   = Color(0xFFFFFFFF);  // white — dark mode
 
   // ── Legacy aliases (existing screens compile unchanged) ───────────────────

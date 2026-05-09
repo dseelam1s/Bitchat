@@ -754,16 +754,15 @@ class _Bubble extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final cs = theme.colorScheme;
 
-    // Sent bubble: sunny yellow in light; dark gray in dark
-    const sentColor = Color(0xFFEBDE73);
-    final sentBgColor = isDark ? const Color(0xFF2C2C2E) : sentColor;
+    // Sent bubble: light gray in light; dark gray in dark
+    final sentBgColor = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE9E9E9);
     final sentBorderColor = Colors.transparent;
     final sentTextColor = cs.onSurface;
     final sentMetaColor = cs.onSurface.withAlpha(120);
 
-    // Received bubble: light gray in light; darker gray in dark
-    final recvBgColor = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F0F0);
-    final recvBorderColor = Colors.transparent;
+    // Received bubble: white with hairline border in light; darker gray in dark
+    final recvBgColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    final recvBorderColor = isDark ? Colors.transparent : const Color(0xFFE0E0E0);
     final recvTextColor = cs.onSurface;
     final recvMetaColor = cs.onSurface.withAlpha(100);
 
