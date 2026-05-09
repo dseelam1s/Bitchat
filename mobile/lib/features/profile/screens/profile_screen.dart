@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -6,18 +7,16 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:bitchat_messenger/core/theme.dart';
 import 'package:bitchat_messenger/main.dart' show themeNotifier;
-import 'package:bitchat_messenger/features/contacts/models/contact.dart';
 import 'package:bitchat_messenger/features/chat/services/message_service.dart';
 import 'package:bitchat_messenger/features/profile/services/backup_service.dart';
 import 'package:bitchat_messenger/core/server_service.dart';
 import 'package:bitchat_messenger/features/profile/services/profile_picture_cache_service.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:bitchat_messenger/features/contacts/models/contact.dart';
 
-// ── Profile Screen (Tab 3) ────────────────────────────────────────────────────
+// ── Profile Screen (Tab: Me) ──────────────────────────────────────────────────
 
 class ProfileScreen extends StatefulWidget {
   final MessageService messageService;
-
   const ProfileScreen({super.key, required this.messageService});
 
   @override
@@ -26,9 +25,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _usernameController;
-  late TextEditingController _bioController;
-  bool _isEditingUsername = false;
-  bool _isEditingBio = false;
   bool _isPublic = true;
   bool _isDiscoverableNearby = true;
   String? _profilePictureUrl;
@@ -37,10 +33,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _usernameController = TextEditingController(
-      text: widget.messageService.username ?? '',
-    );
-    _bioController = TextEditingController();
+    _usernameController = TextEditingController(text: widget.messageService.username ?? '');
     _loadProfilePicture();
     _loadProfileSettings();
   }
@@ -48,22 +41,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadProfilePicture() async {
     final pubkey = widget.messageService.publicKey;
     if (pubkey == null) return;
-
-    // Show cached local copy immediately — works offline
     final cached = await ProfilePictureCacheService().localPath(pubkey);
-    if (cached != null && mounted) {
-      setState(() => _localProfilePicturePath = cached);
-    }
+    if (cached != null && mounted) setState(() => _localProfilePicturePath = cached);
 
-    // Fetch latest from server — use authenticated endpoint so private users work too
     final result = await ServerService().getMyProfile();
     final url = result?['profile_picture_url'] as String?;
     if (url != null && url.isNotEmpty && mounted) {
       setState(() => _profilePictureUrl = url);
       final localPath = await ProfilePictureCacheService().download(pubkey, url);
-      if (localPath != null && mounted) {
-        setState(() => _localProfilePicturePath = localPath);
-      }
+      if (localPath != null && mounted) setState(() => _localProfilePicturePath = localPath);
     }
   }
 
@@ -71,7 +57,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final result = await ServerService().getMyProfile();
     if (result != null && mounted) {
       setState(() {
-        _bioController.text = result['bio'] as String? ?? '';
         _isPublic = result['is_public'] as bool? ?? true;
         _isDiscoverableNearby = result['is_discoverable_nearby'] as bool? ?? true;
       });
@@ -81,28 +66,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _usernameController.dispose();
-    _bioController.dispose();
     super.dispose();
   }
 
   void _saveUsername() {
     final name = _usernameController.text.trim();
     widget.messageService.setUsername(name.isNotEmpty ? name : null);
-    FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(name.isNotEmpty ? 'Username updated' : 'Username cleared')),
-    );
-  }
-
-  Future<void> _saveBio() async {
-    final bio = _bioController.text.trim();
-    FocusScope.of(context).unfocus();
-    await ServerService().updateProfile(bio: bio);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bio updated')),
-      );
-    }
   }
 
   Future<void> _togglePublic(bool value) async {
@@ -115,35 +84,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await ServerService().updateProfile(isDiscoverableNearby: value);
   }
 
+  void _showEditNameDialog() {
+    final ctrl = TextEditingController(text: _usernameController.text);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit name'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(hintText: 'Your name'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              _usernameController.text = ctrl.text;
+              _saveUsername();
+              setState(() {});
+              Navigator.pop(ctx);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _showProfilePictureOptions() async {
     final result = await showModalBottomSheet<Object>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
-            Container(
-              width: 36, height: 4,
-              decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2)),
-            ),
+            Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
             ListTile(
-              leading: _optionIcon(Icons.photo_library_outlined),
+              leading: const Icon(Icons.photo_library_outlined),
               title: const Text('Choose from gallery'),
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
             ListTile(
-              leading: _optionIcon(Icons.camera_alt_outlined),
+              leading: const Icon(Icons.camera_alt_outlined),
               title: const Text('Take a photo'),
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
             if (_profilePictureUrl != null)
               ListTile(
-                leading: _optionIcon(Icons.delete_outline, isError: true),
+                leading: const Icon(Icons.delete_outline, color: AppColors.error),
                 title: const Text('Remove photo', style: TextStyle(color: AppColors.error)),
                 onTap: () => Navigator.pop(ctx, '_remove'),
               ),
@@ -152,20 +144,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
-
     if (!mounted) return;
     if (result == '_remove') { await _removeProfilePicture(); return; }
     if (result is! ImageSource) return;
     await _pickAndUpload(result);
-  }
-
-  Widget _optionIcon(IconData icon, {bool isError = false}) {
-    final color = isError ? AppColors.error : AppColors.mint;
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(color: color.withAlpha(15), borderRadius: BorderRadius.circular(10)),
-      child: Icon(icon, color: color),
-    );
   }
 
   Future<void> _pickAndUpload(ImageSource source) async {
@@ -179,7 +161,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         SizedBox(width: 12),
         Text('Uploading photo...'),
       ]),
-      duration: Duration(days: 1), // dismissed explicitly below
+      duration: Duration(days: 1),
     ));
 
     try {
@@ -189,28 +171,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await ServerService().updateProfile(profilePictureUrl: url);
       if (!mounted) return;
       setState(() => _profilePictureUrl = url);
-      // Persist locally so it's available offline and in BLE handshakes
       widget.messageService.setProfilePictureUrl(url);
-      // Cache image to disk for offline display
       final pubkey = widget.messageService.publicKey;
       if (pubkey != null) {
         final localPath = await ProfilePictureCacheService().download(pubkey, url);
-        if (localPath != null && mounted) {
-          setState(() => _localProfilePicturePath = localPath);
-        }
+        if (localPath != null && mounted) setState(() => _localProfilePicturePath = localPath);
       }
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile picture updated')));
     } on ServerUploadException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Upload failed — ${e.message}'),
-        duration: const Duration(seconds: 5),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed — ${e.message}'), duration: const Duration(seconds: 5)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Upload failed — unexpected error')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Upload failed')));
     }
   }
 
@@ -219,362 +194,132 @@ class _ProfileScreenState extends State<ProfileScreen> {
     widget.messageService.setProfilePictureUrl(null);
     final pubkey = widget.messageService.publicKey;
     if (pubkey != null) await ProfilePictureCacheService().delete(pubkey);
-    if (mounted) setState(() {
-      _profilePictureUrl = null;
-      _localProfilePicturePath = null;
-    });
+    if (mounted) setState(() { _profilePictureUrl = null; _localProfilePicturePath = null; });
+  }
+
+  String _initials() {
+    final name = _usernameController.text.trim();
+    if (name.isEmpty) return '?';
+    final parts = name.split(' ').where((p) => p.isNotEmpty).toList();
+    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    return name.substring(0, min(2, name.length)).toUpperCase();
   }
 
   @override
   Widget build(BuildContext context) {
     final pubkey = widget.messageService.publicKey;
     final shortId = pubkey != null ? Contact.shortIdFor(pubkey) : '——————';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       body: ListView(
         padding: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + 16,
-          bottom: 40,
+          top: MediaQuery.of(context).padding.top + 24,
+          bottom: 48,
         ),
         children: [
-          // ── Profile header ──────────────────────────────────────────────
+
+          // ── Profile card (Signal-style) ──────────────────────────────────
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Row(
-              children: [
-                // Avatar
-                GestureDetector(
-                  onTap: _showProfilePictureOptions,
-                  child: Stack(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Material(
+              color: isDark ? AppColors.darkCard : AppColors.card,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: _showEditNameDialog,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
                     children: [
-                      Container(
-                        width: 72, height: 72,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.mint.withAlpha(80), width: 2),
-                          color: AppColors.inputBg,
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: _localProfilePicturePath != null
-                            ? Image.file(File(_localProfilePicturePath!), fit: BoxFit.cover)
-                            : _profilePictureUrl != null
-                                ? CachedNetworkImage(
-                                    imageUrl: _profilePictureUrl!,
-                                    fit: BoxFit.cover,
-                                    errorWidget: (_, __, ___) => const Icon(Icons.person_outline, size: 34, color: AppColors.textMuted),
-                                  )
-                                : const Icon(Icons.person_outline, size: 34, color: AppColors.textMuted),
-                      ),
-                      Positioned(
-                        bottom: 0, right: 0,
-                        child: Container(
-                          width: 22, height: 22,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.mint,
-                            border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 1.5),
-                          ),
-                          child: const Icon(Icons.camera_alt, size: 12, color: Colors.black),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                // Name + Short ID
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Editable username
-                      _isEditingUsername
-                          ? Row(
-                              children: [
-                                Text('@', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.mint)),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _usernameController,
-                                    autofocus: true,
-                                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-                                    decoration: const InputDecoration(
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                      contentPadding: EdgeInsets.zero,
-                                      isDense: true,
-                                      filled: false,
-                                    ),
-                                    onSubmitted: (_) {
-                                      _saveUsername();
-                                      setState(() => _isEditingUsername = false);
-                                    },
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap: () { _saveUsername(); setState(() => _isEditingUsername = false); },
-                                  child: const Icon(Icons.check_circle, size: 20, color: AppColors.mint),
-                                ),
-                              ],
-                            )
-                          : GestureDetector(
-                              onTap: () => setState(() => _isEditingUsername = true),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    _usernameController.text.isNotEmpty
-                                        ? '@${_usernameController.text}'
-                                        : 'Tap to set username',
-                                    style: TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w700,
-                                      color: _usernameController.text.isNotEmpty ? null : AppColors.textMuted,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Icon(Icons.edit, size: 13, color: AppColors.textMuted.withAlpha(120)),
-                                ],
-                              ),
-                            ),
-                      const SizedBox(height: 4),
+                      // Avatar
                       GestureDetector(
-                        onTap: () {
-                          Clipboard.setData(ClipboardData(text: '#$shortId'));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Short ID copied'), duration: Duration(seconds: 2)),
-                          );
-                        },
-                        onLongPress: () {
-                          SharePlus.instance.share(ShareParams(text: 'Message me on BitChat: #$shortId'));
-                        },
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                        onTap: _showProfilePictureOptions,
+                        child: Container(
+                          width: 56, height: 56,
+                          decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.inputBg),
+                          clipBehavior: Clip.antiAlias,
+                          child: _localProfilePicturePath != null
+                              ? Image.file(File(_localProfilePicturePath!), fit: BoxFit.cover)
+                              : _profilePictureUrl != null && _profilePictureUrl!.isNotEmpty
+                                  ? CachedNetworkImage(
+                                      imageUrl: _profilePictureUrl!,
+                                      fit: BoxFit.cover,
+                                      errorWidget: (_, __, ___) => _initialsWidget(),
+                                    )
+                                  : _initialsWidget(),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      // Name + Short ID
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '#$shortId',
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.mint, letterSpacing: 1.5),
+                              _usernameController.text.isNotEmpty
+                                  ? _usernameController.text
+                                  : 'Tap to set name',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: _usernameController.text.isNotEmpty
+                                    ? null
+                                    : AppColors.textMuted,
+                              ),
                             ),
-                            const SizedBox(width: 6),
-                            Icon(Icons.copy_outlined, size: 13, color: AppColors.mint.withAlpha(160)),
+                            const SizedBox(height: 2),
+                            GestureDetector(
+                              onTap: () {
+                                Clipboard.setData(ClipboardData(text: '#$shortId'));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Short ID copied'), duration: Duration(seconds: 2)),
+                                );
+                              },
+                              child: Text(
+                                '#$shortId',
+                                style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                              ),
+                            ),
                           ],
                         ),
                       ),
+                      const Icon(Icons.chevron_right, size: 20, color: AppColors.textMuted),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Divider(height: 1, color: AppColors.divider),
-          ),
-
-          // ── Bio ─────────────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-            child: _isEditingBio
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _bioController,
-                          autofocus: true,
-                          maxLength: 150,
-                          maxLines: 2,
-                          style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
-                          decoration: const InputDecoration(
-                            hintText: 'Write a short bio…',
-                            hintStyle: TextStyle(fontSize: 13, color: AppColors.textMuted),
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            contentPadding: EdgeInsets.zero,
-                            isDense: true,
-                            filled: false,
-                            counterStyle: TextStyle(fontSize: 10, color: AppColors.textMuted),
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () { _saveBio(); setState(() => _isEditingBio = false); },
-                        child: const Padding(
-                          padding: EdgeInsets.only(left: 8, bottom: 2),
-                          child: Icon(Icons.check_circle, size: 20, color: AppColors.mint),
-                        ),
-                      ),
-                    ],
-                  )
-                : GestureDetector(
-                    onTap: () => setState(() => _isEditingBio = true),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _bioController.text.isNotEmpty
-                                ? _bioController.text
-                                : 'Tap to add a bio…',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: _bioController.text.isNotEmpty
-                                  ? AppColors.textMuted
-                                  : AppColors.textMuted.withAlpha(100),
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Icon(Icons.edit, size: 13, color: AppColors.textMuted.withAlpha(80)),
-                      ],
-                    ),
-                  ),
-          ),
-
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: Divider(height: 1, color: AppColors.divider),
-          ),
-
-          // ── Discovery & Privacy ─────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
-            child: Text(
-              'DISCOVERY',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textMuted.withAlpha(150),
-                letterSpacing: 1.5,
               ),
             ),
           ),
+
+          const SizedBox(height: 28),
+          const Divider(height: 1),
+
+          // ── Privacy toggles ──────────────────────────────────────────────
           SwitchListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-            secondary: Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.mint.withAlpha(15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.public_outlined, color: AppColors.mint, size: 20),
-            ),
             title: const Text('Public profile', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-            subtitle: const Text('Others can search and view your profile', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
             value: _isPublic,
-            activeTrackColor: AppColors.mint,
             onChanged: _togglePublic,
           ),
+          const Divider(height: 1, indent: 20),
           SwitchListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-            secondary: Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.teal.withAlpha(15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.bluetooth_searching_outlined, color: AppColors.teal, size: 20),
-            ),
             title: const Text('Discoverable nearby', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-            subtitle: const Text('Show up when people scan for nearby users', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
             value: _isDiscoverableNearby,
-            activeTrackColor: AppColors.teal,
             onChanged: _isPublic ? _toggleDiscoverableNearby : null,
           ),
 
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-            child: Divider(height: 1, color: AppColors.divider),
-          ),
-          const SizedBox(height: 4),
+          const Divider(height: 1),
+          const SizedBox(height: 8),
 
-          // ── Settings rows ───────────────────────────────────────────────
-          _settingsRow(
+          // ── Settings ─────────────────────────────────────────────────────
+          _row(Icons.settings_outlined, 'Settings', () => Navigator.push(
             context,
-            icon: Icons.share_outlined,
-            title: 'Share your ID',
-            subtitle: 'Let friends find you on BitChat',
-            onTap: () => SharePlus.instance.share(ShareParams(text: 'Message me on BitChat: #$shortId')),
-          ),
-          _settingsRow(
-            context,
-            icon: Icons.manage_accounts_outlined,
-            title: 'Account',
-            subtitle: 'Public key, key backup',
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => _AccountScreen(messageService: widget.messageService),
-            )),
-          ),
-          _settingsRow(
-            context,
-            icon: Icons.forum_outlined,
-            title: 'Messaging',
-            subtitle: 'How your messages are delivered',
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => _MessagingScreen(messageService: widget.messageService),
-            )),
-          ),
-          _settingsRow(
-            context,
-            icon: Icons.palette_outlined,
-            title: 'Appearance',
-            subtitle: 'Theme',
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const _AppearanceScreen(),
-            )),
-          ),
-          _settingsRow(
-            context,
-            icon: Icons.network_check_outlined,
-            title: 'Test Server Connection',
-            subtitle: 'Check if server is reachable',
-            onTap: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              messenger.showSnackBar(const SnackBar(
-                content: Row(children: [
-                  SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-                  SizedBox(width: 12),
-                  Text('Checking server...'),
-                ]),
-                duration: Duration(seconds: 10),
-              ));
-              final ok = await ServerService().ping();
-              if (!mounted) return;
-              final wsConnected = widget.messageService.isSignalingConnected;
-              messenger.hideCurrentSnackBar();
-              final String msg;
-              final Color color;
-              if (!ok) {
-                msg = 'Server unreachable — check your internet connection';
-                color = Colors.red[700]!;
-              } else if (!wsConnected) {
-                msg = 'Server reachable but real-time connection not ready yet — wait a few seconds';
-                color = Colors.orange[700]!;
-              } else {
-                msg = 'Server reachable and real-time connection active';
-                color = Colors.green[700]!;
-              }
-              messenger.showSnackBar(SnackBar(
-                content: Text(msg),
-                backgroundColor: color,
-                duration: const Duration(seconds: 4),
-              ));
-            },
-          ),
-
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-            child: Divider(height: 1),
-          ),
-          _settingsRow(
-            context,
-            icon: Icons.privacy_tip_outlined,
-            title: 'Privacy Policy',
-            subtitle: 'How your data is handled',
-            onTap: () => _showPrivacyPolicy(context),
-          ),
+            MaterialPageRoute(builder: (_) => _SettingsScreen(messageService: widget.messageService)),
+          )),
+          const Divider(height: 1, indent: 20),
+          _row(Icons.privacy_tip_outlined, 'Privacy Policy', () => _showPrivacyPolicy(context)),
 
           const SizedBox(height: 32),
           Center(
@@ -584,6 +329,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+
+  Widget _initialsWidget() => Center(
+    child: Text(
+      _initials(),
+      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textMuted),
+    ),
+  );
+
+  Widget _row(IconData icon, String title, VoidCallback onTap) => ListTile(
+    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+    leading: Icon(icon, size: 22, color: AppColors.textMuted),
+    title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+    trailing: const Icon(Icons.chevron_right, size: 18, color: AppColors.textMuted),
+    onTap: onTap,
+  );
 
   void _showPrivacyPolicy(BuildContext context) {
     showDialog(
@@ -611,53 +371,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
             style: TextStyle(fontSize: 13, height: 1.5),
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
       ),
-    );
-  }
-
-  Widget _settingsRow(BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      leading: Container(
-        width: 40, height: 40,
-        decoration: BoxDecoration(
-          color: AppColors.mint.withAlpha(15),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: AppColors.mint, size: 20),
-      ),
-      title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-      trailing: const Icon(Icons.chevron_right, size: 20, color: AppColors.textMuted),
-      onTap: onTap,
     );
   }
 }
 
-// ── Account Screen ────────────────────────────────────────────────────────────
+// ── Combined Settings Screen ──────────────────────────────────────────────────
 
-class _AccountScreen extends StatefulWidget {
+class _SettingsScreen extends StatefulWidget {
   final MessageService messageService;
-  const _AccountScreen({required this.messageService});
+  const _SettingsScreen({required this.messageService});
 
   @override
-  State<_AccountScreen> createState() => _AccountScreenState();
+  State<_SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _AccountScreenState extends State<_AccountScreen> {
+class _SettingsScreenState extends State<_SettingsScreen> {
   bool _backupActive = false;
+  late int _ttl;
 
   @override
   void initState() {
     super.initState();
+    _ttl = widget.messageService.ttl;
     BackupService().isBackupActive().then((v) {
       if (mounted) setState(() => _backupActive = v);
     });
@@ -681,10 +418,7 @@ class _AccountScreenState extends State<_AccountScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(color: AppColors.inputBg, borderRadius: BorderRadius.circular(8)),
-              child: SelectableText(
-                pubkey,
-                style: const TextStyle(fontSize: 11, fontFamily: 'monospace', height: 1.6),
-              ),
+              child: SelectableText(pubkey, style: const TextStyle(fontSize: 11, fontFamily: 'monospace', height: 1.6)),
             ),
           ],
         ),
@@ -768,13 +502,8 @@ class _AccountScreenState extends State<_AccountScreen> {
                 if (pw.length < 4) { setLocal(() => error = 'Minimum 4 characters.'); return; }
                 if (pw != confirm) { setLocal(() => error = 'Passwords do not match.'); return; }
                 setLocal(() { isLoading = true; error = null; });
-
                 final privateKey = widget.messageService.privateKey;
-                if (privateKey == null) {
-                  setLocal(() { isLoading = false; error = 'No key found.'; });
-                  return;
-                }
-
+                if (privateKey == null) { setLocal(() { isLoading = false; error = 'No key found.'; }); return; }
                 final success = await BackupService().backupToServer(privateKey, pw);
                 if (!ctx.mounted) return;
                 if (success) {
@@ -795,100 +524,70 @@ class _AccountScreenState extends State<_AccountScreen> {
     );
   }
 
+  Future<void> _testConnection() async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(
+      content: Row(children: [
+        SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+        SizedBox(width: 12),
+        Text('Checking server...'),
+      ]),
+      duration: Duration(seconds: 10),
+    ));
+    final ok = await ServerService().ping();
+    if (!mounted) return;
+    final wsConnected = widget.messageService.isSignalingConnected;
+    messenger.hideCurrentSnackBar();
+    final String msg;
+    final Color color;
+    if (!ok) {
+      msg = 'Server unreachable — check your internet connection';
+      color = Colors.red[700]!;
+    } else if (!wsConnected) {
+      msg = 'Server reachable but real-time connection not ready yet';
+      color = Colors.orange[700]!;
+    } else {
+      msg = 'Server reachable and real-time connection active';
+      color = Colors.green[700]!;
+    }
+    messenger.showSnackBar(SnackBar(content: Text(msg), backgroundColor: color, duration: const Duration(seconds: 4)));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Account')),
+      appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
+
+          // ── Account ──────────────────────────────────────────────────────
+          _sectionLabel('ACCOUNT'),
+          _tile(Icons.key_outlined, 'Public Key', onTap: _showPublicKeyDialog),
+          const Divider(height: 1, indent: 20),
           _tile(
-            icon: Icons.key_outlined,
-            title: 'Public Key',
-            subtitle: 'View your 64-character identity key',
-            onTap: _showPublicKeyDialog,
-          ),
-          _divider(),
-          _tile(
-            icon: _backupActive ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
-            iconColor: _backupActive ? AppColors.online : Colors.amber,
-            title: 'Key Backup',
-            subtitle: _backupActive ? 'Backed up — tap to update password' : 'Not backed up — tap to protect',
+            _backupActive ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+            'Key Backup',
             trailing: _backupActive
-                ? const Icon(Icons.check_circle, size: 18, color: AppColors.online)
-                : const Icon(Icons.warning_amber_rounded, size: 18, color: Colors.amber),
+                ? const Icon(Icons.check_circle, size: 16, color: AppColors.online)
+                : const Icon(Icons.warning_amber_rounded, size: 16, color: Colors.amber),
             onTap: () => _showBackupDialog(isUpdate: _backupActive),
           ),
-        ],
-      ),
-    );
-  }
 
-  Widget _tile({
-    required IconData icon,
-    Color? iconColor,
-    required String title,
-    String? subtitle,
-    Widget? trailing,
-    VoidCallback? onTap,
-  }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      leading: Icon(icon, size: 22, color: iconColor ?? AppColors.textMuted),
-      title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-      subtitle: subtitle != null ? Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)) : null,
-      trailing: trailing ?? const Icon(Icons.chevron_right, size: 18, color: AppColors.textMuted),
-      onTap: onTap,
-    );
-  }
+          const SizedBox(height: 24),
 
-  Widget _divider() => const Padding(
-    padding: EdgeInsets.symmetric(horizontal: 20),
-    child: Divider(height: 1, color: AppColors.divider),
-  );
-}
-
-// ── Messaging Screen ──────────────────────────────────────────────────────────
-
-class _MessagingScreen extends StatefulWidget {
-  final MessageService messageService;
-  const _MessagingScreen({required this.messageService});
-
-  @override
-  State<_MessagingScreen> createState() => _MessagingScreenState();
-}
-
-class _MessagingScreenState extends State<_MessagingScreen> {
-  late int _ttl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ttl = widget.messageService.ttl;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Messaging')),
-      body: ListView(
-        children: [
-          const SizedBox(height: 8),
-          _sectionLabel('ADVANCED'),
+          // ── Messaging ─────────────────────────────────────────────────────
+          _sectionLabel('MESSAGING'),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.route_outlined, size: 18, color: AppColors.textMuted),
-                    const SizedBox(width: 12),
-                    const Expanded(child: Text('Relay range', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500))),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(color: AppColors.teal.withAlpha(15), borderRadius: BorderRadius.circular(8)),
-                      child: Text('$_ttl', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.teal)),
-                    ),
+                    const Text('Relay range', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                    const Spacer(),
+                    Text('$_ttl hops', style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
                   ],
                 ),
                 Slider(
@@ -901,68 +600,61 @@ class _MessagingScreenState extends State<_MessagingScreen> {
                   }),
                 ),
                 Text(
-                  'How far your message travels through nearby devices when no internet is available.',
-                  style: TextStyle(fontSize: 11, color: AppColors.textMuted.withAlpha(150)),
+                  'How far your message travels through nearby devices when offline.',
+                  style: TextStyle(fontSize: 11, color: AppColors.textMuted.withAlpha(160)),
                 ),
-                const SizedBox(height: 12),
               ],
             ),
           ),
+          const Divider(height: 1, indent: 20),
+          _tile(Icons.network_check_outlined, 'Test Connection', onTap: _testConnection),
+
+          const SizedBox(height: 24),
+
+          // ── Appearance ────────────────────────────────────────────────────
+          _sectionLabel('APPEARANCE'),
+          ListenableBuilder(
+            listenable: themeNotifier,
+            builder: (_, __) => Column(
+              children: [
+                _themeRow(Icons.light_mode_outlined, 'Light', ThemeMode.light),
+                const Divider(height: 1, indent: 20),
+                _themeRow(Icons.dark_mode_outlined, 'Dark', ThemeMode.dark),
+                const Divider(height: 1, indent: 20),
+                _themeRow(Icons.brightness_auto_outlined, 'System default', ThemeMode.system),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 32),
         ],
       ),
     );
   }
 
   Widget _sectionLabel(String text) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+    padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
     child: Text(
       text,
       style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted.withAlpha(150), letterSpacing: 1.5),
     ),
   );
-}
 
-// ── Appearance Screen ─────────────────────────────────────────────────────────
+  Widget _tile(IconData icon, String title, {Widget? trailing, VoidCallback? onTap}) => ListTile(
+    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+    leading: Icon(icon, size: 22, color: AppColors.textMuted),
+    title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+    trailing: trailing ?? const Icon(Icons.chevron_right, size: 18, color: AppColors.textMuted),
+    onTap: onTap,
+  );
 
-class _AppearanceScreen extends StatelessWidget {
-  const _AppearanceScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Appearance')),
-      body: ListenableBuilder(
-        listenable: themeNotifier,
-        builder: (_, __) => ListView(
-          children: [
-            const SizedBox(height: 8),
-            _themeRow(context, Icons.dark_mode_outlined, 'Dark', ThemeMode.dark),
-            const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Divider(height: 1, color: AppColors.divider)),
-            _themeRow(context, Icons.light_mode_outlined, 'Light', ThemeMode.light),
-            const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Divider(height: 1, color: AppColors.divider)),
-            _themeRow(context, Icons.brightness_auto_outlined, 'System default', ThemeMode.system),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _themeRow(BuildContext context, IconData icon, String title, ThemeMode value) {
+  Widget _themeRow(IconData icon, String title, ThemeMode value) {
     final sel = themeNotifier.mode == value;
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      leading: Icon(icon, size: 22, color: sel ? AppColors.teal : AppColors.textMuted),
-      title: Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: sel ? AppColors.teal : null)),
-      trailing: sel
-          ? Container(
-              width: 20, height: 20,
-              decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.mint),
-              child: const Icon(Icons.check, size: 13, color: Colors.white),
-            )
-          : Container(
-              width: 20, height: 20,
-              decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: AppColors.textMuted, width: 1.5)),
-            ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+      leading: Icon(icon, size: 22, color: sel ? AppColors.textPrimary : AppColors.textMuted),
+      title: Text(title, style: TextStyle(fontSize: 15, fontWeight: sel ? FontWeight.w600 : FontWeight.w500)),
+      trailing: sel ? const Icon(Icons.check, size: 18, color: AppColors.textPrimary) : null,
       onTap: () {
         if (value == ThemeMode.dark) themeNotifier.setDark();
         else if (value == ThemeMode.light) themeNotifier.setLight();
