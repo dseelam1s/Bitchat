@@ -14,6 +14,20 @@ import 'package:bitchat_messenger/core/server_service.dart';
 import 'package:bitchat_messenger/features/calls/screens/in_call_screen.dart';
 import 'package:bitchat_messenger/features/chat/screens/chat_screen.dart';
 
+const List<Color> _kAvatarPalette = [
+  Color(0xFF5C6BC0), Color(0xFF26A69A), Color(0xFFEF5350),
+  Color(0xFFAB47BC), Color(0xFF42A5F5), Color(0xFFFF7043),
+  Color(0xFF66BB6A), Color(0xFFEC407A), Color(0xFF26C6DA),
+  Color(0xFFFFA726),
+];
+
+Color _avatarColor(String pubkey) {
+  if (pubkey.isEmpty) return _kAvatarPalette[0];
+  int hash = 0;
+  for (final c in pubkey.codeUnits) { hash = (hash * 31 + c) & 0x7FFFFFFF; }
+  return _kAvatarPalette[hash % _kAvatarPalette.length];
+}
+
 class ContactsScreen extends StatelessWidget {
   final DatabaseService dbService;
   final MessageService messageService;
@@ -427,20 +441,25 @@ class _RecentsTabState extends State<_RecentsTab> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.call_outlined, size: 40, color: AppColors.textMuted.withAlpha(80)),
+                Icon(Icons.call_outlined, size: 48, color: AppColors.textMuted.withAlpha(80)),
                 const SizedBox(height: 16),
-                Text('No recent calls', style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onSurface.withAlpha(120))),
+                const Text('No recent calls', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 Text(
                   'Calls appear here after you make or receive one',
-                  style: TextStyle(fontSize: 12, color: AppColors.textMuted.withAlpha(150)),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: AppColors.textMuted.withAlpha(180)),
                 ),
               ],
             ),
           )
-        : ListView.builder(
+        : ListView.separated(
             padding: const EdgeInsets.only(top: 8, bottom: 100),
             itemCount: _logs.length,
+            separatorBuilder: (_, __) => const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Divider(height: 1, color: AppColors.divider),
+            ),
             itemBuilder: (_, i) => _buildLogTile(_logs[i]),
           );
 
@@ -468,9 +487,10 @@ class _RecentsTabState extends State<_RecentsTab> {
     final name = (log.remoteName?.isNotEmpty == true)
         ? log.remoteName!
         : '#${Contact.shortIdFor(log.remotePubkey)}';
-    final initial = name[0].toUpperCase();
+    final initial = (name.startsWith('#') ? name.substring(1) : name)
+        .substring(0, 1).toUpperCase();
     final isMissed = log.isMissed;
-    final nameColor = isMissed ? AppColors.error : null;
+    final avatarColor = _avatarColor(log.remotePubkey);
     final dt = DateTime.fromMillisecondsSinceEpoch(log.startedAt * 1000);
     final timeLabel = _formatTime(dt);
 
@@ -479,118 +499,85 @@ class _RecentsTabState extends State<_RecentsTab> {
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
+        padding: const EdgeInsets.only(right: 24),
         color: AppColors.error.withAlpha(20),
         child: const Icon(Icons.delete_outline, color: AppColors.error),
       ),
       onDismissed: (_) => _deleteLog(log),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-        child: Material(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => _call(log),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Row(
-                children: [
-                  // Avatar
-                  Container(
-                    width: 42, height: 42,
-                    decoration: BoxDecoration(
-                      color: isMissed
-                          ? AppColors.error.withAlpha(12)
-                          : AppColors.mint.withAlpha(12),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isMissed
-                            ? AppColors.error.withAlpha(40)
-                            : AppColors.mint.withAlpha(40),
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        initial,
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          color: isMissed ? AppColors.error : AppColors.mint,
-                        ),
-                      ),
-                    ),
+      child: InkWell(
+        onTap: () => _call(log),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: Row(
+            children: [
+              // Circular avatar
+              Container(
+                width: 52, height: 52,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: avatarColor),
+                child: Center(
+                  child: Text(
+                    initial,
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: isMissed ? AppColors.error : null,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
                       children: [
+                        Icon(
+                          _directionIcon(log),
+                          size: 14,
+                          color: isMissed ? AppColors.error : AppColors.textMuted,
+                        ),
+                        const SizedBox(width: 4),
                         Text(
-                          name,
+                          _statusLabel(log),
                           style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: nameColor,
+                            fontSize: 13,
+                            color: isMissed ? AppColors.error : AppColors.textMuted,
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            Icon(
-                              _directionIcon(log),
-                              size: 13,
-                              color: isMissed ? AppColors.error : AppColors.textMuted,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _statusLabel(log),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: isMissed ? AppColors.error : AppColors.textMuted,
-                              ),
-                            ),
-                            if (log.isAnswered && log.duration > 0) ...[
-                              Text(
-                                ' · ${_formatDuration(log.duration)}',
-                                style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                              ),
-                            ],
-                          ],
-                        ),
+                        if (log.isAnswered && log.duration > 0)
+                          Text(
+                            ' · ${_formatDuration(log.duration)}',
+                            style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                          ),
                       ],
                     ),
+                  ],
+                ),
+              ),
+              // Time + call-back button
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    timeLabel,
+                    style: TextStyle(fontSize: 12, color: AppColors.textMuted.withAlpha(160)),
                   ),
-                  // Time + call back button
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        timeLabel,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textMuted.withAlpha(150),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      if (widget.callService != null && widget.messageService.hasInternet)
-                        GestureDetector(
-                          onTap: () => _call(log),
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: AppColors.mint.withAlpha(15),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.mint.withAlpha(40)),
-                            ),
-                            child: const Icon(Icons.call_outlined, size: 15, color: AppColors.mint),
-                          ),
-                        ),
-                    ],
-                  ),
+                  if (widget.callService != null && widget.messageService.hasInternet) ...[
+                    const SizedBox(height: 6),
+                    GestureDetector(
+                      onTap: () => _call(log),
+                      child: Icon(Icons.call_outlined, size: 20, color: AppColors.mint),
+                    ),
+                  ],
                 ],
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -990,9 +977,13 @@ class _ContactsTabState extends State<_ContactsTab> {
           Expanded(
             child: _filtered.isEmpty
                 ? _buildEmpty()
-                : ListView.builder(
+                : ListView.separated(
                     padding: const EdgeInsets.only(bottom: 100),
                     itemCount: _filtered.length,
+                    separatorBuilder: (_, __) => const Padding(
+                      padding: EdgeInsets.only(left: 86),
+                      child: Divider(height: 1, color: AppColors.divider),
+                    ),
                     itemBuilder: (_, i) => _buildContactTile(_filtered[i], nearby),
                   ),
           ),
@@ -1012,126 +1003,54 @@ class _ContactsTabState extends State<_ContactsTab> {
         widget.callService != null &&
         widget.messageService.hasInternet;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: Material(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => _openChat(contact),
-          onLongPress: () => _showContactOptions(contact),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                _contactAvatar(contact, label, isNearby),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: contact.isPending
-                              ? AppColors.textMuted
-                              : null,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      contact.isPending
-                          ? Row(
-                              children: [
-                                Icon(Icons.schedule,
-                                    size: 11,
-                                    color: AppColors.textMuted.withAlpha(150)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Waiting to be found...',
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.textMuted.withAlpha(150)),
-                                ),
-                              ],
-                            )
-                          : Row(
-                              children: [
-                                Container(
-                                  width: 6, height: 6,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: isNearby
-                                        ? AppColors.online
-                                        : AppColors.offline,
-                                  ),
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  isNearby ? 'Nearby' : 'Away',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: isNearby
-                                        ? AppColors.online
-                                        : AppColors.textMuted,
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: contact.isPending
-                        ? AppColors.textMuted.withAlpha(8)
-                        : AppColors.mint.withAlpha(10),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: contact.isPending
-                          ? AppColors.textMuted.withAlpha(25)
-                          : AppColors.mint.withAlpha(30),
-                    ),
-                  ),
-                  child: Text(
-                    '#${contact.shortId}',
+    return InkWell(
+      onTap: () => _openChat(contact),
+      onLongPress: () => _showContactOptions(contact),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        child: Row(
+          children: [
+            _contactAvatar(contact, label, isNearby),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: contact.isPending
-                          ? AppColors.textMuted
-                          : AppColors.mint,
-                      letterSpacing: 1,
+                      color: contact.isPending ? AppColors.textMuted : null,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                if (canCall) ...[
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => _startCall(contact),
-                    child: Container(
-                      width: 34, height: 34,
-                      decoration: BoxDecoration(
-                        color: AppColors.mint.withAlpha(12),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.mint.withAlpha(40)),
-                      ),
-                      child: const Icon(Icons.call_outlined,
-                          size: 16, color: AppColors.mint),
-                    ),
-                  ),
-                ] else ...[
-                  const SizedBox(width: 8),
-                  Icon(Icons.chevron_right,
-                      size: 18, color: AppColors.textMuted.withAlpha(100)),
+                  const SizedBox(height: 2),
+                  contact.isPending
+                      ? Text(
+                          'Pending · #${contact.shortId}',
+                          style: TextStyle(fontSize: 13, color: AppColors.textMuted.withAlpha(160)),
+                        )
+                      : Text(
+                          '#${contact.shortId}',
+                          style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                        ),
                 ],
-              ],
+              ),
             ),
-          ),
+            if (isNearby) ...[
+              Container(
+                width: 8, height: 8,
+                decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.online),
+              ),
+              const SizedBox(width: 10),
+            ],
+            if (canCall)
+              GestureDetector(
+                onTap: () => _startCall(contact),
+                child: const Icon(Icons.call_outlined, size: 22, color: AppColors.mint),
+              ),
+          ],
         ),
       ),
     );
@@ -1196,57 +1115,50 @@ class _ContactsTabState extends State<_ContactsTab> {
   }
 
   Widget _contactAvatar(Contact contact, String label, bool isNearby) {
-    final borderColor = isNearby ? AppColors.mint.withAlpha(60) : AppColors.divider.withAlpha(80);
-    final bgColor = isNearby ? AppColors.mint.withAlpha(18) : Theme.of(context).cardColor;
-    final textColor = isNearby ? AppColors.mint : Theme.of(context).colorScheme.onSurface.withAlpha(160);
+    final color = _avatarColor(contact.pubkey);
+    final initial = (label.startsWith('#') ? label.substring(1) : label)
+        .substring(0, 1).toUpperCase();
 
-    return Container(
-      width: 42, height: 42,
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: contact.profilePictureLocalPath != null
-          ? Image.file(
-              dart_io.File(contact.profilePictureLocalPath!),
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => contact.profilePictureUrl != null
-                  ? CachedNetworkImage(
-                      imageUrl: contact.profilePictureUrl!,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => Center(
-                        child: Text(
-                          (label.isNotEmpty ? label[0] : '?').toUpperCase(),
-                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: textColor),
-                        ),
-                      ),
-                    )
-                  : Center(
-                      child: Text(
-                        (label.isNotEmpty ? label[0] : '?').toUpperCase(),
-                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: textColor),
-                      ),
-                    ),
-            )
-          : contact.profilePictureUrl != null
-          ? CachedNetworkImage(
-              imageUrl: contact.profilePictureUrl!,
-              fit: BoxFit.cover,
-              errorWidget: (_, __, ___) => Center(
-                child: Text(
-                  (label.isNotEmpty ? label[0] : '?').toUpperCase(),
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: textColor),
-                ),
-              ),
-            )
-          : Center(
-              child: Text(
-                (label.isNotEmpty ? label[0] : '?').toUpperCase(),
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: textColor),
+    Widget fallback = Center(
+      child: Text(initial, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white)),
+    );
+
+    Widget image;
+    if (contact.profilePictureLocalPath != null) {
+      image = Image.file(
+        dart_io.File(contact.profilePictureLocalPath!),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => contact.profilePictureUrl != null
+            ? CachedNetworkImage(imageUrl: contact.profilePictureUrl!, fit: BoxFit.cover, errorWidget: (_, __, ___) => fallback)
+            : fallback,
+      );
+    } else if (contact.profilePictureUrl != null) {
+      image = CachedNetworkImage(imageUrl: contact.profilePictureUrl!, fit: BoxFit.cover, errorWidget: (_, __, ___) => fallback);
+    } else {
+      image = fallback;
+    }
+
+    return Stack(
+      children: [
+        Container(
+          width: 52, height: 52,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+          clipBehavior: Clip.antiAlias,
+          child: image,
+        ),
+        if (isNearby)
+          Positioned(
+            bottom: 0, right: 0,
+            child: Container(
+              width: 14, height: 14,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.online,
+                border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2),
               ),
             ),
+          ),
+      ],
     );
   }
 

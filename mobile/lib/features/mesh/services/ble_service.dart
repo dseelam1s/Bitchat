@@ -238,8 +238,13 @@ class BleService {
       _deviceNames.remove(pubkey);
       _deviceShortIds.remove(pubkey);
       _deviceProfilePictures.remove(pubkey);
+
     }
     _nearbyChangedController.add(nearbyPubkeys);
+
+    // Rescan immediately so a nearby device that briefly dropped reconnects
+    // within seconds instead of waiting up to 20s for the periodic timer.
+    if (_isRunning) _startScanning();
   }
 
   void _handleGattEvent(dynamic event) {

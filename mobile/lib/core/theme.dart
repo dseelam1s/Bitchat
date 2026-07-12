@@ -3,8 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
   // ── Accent ────────────────────────────────────────────────────────────────
-  static const Color primary       = Color(0xFF000000);  // black — light mode accent
-  static const Color primaryDark   = Color(0xFFFFFFFF);  // white — dark mode
+  static const Color primary     = Color(0xFF000000);  // black — light mode
+  static const Color primaryDark = Color(0xFFFFFFFF);  // white — dark mode
 
   // ── Legacy aliases (existing screens compile unchanged) ───────────────────
   static const Color teal      = primary;
@@ -19,7 +19,7 @@ class AppColors {
   static const Color amberSoft = Color(0xFFFFB340);
 
   // ── Light theme ───────────────────────────────────────────────────────────
-  static const Color bg            = Color(0xFFFFFFFF);  // pure cold white
+  static const Color bg            = Color(0xFFFFFFFF);  // pure white
   static const Color surface       = Color(0xFFFAFAFA);
   static const Color card          = Color(0xFFF5F5F5);
   static const Color cardHover     = Color(0xFFEFEFEF);
@@ -40,7 +40,7 @@ class AppColors {
   static const Color lightTextSecondary = textSecondary;
   static const Color lightTextMuted     = textMuted;
 
-  // ── Dark theme (iOS-style pure black) ─────────────────────────────────────
+  // ── Dark theme (iOS-style pure black) ────────────────────────────────────
   static const Color darkBg            = Color(0xFF000000);
   static const Color darkSurface       = Color(0xFF1C1C1E);
   static const Color darkCard          = Color(0xFF2C2C2E);
@@ -52,11 +52,11 @@ class AppColors {
   static const Color darkTextMuted     = Color(0xFF636366);
 
   // ── Status ────────────────────────────────────────────────────────────────
-  static const Color online    = Color(0xFF34C759);  // iOS green
-  static const Color offline   = Color(0xFF8E8E8E);
-  static const Color delivered = primary;
-  static const Color error     = Color(0xFFFF3B30);  // iOS red
-  static const Color signal    = error;
+  static const Color online     = Color(0xFF34C759);
+  static const Color offline    = Color(0xFF8E8E8E);
+  static const Color delivered  = primary;
+  static const Color error      = Color(0xFFFF3B30);
+  static const Color signal     = error;
   static const Color signalSoft = Color(0xFFFF6961);
 }
 
@@ -153,21 +153,17 @@ class AppTheme {
         backgroundColor: bg,
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
-        indicatorColor: Colors.transparent,  // no pill
+        indicatorColor: Colors.transparent,
         height: 56,
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return IconThemeData(color: textPrimary, size: 24);
+            return IconThemeData(color: primaryColor, size: 24);
           }
           return IconThemeData(color: textMuted, size: 24);
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return GoogleFonts.inter(
-              color: textPrimary,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            );
+            return GoogleFonts.inter(color: primaryColor, fontSize: 10, fontWeight: FontWeight.w600);
           }
           return GoogleFonts.inter(color: textMuted, fontSize: 10);
         }),
@@ -221,10 +217,7 @@ class AppTheme {
         thumbColor: primaryColor,
         overlayColor: primaryColor.withAlpha(20),
         valueIndicatorColor: primaryColor,
-        valueIndicatorTextStyle: TextStyle(
-          color: isDark ? Colors.black : Colors.white,
-          fontWeight: FontWeight.w600,
-        ),
+        valueIndicatorTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: isDark ? AppColors.darkCard : AppColors.textPrimary,

@@ -29,7 +29,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 14,
+      version: 15,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -87,6 +87,17 @@ class DatabaseService {
     await _createRelayStore(db);
     await _createChannelTables(db);
     await _createCallLogsTable(db);
+    await _createBleHistoryTable(db);
+  }
+
+  Future<void> _createBleHistoryTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS ble_history (
+        pubkey TEXT PRIMARY KEY,
+        displayName TEXT,
+        lastSeen INTEGER NOT NULL
+      )
+    ''');
   }
 
   Future<void> _createCallLogsTable(Database db) async {
@@ -168,6 +179,9 @@ class DatabaseService {
     }
     if (oldVersion < 14) {
       await db.execute('ALTER TABLE contacts ADD COLUMN profilePictureLocalPath TEXT');
+    }
+    if (oldVersion < 15) {
+      await _createBleHistoryTable(db);
     }
   }
 
@@ -346,6 +360,20 @@ class DatabaseService {
     final db = await database;
     await db.update('contacts', {'isNearby': isNearby ? 1 : 0},
         where: 'pubkey = ?', whereArgs: [pubkey]);
+  }
+
+  Future<void> upsertBleHistory(String pubkey, String? displayName, int lastSeen) async {
+    final db = await database;
+    await db.insert(
+      'ble_history',
+      {'pubkey': pubkey, 'displayName': displayName, 'lastSeen': lastSeen},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getBleHistory() async {
+    final db = await database;
+    return db.query('ble_history', orderBy: 'lastSeen DESC');
   }
 
   Future<List<Contact>> getAllContacts() async {

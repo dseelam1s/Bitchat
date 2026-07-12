@@ -29,6 +29,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isDiscoverableNearby = true;
   String? _profilePictureUrl;
   String? _localProfilePicturePath;
+  int _contactCount = 0;
+  int _bleHistoryCount = 0;
 
   @override
   void initState() {
@@ -36,6 +38,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _usernameController = TextEditingController(text: widget.messageService.username ?? '');
     _loadProfilePicture();
     _loadProfileSettings();
+    _loadCounts();
+  }
+
+  Future<void> _loadCounts() async {
+    final contacts = await widget.messageService.dbService.getAllContacts();
+    final bleHistory = await widget.messageService.dbService.getBleHistory();
+    if (!mounted) return;
+    setState(() {
+      _contactCount = contacts.where((c) => !c.isPending).length;
+      _bleHistoryCount = bleHistory.length;
+    });
   }
 
   Future<void> _loadProfilePicture() async {
@@ -210,139 +223,367 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final pubkey = widget.messageService.publicKey;
     final shortId = pubkey != null ? Contact.shortIdFor(pubkey) : '——————';
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
+    final displayName = _usernameController.text.trim();
 
     return Scaffold(
-      body: ListView(
-        padding: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + 24,
-          bottom: 48,
-        ),
-        children: [
+      body: CustomScrollView(
+        slivers: [
+          // ── Instagram-style sticky header ──────────────────────────────
+          SliverAppBar(
+            backgroundColor: cs.surface,
+            surfaceTintColor: Colors.transparent,
+            pinned: true,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            centerTitle: false,
+            title: Text(
+              displayName.isNotEmpty ? displayName : 'Me',
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.settings_outlined, size: 24),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => _SettingsScreen(messageService: widget.messageService),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+            ],
+          ),
 
-          // ── Profile card (Signal-style) ──────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Material(
-              color: isDark ? AppColors.darkCard : AppColors.card,
-              borderRadius: BorderRadius.circular(12),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: _showEditNameDialog,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+
+                // ── Avatar + stats row ─────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Avatar
+                      // Avatar with camera overlay
                       GestureDetector(
                         onTap: _showProfilePictureOptions,
-                        child: Container(
-                          width: 56, height: 56,
-                          decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.inputBg),
-                          clipBehavior: Clip.antiAlias,
-                          child: _localProfilePicturePath != null
-                              ? Image.file(File(_localProfilePicturePath!), fit: BoxFit.cover)
-                              : _profilePictureUrl != null && _profilePictureUrl!.isNotEmpty
-                                  ? CachedNetworkImage(
-                                      imageUrl: _profilePictureUrl!,
-                                      fit: BoxFit.cover,
-                                      errorWidget: (_, __, ___) => _initialsWidget(),
-                                    )
-                                  : _initialsWidget(),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      // Name + Short ID
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Stack(
                           children: [
-                            Text(
-                              _usernameController.text.isNotEmpty
-                                  ? _usernameController.text
-                                  : 'Tap to set name',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: _usernameController.text.isNotEmpty
-                                    ? null
-                                    : AppColors.textMuted,
+                            Container(
+                              width: 86, height: 86,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isDark ? AppColors.darkCard : AppColors.card,
                               ),
+                              clipBehavior: Clip.antiAlias,
+                              child: _localProfilePicturePath != null
+                                  ? Image.file(File(_localProfilePicturePath!), fit: BoxFit.cover)
+                                  : _profilePictureUrl != null && _profilePictureUrl!.isNotEmpty
+                                      ? CachedNetworkImage(
+                                          imageUrl: _profilePictureUrl!,
+                                          fit: BoxFit.cover,
+                                          errorWidget: (_, __, ___) => _initialsWidget(),
+                                        )
+                                      : _initialsWidget(),
                             ),
-                            const SizedBox(height: 2),
-                            GestureDetector(
-                              onTap: () {
-                                Clipboard.setData(ClipboardData(text: '#$shortId'));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Short ID copied'), duration: Duration(seconds: 2)),
-                                );
-                              },
-                              child: Text(
-                                '#$shortId',
-                                style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                            Positioned(
+                              right: 0, bottom: 0,
+                              child: Container(
+                                width: 26, height: 26,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: cs.surface,
+                                  border: Border.all(color: cs.surface, width: 2),
+                                ),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isDark ? AppColors.darkCardHover : AppColors.card,
+                                  ),
+                                  child: Icon(Icons.add, size: 14, color: cs.onSurface),
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const Icon(Icons.chevron_right, size: 20, color: AppColors.textMuted),
+
+                      const SizedBox(width: 24),
+
+                      // Stats — Contacts / Nearby / Visibility
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _statCol('$_contactCount', 'Contacts'),
+                            _statCol('$_bleHistoryCount', 'Nearby'),
+                            _statCol(_isPublic ? 'Public' : 'Private', 'Profile'),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              ),
+
+                // ── Name + short ID ────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName.isNotEmpty ? displayName : 'Set your name',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: displayName.isNotEmpty ? cs.onSurface : AppColors.textMuted,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      GestureDetector(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: '#$shortId'));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Short ID copied'), duration: Duration(seconds: 2)),
+                          );
+                        },
+                        child: Text(
+                          '#$shortId',
+                          style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── Action buttons ─────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _actionButton(
+                          label: 'Edit profile',
+                          onTap: _showEditNameDialog,
+                          isDark: isDark,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _actionButton(
+                          label: 'Share profile',
+                          onTap: () {
+                            Clipboard.setData(ClipboardData(text: '#$shortId'));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Short ID copied to clipboard'), duration: Duration(seconds: 2)),
+                            );
+                          },
+                          isDark: isDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Divider(height: 1),
+                const SizedBox(height: 8),
+
+                // ── Privacy section ────────────────────────────────────────
+                _sectionHeader('Privacy'),
+                _settingsCard(
+                  isDark: isDark,
+                  children: [
+                    _switchRow(
+                      icon: Icons.public_outlined,
+                      label: 'Public profile',
+                      subtitle: 'Anyone can find and message you',
+                      value: _isPublic,
+                      onChanged: _togglePublic,
+                    ),
+                    _cardDivider(),
+                    _switchRow(
+                      icon: Icons.bluetooth_outlined,
+                      label: 'Discoverable nearby',
+                      subtitle: 'Show up in Nearby tab for people around you',
+                      value: _isDiscoverableNearby,
+                      onChanged: _isPublic ? _toggleDiscoverableNearby : null,
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+
+                // ── More section ───────────────────────────────────────────
+                _sectionHeader('More'),
+                _settingsCard(
+                  isDark: isDark,
+                  children: [
+                    _navRow(
+                      icon: Icons.settings_outlined,
+                      label: 'Settings',
+                      isDark: isDark,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => _SettingsScreen(messageService: widget.messageService),
+                        ),
+                      ),
+                    ),
+                    _cardDivider(),
+                    _navRow(
+                      icon: Icons.privacy_tip_outlined,
+                      label: 'Privacy Policy',
+                      isDark: isDark,
+                      onTap: () => _showPrivacyPolicy(context),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 32),
+                Center(
+                  child: Text(
+                    'v0.1.0',
+                    style: TextStyle(fontSize: 11, color: AppColors.textMuted.withAlpha(80)),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
             ),
-          ),
-
-          const SizedBox(height: 28),
-          const Divider(height: 1),
-
-          // ── Privacy toggles ──────────────────────────────────────────────
-          SwitchListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-            title: const Text('Public profile', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-            value: _isPublic,
-            onChanged: _togglePublic,
-          ),
-          const Divider(height: 1, indent: 20),
-          SwitchListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-            title: const Text('Discoverable nearby', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-            value: _isDiscoverableNearby,
-            onChanged: _isPublic ? _toggleDiscoverableNearby : null,
-          ),
-
-          const Divider(height: 1),
-          const SizedBox(height: 8),
-
-          // ── Settings ─────────────────────────────────────────────────────
-          _row(Icons.settings_outlined, 'Settings', () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => _SettingsScreen(messageService: widget.messageService)),
-          )),
-          const Divider(height: 1, indent: 20),
-          _row(Icons.privacy_tip_outlined, 'Privacy Policy', () => _showPrivacyPolicy(context)),
-
-          const SizedBox(height: 32),
-          Center(
-            child: Text('v0.1.0', style: TextStyle(fontSize: 11, color: AppColors.textMuted.withAlpha(80))),
           ),
         ],
       ),
     );
   }
 
+  Widget _statCol(String value, String label) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(
+        value,
+        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+      ),
+      const SizedBox(height: 2),
+      Text(
+        label,
+        style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+      ),
+    ],
+  );
+
+  Widget _actionButton({required String label, required VoidCallback onTap, required bool isDark}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 34,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : AppColors.card,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionHeader(String title) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+    child: Text(
+      title,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textMuted,
+      ),
+    ),
+  );
+
+  Widget _settingsCard({required bool isDark, required List<Widget> children}) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(children: children),
+    ),
+  );
+
+  Widget _cardDivider() => const Padding(
+    padding: EdgeInsets.only(left: 52),
+    child: Divider(height: 1, color: AppColors.divider),
+  );
+
+  Widget _switchRow({
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required bool value,
+    ValueChanged<bool>? onChanged,
+  }) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: AppColors.textMuted),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            Switch(
+              value: value,
+              onChanged: onChanged,
+            ),
+          ],
+        ),
+      );
+
+  Widget _navRow({
+    required IconData icon,
+    required String label,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) =>
+      InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(icon, size: 20, color: AppColors.textMuted),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+              ),
+              Icon(Icons.chevron_right, size: 18, color: AppColors.textMuted),
+            ],
+          ),
+        ),
+      );
+
   Widget _initialsWidget() => Center(
     child: Text(
       _initials(),
       style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textMuted),
     ),
-  );
-
-  Widget _row(IconData icon, String title, VoidCallback onTap) => ListTile(
-    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-    leading: Icon(icon, size: 22, color: AppColors.textMuted),
-    title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-    trailing: const Icon(Icons.chevron_right, size: 18, color: AppColors.textMuted),
-    onTap: onTap,
   );
 
   void _showPrivacyPolicy(BuildContext context) {

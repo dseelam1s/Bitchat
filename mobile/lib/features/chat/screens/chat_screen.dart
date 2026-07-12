@@ -11,6 +11,9 @@ import 'package:bitchat_messenger/features/chat/services/message_service.dart';
 import 'package:bitchat_messenger/features/profile/services/profile_sync_service.dart';
 import 'package:bitchat_messenger/features/calls/screens/in_call_screen.dart';
 
+const _kPurple = Color(0xFF7C5CFC);
+const _kMetaGray = Color(0xFF8888AA);
+
 class ChatScreen extends StatefulWidget {
   final String contactPubkey;
   final String? contactName;
@@ -39,20 +42,17 @@ class _ChatScreenState extends State<ChatScreen> {
   List<Message> _messages = [];
   StreamSubscription? _messageSub;
 
-  // Pagination
   static const _pageSize = 50;
   int _offset = 0;
   bool _isLoadingInitial = true;
   bool _isLoadingMore = false;
-  bool _isRefreshing = false; // prevents concurrent stream-triggered reloads
-  bool _pendingRefresh = false; // a stream event arrived while refreshing
+  bool _isRefreshing = false;
+  bool _pendingRefresh = false;
   bool _hasMore = true;
 
-  // Mutable local copies so profile sync can update the header without rebuild
   String? _displayName;
   String? _localPicPath;
 
-  // Typing indicator state
   bool _contactIsTyping = false;
   Timer? _typingDismissTimer;
   Timer? _myTypingThrottle;
@@ -68,16 +68,33 @@ class _ChatScreenState extends State<ChatScreen> {
     _loadMessages(initial: true);
     widget.messageService.markAsRead(widget.contactPubkey);
 
-    // Load older messages when user scrolls to the top
     _scrollController.addListener(() {
-      if (_scrollController.position.pixels <= 80 &&
-          !_isLoadingMore &&
-          _hasMore) {
+      if (_scrollController.position.pixels <= 80 && !_isLoadingMore && _hasMore) {
         _loadMoreMessages();
       }
     });
 
     _messageSub = widget.messageService.messageStream.listen((message) {
+      if (message.type == 'status_update') {
+        // status_update events carry empty pubkeys, so handle them separately
+        // by patching the in-memory list directly (no DB roundtrip needed).
+        if (!mounted) return;
+        bool found = false;
+        setState(() {
+          _messages = _messages.map((m) {
+            if (m.id == message.id) {
+              found = true;
+              return m.copyWith(status: message.status);
+            }
+            return m;
+          }).toList();
+        });
+        // Race condition: status_update arrived before the message was added to
+        // _messages (still loading from DB). Fall back to a DB reload — DB is
+        // already updated by the time the event fires.
+        if (!found) _loadMessages();
+        return;
+      }
       if (message.senderPubkey == widget.contactPubkey ||
           message.receiverPubkey == widget.contactPubkey) {
         _loadMessages();
@@ -85,7 +102,6 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     });
 
-    // Show "typing..." in appbar when contact sends a typing indicator
     _typingSub = widget.messageService.typingStream.listen((event) {
       final sender = event['senderPubkey'] as String?;
       if (sender == widget.contactPubkey) {
@@ -97,7 +113,6 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     });
 
-    // Send my typing indicators (throttled: at most once every 2 seconds)
     _textController.addListener(_onTextChanged);
   }
 
@@ -128,14 +143,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _loadMessages({bool initial = false}) async {
     if (initial) {
-      // Fresh load: reset pagination and show loader
       _offset = 0;
       _hasMore = true;
       _isRefreshing = false;
       _pendingRefresh = false;
       if (mounted) setState(() => _isLoadingInitial = true);
     } else {
-      // Stream-triggered refresh — skip if already refreshing or loading more
       if (_isLoadingMore) { _pendingRefresh = true; return; }
       if (_isRefreshing) { _pendingRefresh = true; return; }
       _isRefreshing = true;
@@ -149,7 +162,8 @@ class _ChatScreenState extends State<ChatScreen> {
     if (!mounted) return;
 
     final atBottom = _scrollController.hasClients &&
-        _scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 80;
+        _scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 80;
 
     setState(() {
       _messages = messages;
@@ -161,7 +175,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (initial || atBottom) _scrollToBottom();
 
-    // If a stream event arrived while we were refreshing, do one final refresh
     if (_pendingRefresh) {
       _pendingRefresh = false;
       _loadMessages();
@@ -179,7 +192,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
     if (!mounted) return;
 
-    // Preserve scroll position when prepending older messages
     final prevCount = _messages.length;
     setState(() {
       _messages = [...older, ..._messages];
@@ -188,23 +200,19 @@ class _ChatScreenState extends State<ChatScreen> {
       _isLoadingMore = false;
     });
 
-    // A stream event arrived while loading more — refresh now
     if (_pendingRefresh) {
       _pendingRefresh = false;
       _loadMessages();
     }
 
-    // Jump scroll to keep user at the same visual position
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
       final addedCount = _messages.length - prevCount;
       if (addedCount > 0) {
-        // Each item is ~60px average — snap position forward
         final approxOffset = _scrollController.position.pixels + addedCount * 60.0;
-        _scrollController.jumpTo(approxOffset.clamp(
-          0.0,
-          _scrollController.position.maxScrollExtent,
-        ));
+        _scrollController.jumpTo(
+          approxOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
+        );
       }
     });
   }
@@ -213,11 +221,12 @@ class _ChatScreenState extends State<ChatScreen> {
     final cs = widget.callService!;
     if (cs.hasActiveCall) return;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: ctx,
-      backgroundColor: AppColors.card,
+      backgroundColor: isDark ? AppColors.darkCard : Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) => SafeArea(
         child: Padding(
@@ -226,21 +235,21 @@ class _ChatScreenState extends State<ChatScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.call, color: AppColors.mint),
+                leading: const Icon(Icons.call_outlined, color: _kPurple),
                 title: const Text('Voice call'),
                 onTap: () async {
                   Navigator.pop(ctx);
                   final err = await cs.startCall(widget.contactPubkey, remoteName: widget.contactName);
                   if (!mounted) return;
-                  if (err != null) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err))); return; }
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => InCallScreen(callService: cs)),
-                  );
+                  if (err != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+                    return;
+                  }
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => InCallScreen(callService: cs)));
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.videocam, color: AppColors.mint),
+                leading: const Icon(Icons.videocam_outlined, color: _kPurple),
                 title: const Text('Video call'),
                 onTap: () async {
                   Navigator.pop(ctx);
@@ -250,11 +259,11 @@ class _ChatScreenState extends State<ChatScreen> {
                     isVideo: true,
                   );
                   if (!mounted) return;
-                  if (err != null) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err))); return; }
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => InCallScreen(callService: cs)),
-                  );
+                  if (err != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+                    return;
+                  }
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => InCallScreen(callService: cs)));
                 },
               ),
             ],
@@ -278,9 +287,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendImageMessage() async {
     final hasInternet = widget.messageService.hasInternet;
-
     final picker = ImagePicker();
-    // Use better quality when online; BLE path gets compressed further in the service.
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: hasInternet ? 70 : 30,
@@ -288,9 +295,6 @@ class _ChatScreenState extends State<ChatScreen> {
       maxHeight: hasInternet ? 1280 : 640,
     );
     if (picked == null) return;
-
-    // Always queues as pending — sends immediately if connected, or waits for
-    // connectivity and retries automatically. No upfront connectivity check needed.
     await widget.messageService.sendImageMessage(File(picked.path), widget.contactPubkey);
   }
 
@@ -301,11 +305,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
     bool anySent = false;
     try {
-      final messageId =
-          await widget.messageService.sendMessage(widget.contactPubkey, text);
+      final messageId = await widget.messageService.sendMessage(widget.contactPubkey, text);
       if (messageId != null) {
-        final msgs = await widget.messageService
-            .getChatMessages(widget.contactPubkey, limit: 10);
+        final msgs = await widget.messageService.getChatMessages(widget.contactPubkey, limit: 10);
         final msg = msgs.where((m) => m.id == messageId).firstOrNull;
         anySent = msg == null || msg.status != 'pending';
       }
@@ -321,6 +323,71 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Widget _buildContactAvatar(String displayName, double size) {
+    final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
+    Widget fallback = Container(
+      width: size,
+      height: size,
+      decoration: const BoxDecoration(color: _kPurple, shape: BoxShape.circle),
+      child: Center(
+        child: Text(
+          initial,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: size * 0.38,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+    if (_localPicPath != null) {
+      return ClipOval(
+        child: Image.file(
+          File(_localPicPath!),
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => fallback,
+        ),
+      );
+    }
+    if (widget.contactProfilePictureUrl != null) {
+      return ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: widget.contactProfilePictureUrl!,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorWidget: (_, __, ___) => fallback,
+        ),
+      );
+    }
+    return fallback;
+  }
+
+  bool _showTimestamp(int msgIndex) {
+    if (msgIndex == 0) return true;
+    final curr = _messages[msgIndex];
+    final prev = _messages[msgIndex - 1];
+    return (curr.timestamp - prev.timestamp) > 3600;
+  }
+
+  String _formatTimestamp(int ts) {
+    final dt = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final msgDay = DateTime(dt.year, dt.month, dt.day);
+    final h = dt.hour;
+    final m = dt.minute.toString().padLeft(2, '0');
+    final period = h >= 12 ? 'PM' : 'AM';
+    final displayH = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+    final timeStr = '$displayH:$m $period';
+    if (msgDay == today) return 'Today $timeStr';
+    if (msgDay == yesterday) return 'Yesterday $timeStr';
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    return '${days[dt.weekday - 1]} $timeStr';
+  }
 
   @override
   void dispose() {
@@ -343,135 +410,110 @@ class _ChatScreenState extends State<ChatScreen> {
             : widget.contactPubkey.isNotEmpty
                 ? widget.contactPubkey
                 : '?';
-    final isNearby =
-        widget.messageService.nearbyUsers.contains(widget.contactPubkey);
 
+    final isNearby = widget.messageService.nearbyUsers.contains(widget.contactPubkey);
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final cs = theme.colorScheme;
+
+    final statusLabel = _contactIsTyping
+        ? 'typing...'
+        : isNearby
+            ? 'Nearby'
+            : (widget.messageService.hasInternet ? 'Online' : 'Offline');
+    final statusOnline = _contactIsTyping || isNearby || widget.messageService.hasInternet;
 
     return Scaffold(
       appBar: AppBar(
-        leadingWidth: 32,
+        backgroundColor: theme.scaffoldBackgroundColor,
+        leadingWidth: 44,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios_new, size: 18, color: cs.onSurface),
+          onPressed: () => Navigator.pop(context),
+          padding: const EdgeInsets.only(left: 12),
+        ),
+        titleSpacing: 0,
         title: Row(
           children: [
-            Container(
-              width: 34, height: 34,
-              decoration: BoxDecoration(
-                color: isNearby ? AppColors.mint.withAlpha(18) : theme.cardColor,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: _localPicPath != null
-                  ? Image.file(
-                      File(_localPicPath!),
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Center(
-                        child: Text(
-                          displayName[0].toUpperCase(),
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
-                              color: isNearby ? AppColors.mint : cs.onSurface.withAlpha(150)),
-                        ),
-                      ),
-                    )
-                  : widget.contactProfilePictureUrl != null
-                  ? CachedNetworkImage(
-                      imageUrl: widget.contactProfilePictureUrl!,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => Center(
-                        child: Text(
-                          displayName[0].toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: isNearby ? AppColors.mint : cs.onSurface.withAlpha(150),
-                          ),
-                        ),
-                      ),
-                    )
-                  : Center(
-                      child: Text(
-                        displayName[0].toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: isNearby ? AppColors.mint : cs.onSurface.withAlpha(150),
-                        ),
-                      ),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.fromBorderSide(BorderSide(color: _kPurple, width: 2)),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2.5),
+                    child: _buildContactAvatar(displayName, 39),
+                  ),
+                ),
+                Positioned(
+                  bottom: 1,
+                  right: 1,
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: AppColors.online,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: theme.scaffoldBackgroundColor, width: 2),
                     ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    displayName,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: cs.onSurface,
-                    ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  displayName,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: cs.onSurface,
+                    letterSpacing: -0.3,
                   ),
-                  Row(
-                    children: [
-                      Container(
-                        width: 5, height: 5,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _contactIsTyping
-                              ? AppColors.mint
-                              : (isNearby ? AppColors.online : AppColors.offline),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _contactIsTyping
-                            ? 'typing...'
-                            : (isNearby
-                                ? 'Connected nearby'
-                                : (widget.messageService.hasInternet
-                                    ? 'Connected'
-                                    : 'Will deliver when reachable')),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: _contactIsTyping
-                              ? AppColors.teal
-                              : (isNearby ? AppColors.online : AppColors.textMuted),
-                        ),
-                      ),
-                    ],
+                ),
+                Text(
+                  statusLabel,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: statusOnline ? AppColors.online : AppColors.darkTextMuted,
+                    fontWeight: FontWeight.w500,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
         ),
         actions: [
-          // Call button — only shown when internet is available
           if (widget.callService != null && widget.messageService.hasInternet)
-            GestureDetector(
-              onTap: () => _showCallPicker(context),
-              child: Container(
-                width: 34, height: 34,
-                margin: const EdgeInsets.only(right: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.mint.withAlpha(15),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.mint.withAlpha(50)),
-                ),
-                child: const Icon(Icons.call_outlined, size: 17, color: AppColors.mint),
-              ),
+            IconButton(
+              icon: const Icon(Icons.call_outlined, size: 22, color: _kPurple),
+              onPressed: () => _showCallPicker(context),
+              tooltip: 'Call',
             ),
-          // More options menu
+          if (widget.callService != null && widget.messageService.hasInternet)
+            IconButton(
+              icon: const Icon(Icons.videocam_outlined, size: 24, color: _kPurple),
+              onPressed: () => _showCallPicker(context),
+              tooltip: 'Video',
+            ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, size: 20),
+            icon: Icon(Icons.more_vert, size: 22, color: cs.onSurface.withAlpha(150)),
             onSelected: (value) async {
               if (value == 'delete') {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
                     title: const Text('Delete conversation'),
-                    content: const Text('All messages with this contact will be deleted. This cannot be undone.'),
+                    content: const Text(
+                        'All messages with this contact will be deleted. This cannot be undone.'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(ctx, false),
@@ -509,21 +551,23 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: _isLoadingInitial
-                ? const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.mint))
+                ? const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2, color: _kPurple),
+                  )
                 : _messages.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.chat_bubble_outline,
-                                size: 48, color: AppColors.textMuted.withAlpha(80)),
+                                size: 48, color: _kPurple.withAlpha(80)),
                             const SizedBox(height: 12),
                             Text(
                               'No messages yet',
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.textMuted.withAlpha(140),
+                                color: cs.onSurface.withAlpha(120),
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -531,7 +575,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               'Say hi to get the conversation started',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: AppColors.textMuted.withAlpha(100),
+                                color: cs.onSurface.withAlpha(80),
                               ),
                             ),
                           ],
@@ -540,21 +584,18 @@ class _ChatScreenState extends State<ChatScreen> {
                     : ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                        // +1 for the "load more" header slot
                         itemCount: _messages.length + 1,
                         itemBuilder: (context, index) {
-                          // Top slot: loading spinner or spacer
                           if (index == 0) {
                             return _isLoadingMore
                                 ? const Padding(
                                     padding: EdgeInsets.symmetric(vertical: 12),
                                     child: Center(
                                       child: SizedBox(
-                                        width: 20, height: 20,
+                                        width: 20,
+                                        height: 20,
                                         child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: AppColors.mint,
-                                        ),
+                                            strokeWidth: 2, color: _kPurple),
                                       ),
                                     ),
                                   )
@@ -567,118 +608,163 @@ class _ChatScreenState extends State<ChatScreen> {
                                             'Beginning of conversation',
                                             style: TextStyle(
                                               fontSize: 11,
-                                              color: AppColors.textMuted.withAlpha(100),
+                                              color: cs.onSurface.withAlpha(80),
                                             ),
                                           ),
                                         ),
                                       );
                           }
+
                           final msg = _messages[index - 1];
-                      if (msg.type == 'delivery_receipt' ||
-                          msg.type == 'read_receipt' ||
-                          msg.type == 'status_update') {
-                        return const SizedBox.shrink();
-                      }
-                      final isMe = msg.senderPubkey == widget.messageService.publicKey;
-                      // Image/voice messages stored with a local path can't be auto-retried —
-                      // the file bytes are not in the DB. Hide the retry hint for these.
-                      final canRetry = isMe &&
-                          !(msg.type == 'image' && msg.content.startsWith('local:')) &&
-                          !(msg.type == 'voice_note' && msg.content.startsWith('local:'));
-                      final retryCallback = canRetry
-                          ? () => widget.messageService.retryPendingMessages()
-                          : null;
-                      final hasConn = widget.messageService.hasInternet ||
-                          widget.messageService.hasNearbyDevices;
-                      return _Bubble(
-                        message: msg,
-                        isMe: isMe,
-                        onRetry: retryCallback,
-                        hasConnectivity: hasConn,
-                      );
-                    },
-                  ),
+                          if (msg.type == 'delivery_receipt' ||
+                              msg.type == 'read_receipt' ||
+                              msg.type == 'status_update') {
+                            return const SizedBox.shrink();
+                          }
+
+                          final isMe =
+                              msg.senderPubkey == widget.messageService.publicKey;
+                          final canRetry = isMe &&
+                              !(msg.type == 'image' && msg.content.startsWith('local:')) &&
+                              !(msg.type == 'voice_note' &&
+                                  msg.content.startsWith('local:'));
+                          final retryCallback = canRetry
+                              ? () => widget.messageService.retryPendingMessages()
+                              : null;
+                          final hasConn = widget.messageService.hasInternet ||
+                              widget.messageService.hasNearbyDevices;
+
+                          final showTs = _showTimestamp(index - 1);
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            // stretch forces full-width so crossAxisAlignment.end
+                            // inside _Bubble aligns against the real screen edge
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (showTs)
+                                _TimestampSeparator(
+                                  label: _formatTimestamp(msg.timestamp),
+                                ),
+                              _Bubble(
+                                message: msg,
+                                isMe: isMe,
+                                onRetry: retryCallback,
+                                hasConnectivity: hasConn,
+                                contactName: _displayName ?? displayName,
+                                contactLocalPicPath: _localPicPath,
+                                contactPicUrl: widget.contactProfilePictureUrl,
+                              ),
+                            ],
+                          );
+                        },
+                      ),
           ),
-          // Input
+
+          // ── Input bar ───────────────────────────────────────────────────
           Container(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-            decoration: BoxDecoration(
-              color: cs.surface,
-              border: Border(top: BorderSide(color: theme.dividerColor, width: 0.5)),
-            ),
+            color: isDark ? AppColors.darkSurface : Colors.white,
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
             child: SafeArea(
               top: false,
               child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            // Image attachment — always visible; tap handler shows
-                            // a snackbar if there's no connectivity at send time.
-                            Padding(
-                              padding: const EdgeInsets.only(right: 4),
-                              child: SizedBox(
-                                width: 42, height: 42,
-                                child: Material(
-                                  color: Colors.transparent,
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(12),
-                                    onTap: _sendImageMessage,
-                                    child: Icon(Icons.image_outlined, size: 22,
-                                        color: Theme.of(context).colorScheme.onSurface.withAlpha(120)),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: theme.inputDecorationTheme.fillColor ?? cs.surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(22),
-                                  border: Border.all(color: theme.dividerColor),
-                                ),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Purple "+" circle — opens image picker
+                      GestureDetector(
+                        onTap: _sendImageMessage,
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: const BoxDecoration(
+                            color: _kPurple,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.add, color: Colors.white, size: 22),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+
+                      // Text field pill with emoji icon inside
+                      Expanded(
+                        child: Container(
+                          constraints: const BoxConstraints(minHeight: 44, maxHeight: 120),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.darkInputBg : AppColors.inputBg,
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Expanded(
                                 child: TextField(
                                   controller: _textController,
                                   maxLines: 4,
                                   minLines: 1,
                                   style: TextStyle(color: cs.onSurface, fontSize: 14),
                                   decoration: InputDecoration(
-                                    hintText: 'Message...',
-                                    hintStyle: TextStyle(color: cs.onSurface.withAlpha(90)),
+                                    hintText: 'Type a message...',
+                                    hintStyle: TextStyle(
+                                        color: cs.onSurface.withAlpha(90)),
                                     border: InputBorder.none,
                                     enabledBorder: InputBorder.none,
                                     focusedBorder: InputBorder.none,
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
                                     filled: false,
                                   ),
                                   onSubmitted: (_) => _sendMessage(),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 42, height: 42,
-                              child: Material(
-                                color: AppColors.mint,
-                                borderRadius: BorderRadius.circular(12),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(12),
-                                  onTap: _sendMessage,
-                                  child: Icon(Icons.arrow_upward, size: 20, color: cs.onPrimary),
+                              Padding(
+                                padding: const EdgeInsets.only(right: 12),
+                                child: Icon(
+                                  Icons.sentiment_satisfied_alt_outlined,
+                                  size: 22,
+                                  color: cs.onSurface.withAlpha(100),
                                 ),
                               ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+
+                      // Purple mic/send circle — toggles on text
+                      ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: _textController,
+                        builder: (_, val, __) {
+                          final hasText = val.text.isNotEmpty;
+                          return GestureDetector(
+                            onTap: hasText ? _sendMessage : null,
+                            child: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: const BoxDecoration(
+                                color: _kPurple,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                hasText ? Icons.send_rounded : Icons.mic_outlined,
+                                color: Colors.white,
+                                size: 22,
+                              ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        _DeliveryStatus(
-                          hasInternet: widget.messageService.hasInternet,
-                          isNearby: widget.messageService.nearbyUsers.contains(widget.contactPubkey),
-                        ),
-                      ],
-                    ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  _DeliveryStatus(
+                    hasInternet: widget.messageService.hasInternet,
+                    isNearby:
+                        widget.messageService.nearbyUsers.contains(widget.contactPubkey),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -687,6 +773,29 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
+
+// ── Timestamp separator ──────────────────────────────────────────────────────
+
+class _TimestampSeparator extends StatelessWidget {
+  final String label;
+  const _TimestampSeparator({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Center(
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: _kMetaGray),
+        ),
+      ),
+    );
+  }
+}
+
+
+// ── Delivery status row ──────────────────────────────────────────────────────
 
 class _DeliveryStatus extends StatelessWidget {
   final bool hasInternet;
@@ -702,20 +811,20 @@ class _DeliveryStatus extends StatelessWidget {
 
     if (isNearby && hasInternet) {
       label = 'Sending via best route';
-      color = AppColors.teal;
-      icon  = Icons.wifi_tethering;
+      color = _kPurple;
+      icon = Icons.wifi_tethering;
     } else if (isNearby) {
       label = 'Sending nearby';
       color = AppColors.amber;
-      icon  = Icons.wifi_tethering;
+      icon = Icons.wifi_tethering;
     } else if (hasInternet) {
       label = 'Sending via internet';
-      color = AppColors.teal;
-      icon  = Icons.signal_wifi_4_bar;
+      color = _kPurple;
+      icon = Icons.signal_wifi_4_bar;
     } else {
       label = 'Will send when connection is available';
-      color = AppColors.textMuted;
-      icon  = Icons.wifi_off_outlined;
+      color = AppColors.darkTextMuted;
+      icon = Icons.wifi_off_outlined;
     }
 
     return Align(
@@ -725,151 +834,187 @@ class _DeliveryStatus extends StatelessWidget {
         children: [
           Icon(icon, size: 11, color: color),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(fontSize: 10, color: color),
-          ),
+          Text(label, style: TextStyle(fontSize: 10, color: color)),
         ],
       ),
     );
   }
 }
 
+
+// ── Message bubble ───────────────────────────────────────────────────────────
+
 class _Bubble extends StatelessWidget {
   final Message message;
   final bool isMe;
   final VoidCallback? onRetry;
   final bool hasConnectivity;
+  final String? contactName;
+  final String? contactLocalPicPath;
+  final String? contactPicUrl;
 
   const _Bubble({
     required this.message,
     required this.isMe,
     this.onRetry,
     this.hasConnectivity = true,
+    this.contactName,
+    this.contactLocalPicPath,
+    this.contactPicUrl,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final cs = theme.colorScheme;
 
-    // Sent bubble: light gray in light; dark gray in dark
-    final sentBgColor = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE9E9E9);
-    final sentBorderColor = Colors.transparent;
-    final sentTextColor = cs.onSurface;
-    final sentMetaColor = cs.onSurface.withAlpha(120);
-
-    // Received bubble: white with hairline border in light; darker gray in dark
-    final recvBgColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
-    final recvBorderColor = isDark ? Colors.transparent : const Color(0xFFE0E0E0);
-    final recvTextColor = cs.onSurface;
-    final recvMetaColor = cs.onSurface.withAlpha(100);
-
-    final bubbleBg = isMe ? sentBgColor : recvBgColor;
-    final bubbleBorder = isMe ? sentBorderColor : recvBorderColor;
-    final textColor = isMe ? sentTextColor : recvTextColor;
-    final metaColor = isMe ? sentMetaColor : recvMetaColor;
+    // Sent: always purple. Received: white (light) / dark navy (dark).
+    final bubbleBg = isMe ? _kPurple : (isDark ? const Color(0xFF1E1E2E) : Colors.white);
+    final textColor = isMe
+        ? Colors.white
+        : (isDark ? Colors.white : const Color(0xFF1A1A2E));
 
     final isImage = message.type == 'image';
 
-    // Status icon shown next to timestamp for outgoing messages
     Widget? statusIcon;
     if (isMe) {
-      switch (message.status) {
-        case 'pending':
-          statusIcon = Icon(Icons.schedule, size: 11, color: metaColor);
-        case 'sent':
-          statusIcon = Icon(Icons.done, size: 11, color: metaColor);
-        case 'delivered':
-          statusIcon = Icon(Icons.done_all, size: 11, color: metaColor);
-        case 'read':
-          statusIcon = Icon(Icons.done_all, size: 11, color: AppColors.online);
-        case 'failed':
-          statusIcon = Icon(Icons.error_outline, size: 11, color: AppColors.error.withAlpha(180));
+      if (message.status == 'failed') {
+        // Always show error regardless of transport.
+        statusIcon = Icon(Icons.error_outline, size: 12, color: AppColors.error);
+      } else if (message.transport == 'server') {
+        // Ticks only for server (online) messages — BLE/offline needs no receipt.
+        switch (message.status) {
+          case 'pending':
+            statusIcon = const Icon(Icons.schedule, size: 12, color: _kMetaGray);
+          case 'sent':
+            statusIcon = const Icon(Icons.done, size: 12, color: _kMetaGray);
+          case 'delivered':
+            statusIcon = const Icon(Icons.done_all, size: 12, color: _kMetaGray);
+          case 'read':
+            statusIcon = const Icon(Icons.done_all, size: 12, color: _kPurple);
+        }
       }
     }
 
-    final timeRow = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(_time(message.timestamp), style: TextStyle(fontSize: 10, color: metaColor)),
-        if (statusIcon != null) ...[
-          const SizedBox(width: 3),
-          statusIcon,
-        ],
-      ],
-    );
+    final bubbleContent = isImage
+        ? _buildImageContent(context)
+        : Text(
+            message.content,
+            style: TextStyle(color: textColor, fontSize: 15, height: 1.4),
+          );
 
     final bubble = Container(
-      margin: const EdgeInsets.only(bottom: 5),
       padding: isImage
-          ? const EdgeInsets.fromLTRB(6, 6, 6, 6)
-          : const EdgeInsets.fromLTRB(13, 9, 13, 7),
-      constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.75,
-      ),
+          ? const EdgeInsets.all(4)
+          : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      constraints: BoxConstraints(minWidth: 72, maxWidth: MediaQuery.of(context).size.width * 0.65),
       decoration: BoxDecoration(
         color: bubbleBg,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: bubbleBorder, width: 0.5),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: (!isMe && !isDark)
+            ? [
+                BoxShadow(
+                  color: Colors.black.withAlpha(18),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
       ),
-      child: isImage
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildImageContent(context),
-                const SizedBox(height: 4),
-                timeRow,
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(message.content, style: TextStyle(color: textColor, fontSize: 14, height: 1.35)),
-                const SizedBox(height: 3),
-                timeRow,
-              ],
-            ),
+      child: bubbleContent,
     );
 
-    // Failed with connectivity = genuine failure after 2-min retry window.
-    // The red ! is already shown in timeRow; add a small text label beneath.
-    // Failed without connectivity = clock icon in timeRow is enough — no extra text.
-    // Pending = clock in timeRow, no label needed.
     final showFailedLabel = isMe && message.status == 'failed' && hasConnectivity;
 
-    Widget? statusHint;
-    if (showFailedLabel) {
-      statusHint = Padding(
-        padding: const EdgeInsets.only(bottom: 4, right: 4),
-        child: Text(
-          'Not delivered',
-          style: TextStyle(fontSize: 10, color: AppColors.error.withAlpha(180)),
+    if (isMe) {
+      return GestureDetector(
+        onLongPress: () => _showMessageMenu(context),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 10, left: 64),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              bubble,
+              if (statusIcon != null) ...[
+                const SizedBox(height: 2),
+                statusIcon!,
+              ],
+              if (showFailedLabel)
+                Text(
+                  'Not delivered',
+                  style: TextStyle(fontSize: 10, color: AppColors.error),
+                ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      return GestureDetector(
+        onLongPress: () => _showMessageMenu(context),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 10, right: 64),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _contactAvatarWidget(32),
+              const SizedBox(width: 8),
+              bubble,
+            ],
+          ),
         ),
       );
     }
+  }
 
-    return GestureDetector(
-      onLongPress: () => _showMessageMenu(context),
-      child: Align(
-        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-        child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            bubble,
-            if (statusHint != null) statusHint,
-          ],
+  Widget _contactAvatarWidget(double size) {
+    final name = contactName ?? '?';
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+    Widget fallback = Container(
+      width: size,
+      height: size,
+      decoration: const BoxDecoration(color: _kPurple, shape: BoxShape.circle),
+      child: Center(
+        child: Text(
+          initial,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: size * 0.38,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
+
+    if (contactLocalPicPath != null) {
+      return ClipOval(
+        child: Image.file(
+          File(contactLocalPicPath!),
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => fallback,
+        ),
+      );
+    }
+    if (contactPicUrl != null) {
+      return ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: contactPicUrl!,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorWidget: (_, __, ___) => fallback,
+        ),
+      );
+    }
+    return fallback;
   }
 
   Widget _buildImageContent(BuildContext context) {
     final content = message.content;
     const size = 200.0;
-    const radius = BorderRadius.all(Radius.circular(10));
+    const radius = BorderRadius.all(Radius.circular(16));
 
     if (content.startsWith('local:')) {
       final path = content.substring(6);
@@ -877,9 +1022,12 @@ class _Bubble extends StatelessWidget {
         borderRadius: radius,
         child: Image.file(
           File(path),
-          width: size, height: size, fit: BoxFit.cover,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => const SizedBox(
-            width: size, height: size,
+            width: size,
+            height: size,
             child: Center(child: Icon(Icons.broken_image_outlined)),
           ),
         ),
@@ -890,37 +1038,42 @@ class _Bubble extends StatelessWidget {
         borderRadius: radius,
         child: CachedNetworkImage(
           imageUrl: content,
-          width: size, height: size, fit: BoxFit.cover,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
           placeholder: (_, __) => const SizedBox(
-            width: size, height: size,
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.mint)),
+            width: size,
+            height: size,
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _kPurple)),
           ),
           errorWidget: (_, __, ___) => const SizedBox(
-            width: size, height: size,
+            width: size,
+            height: size,
             child: Center(child: Icon(Icons.broken_image_outlined)),
           ),
         ),
       );
     }
     return const SizedBox(
-      width: size, height: size,
-      child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.mint)),
+      width: size,
+      height: size,
+      child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _kPurple)),
     );
   }
 
   void _showMessageMenu(BuildContext context) {
     final hasText = message.content.isNotEmpty;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Theme.of(context).cardColor,
+      backgroundColor: isDark ? AppColors.darkCard : Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Copy text
             if (hasText)
               ListTile(
                 leading: const Icon(Icons.copy_outlined),
@@ -929,7 +1082,10 @@ class _Bubble extends StatelessWidget {
                   Navigator.pop(context);
                   Clipboard.setData(ClipboardData(text: message.content));
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Copied'), duration: Duration(seconds: 1)),
+                    const SnackBar(
+                      content: Text('Copied'),
+                      duration: Duration(seconds: 1),
+                    ),
                   );
                 },
               ),
@@ -940,9 +1096,4 @@ class _Bubble extends StatelessWidget {
     );
   }
 
-  String _time(int ts) {
-    final dt = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
-    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
 }
-

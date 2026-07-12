@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +11,25 @@ import 'package:bitchat_messenger/core/database_service.dart';
 import 'package:bitchat_messenger/features/chat/services/message_service.dart';
 import 'package:bitchat_messenger/features/profile/services/profile_sync_service.dart';
 import 'package:bitchat_messenger/features/chat/screens/chat_screen.dart';
+
+// Distinct avatar background colors derived from pubkey hash
+const _kAvatarPalette = [
+  Color(0xFF5C6BC0),
+  Color(0xFF26A69A),
+  Color(0xFFEF5350),
+  Color(0xFF7E57C2),
+  Color(0xFF29B6F6),
+  Color(0xFFFF7043),
+  Color(0xFF66BB6A),
+  Color(0xFFAB47BC),
+  Color(0xFFEC407A),
+  Color(0xFF8D6E63),
+];
+
+Color _avatarColor(String pubkey) {
+  final hash = pubkey.codeUnits.fold(0, (a, b) => a ^ b);
+  return _kAvatarPalette[hash.abs() % _kAvatarPalette.length];
+}
 
 class _DmItem {
   final Contact contact;
@@ -54,7 +74,6 @@ class _ChatsScreenState extends State<ChatsScreen> {
     });
     _messageSub = widget.messageService.messageStream.listen((_) {
       if (!mounted) return;
-      // Debounce: coalesce rapid message bursts into a single reload
       _reloadDebounce?.cancel();
       _reloadDebounce = Timer(const Duration(milliseconds: 300), () {
         if (mounted) _loadAll();
@@ -64,21 +83,13 @@ class _ChatsScreenState extends State<ChatsScreen> {
 
   void _batchSyncProfiles() {
     () async {
-      // Wait for contacts to be loaded before syncing
       await Future.delayed(const Duration(seconds: 2));
       final contacts = await widget.dbService.getContacts();
-      final pubkeys = contacts
-          .where((c) => !c.isPending)
-          .map((c) => c.pubkey)
-          .toList();
+      final pubkeys = contacts.where((c) => !c.isPending).map((c) => c.pubkey).toList();
       if (pubkeys.isEmpty) return;
-      await ProfileSyncService().syncAll(
-        pubkeys,
-        widget.dbService,
-        onContactUpdated: (_) {
-          if (mounted) _loadAll();
-        },
-      );
+      await ProfileSyncService().syncAll(pubkeys, widget.dbService, onContactUpdated: (_) {
+        if (mounted) _loadAll();
+      });
     }();
   }
 
@@ -119,7 +130,6 @@ class _ChatsScreenState extends State<ChatsScreen> {
   }
 
   void _openNearbyUser(String pubkey, {String? suggestedName}) {
-    // If already a contact, open normally
     final existing = _contacts.firstWhere(
       (c) => c.pubkey == pubkey,
       orElse: () => Contact(pubkey: pubkey),
@@ -128,8 +138,6 @@ class _ChatsScreenState extends State<ChatsScreen> {
       _openDm(existing);
       return;
     }
-    // Not a contact — open chat directly using name or short ID as label.
-    // User is NOT added to contacts; they can do that explicitly from within the chat.
     final cleanName = suggestedName?.replaceAll(RegExp(r'\s*#\d+$'), '').trim();
     final displayName = (cleanName != null && cleanName.isNotEmpty)
         ? cleanName
@@ -154,16 +162,10 @@ class _ChatsScreenState extends State<ChatsScreen> {
     for (final pubkey in _lastMessages.keys) {
       if (!contactPubkeys.contains(pubkey)) {
         final lastMsg = _lastMessages[pubkey]!;
-        // Resolve best available name for non-saved contacts:
-        // 1. BLE device name (if nearby), 2. senderName from a received message
         final bleRaw = widget.messageService.nearbyDeviceNames[pubkey];
         final bleName = bleRaw?.replaceAll(RegExp(r'\s*#\d+$'), '').trim();
         final senderName = lastMsg.senderPubkey == pubkey ? lastMsg.senderName : null;
-        final name = (bleName?.isNotEmpty == true)
-            ? bleName
-            : (senderName?.isNotEmpty == true)
-                ? senderName
-                : null;
+        final name = (bleName?.isNotEmpty == true) ? bleName : (senderName?.isNotEmpty == true) ? senderName : null;
         items.add(_DmItem(
           contact: Contact(pubkey: pubkey, name: name),
           lastMessage: lastMsg,
@@ -179,150 +181,42 @@ class _ChatsScreenState extends State<ChatsScreen> {
   @override
   Widget build(BuildContext context) {
     final items = _buildList();
-    final nearby = widget.messageService.nearbyUsers.toList();
-    final names = widget.messageService.nearbyDeviceNames;
-    final contactMap = {for (final c in _contacts) c.pubkey: c};
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            Icon(Icons.hub, size: 20, color: AppColors.mint.withAlpha(180)),
-            const SizedBox(width: 10),
-            const Text('Chats'),
-          ],
+        title: const Text(
+          'Chats',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 22, letterSpacing: -0.5),
         ),
-      ),
-      body: Column(
-        children: [
-          if (nearby.isNotEmpty)
-            _buildStoriesBar(nearby, names, contactMap),
-          Expanded(
-            child: items.isEmpty
-                ? _buildEmpty()
-                : ListView.builder(
-                    padding: const EdgeInsets.only(top: 4, bottom: 100),
-                    itemCount: items.length,
-                    itemBuilder: (_, i) => _buildDmTile(items[i]),
-                  ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, size: 22),
+            tooltip: 'New message',
+            onPressed: () {},
           ),
+          const SizedBox(width: 4),
         ],
       ),
+      body: items.isEmpty ? _buildEmpty() : _buildList2(items, isDark),
     );
   }
 
-  Widget _buildStoriesBar(List<String> nearby, Map<String, String> names, Map<String, Contact> contactMap) {
-    final overflow = nearby.length > 7 ? nearby.length - 6 : 0;
-    final visible = nearby.take(overflow > 0 ? 6 : nearby.length).toList();
-
-    return Container(
-      height: 86,
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.divider.withAlpha(60))),
+  Widget _buildList2(List<_DmItem> items, bool isDark) {
+    return ListView.separated(
+      padding: const EdgeInsets.only(top: 8, bottom: 100),
+      itemCount: items.length,
+      separatorBuilder: (_, i) => Divider(
+        height: 1,
+        indent: 82, // aligns with text start, after avatar + gap
+        endIndent: 0,
+        color: isDark ? AppColors.darkDivider : AppColors.divider,
       ),
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        children: [
-          // Nearby devices
-          ...visible.map((pubkey) {
-            final contact = contactMap[pubkey];
-            final bleRaw = names[pubkey] ?? '';
-            final bleUsername = bleRaw.replaceAll(RegExp(r'\s*#\d+$'), '').trim();
-            final label = contact?.name?.isNotEmpty == true
-                ? contact!.name!
-                : bleUsername.isNotEmpty
-                    ? bleUsername
-                    : '#${Contact.shortIdFor(pubkey)}';
-            return _buildStoryBubble(
-              label: label,
-              profileUrl: contact?.profilePictureUrl,
-              color: AppColors.blue,
-              onTap: () => _openNearbyUser(pubkey, suggestedName: names[pubkey]),
-            );
-          }),
-          if (overflow > 0)
-            _buildStoryBubble(
-              label: '+$overflow',
-              color: AppColors.blue,
-              isOverflow: true,
-              onTap: () {},
-            ),
-        ],
-      ),
+      itemBuilder: (_, i) => _buildRow(items[i], isDark),
     );
   }
 
-  Widget _buildStoryBubble({
-    required String label,
-    required VoidCallback onTap,
-    required Color color,
-    String? profileUrl,
-    IconData? icon,
-    bool isOverflow = false,
-  }) {
-    final displayLabel = label.replaceAll(RegExp(r'\s*#\d+$'), '').trim();
-    final initial = displayLabel.isNotEmpty ? displayLabel[0].toUpperCase() : '?';
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.only(right: 14),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 46, height: 46,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: isOverflow
-                    ? null
-                    : LinearGradient(
-                        colors: [color.withAlpha(220), color.withAlpha(100)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                color: isOverflow ? color.withAlpha(30) : null,
-              ),
-              padding: const EdgeInsets.all(2),
-              child: Container(
-                decoration: BoxDecoration(shape: BoxShape.circle, color: Theme.of(context).scaffoldBackgroundColor),
-                padding: const EdgeInsets.all(1.5),
-                child: ClipOval(
-                  child: profileUrl != null
-                      ? CachedNetworkImage(imageUrl: profileUrl, fit: BoxFit.cover, errorWidget: (_, __, ___) => _storyInner(initial, icon, color))
-                      : _storyInner(initial, icon, color),
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            SizedBox(
-              width: 46,
-              child: Text(
-                displayLabel.length > 7 ? '${displayLabel.substring(0, 7)}…' : displayLabel,
-                style: TextStyle(fontSize: 9, color: null, fontWeight: FontWeight.w500),
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _storyInner(String initial, IconData? icon, Color color) {
-    return Container(
-      color: color.withAlpha(18),
-      child: Center(
-        child: icon != null
-            ? Icon(icon, size: 16, color: color)
-            : Text(initial, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: color)),
-      ),
-    );
-  }
-
-  Widget _buildDmTile(_DmItem item) {
+  Widget _buildRow(_DmItem item, bool isDark) {
     final contact = item.contact;
     final senderName = item.lastMessage.senderName;
     final label = contact.name?.isNotEmpty == true
@@ -332,77 +226,102 @@ class _ChatsScreenState extends State<ChatsScreen> {
             : '#${contact.shortId}';
     final hasUnread = item.unread > 0;
     final myPubkey = widget.messageService.publicKey;
+    final isMe = item.lastMessage.senderPubkey == myPubkey;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: Material(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => _openDm(contact, resolvedName: label),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                Stack(
-                  children: [
-                    _avatar(_safeInitial(label), item.isNearby ? AppColors.mint.withAlpha(18) : Theme.of(context).cardColor, item.isNearby ? AppColors.mint : Theme.of(context).colorScheme.onSurface.withAlpha(160)),
-                    if (hasUnread)
-                      Positioned(
-                        right: -1, top: -1,
-                        child: Container(
-                          width: 18, height: 18,
-                          decoration: BoxDecoration(color: AppColors.mint, shape: BoxShape.circle, border: Border.all(color: Theme.of(context).cardColor, width: 2)),
-                          child: Center(child: Text(item.unread > 9 ? '9+' : '${item.unread}', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white))),
+    return InkWell(
+      onTap: () => _openDm(contact, resolvedName: label),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            // ── Avatar ──────────────────────────────────────────────────────
+            _Avatar(
+              name: label,
+              pubkey: contact.pubkey,
+              localPath: contact.profilePictureLocalPath,
+              picUrl: contact.profilePictureUrl,
+              isOnline: item.isNearby,
+              size: 52,
+              bgColor: _avatarColor(contact.pubkey),
+            ),
+
+            const SizedBox(width: 12),
+
+            // ── Content ──────────────────────────────────────────────────────
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Name + timestamp row
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w500,
+                            color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                  ],
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(child: Text(label, style: TextStyle(fontSize: 14, fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w500), overflow: TextOverflow.ellipsis)),
-                          const SizedBox(width: 8),
-                          Text(
-                            _formatTime(item.lastMessage.timestamp),
-                            style: TextStyle(fontSize: 10, color: hasUnread ? AppColors.mint : AppColors.textMuted, fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          Icon(
-                            item.lastMessage.transport == 'bitchat' ? Icons.sensors : Icons.cloud_outlined,
-                            size: 10,
-                            color: AppColors.textMuted.withAlpha(120),
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              item.lastMessage.senderPubkey == myPubkey
-                                  ? 'You: ${_previewText(item.lastMessage)}'
-                                  : _previewText(item.lastMessage),
-                              style: TextStyle(fontSize: 12, color: hasUnread ? Theme.of(context).colorScheme.onSurface.withAlpha(180) : AppColors.textMuted, fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(width: 8),
+                      Text(
+                        _formatTime(item.lastMessage.timestamp),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: hasUnread
+                              ? AppColors.online
+                              : (isDark ? AppColors.darkTextMuted : AppColors.textMuted),
+                          fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
+                        ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 4),
-                Icon(Icons.chevron_right, size: 18, color: AppColors.textMuted.withAlpha(100)),
-              ],
+
+                  const SizedBox(height: 3),
+
+                  // Preview + unread badge row
+                  Row(
+                    children: [
+                      if (isMe)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 3),
+                          child: Icon(
+                            Icons.done_all,
+                            size: 14,
+                            color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+                          ),
+                        ),
+                      Expanded(
+                        child: Text(
+                          isMe
+                              ? _previewText(item.lastMessage)
+                              : _previewText(item.lastMessage),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: hasUnread
+                                ? (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)
+                                : (isDark ? AppColors.darkTextMuted : AppColors.textMuted),
+                            fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (hasUnread) ...[
+                        const SizedBox(width: 8),
+                        _UnreadBadge(count: item.unread),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -419,28 +338,27 @@ class _ChatsScreenState extends State<ChatsScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 72,
-              height: 72,
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withAlpha(15),
-                border: Border.all(color: AppColors.primary.withAlpha(40), width: 1.5),
+                color: AppColors.primary.withAlpha(10),
               ),
-              child: Icon(Icons.chat_bubble_outline, size: 32, color: AppColors.primary.withAlpha(160)),
+              child: Icon(Icons.chat_bubble_outline_rounded, size: 36, color: AppColors.primary.withAlpha(120)),
             ),
             const SizedBox(height: 20),
             const Text(
-              'No chats yet',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+              'No messages yet',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
-              'Share your ID with friends so they can message you.',
-              style: TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.5),
+              'Start a conversation from your contacts or share your ID with friends.',
+              style: TextStyle(fontSize: 14, color: AppColors.textMuted, height: 1.5),
               textAlign: TextAlign.center,
             ),
             if (shortId.isNotEmpty) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               _ShortIdChip(shortId: shortId),
             ],
           ],
@@ -449,20 +367,10 @@ class _ChatsScreenState extends State<ChatsScreen> {
     );
   }
 
-  String _safeInitial(String text) => text.isNotEmpty ? text[0] : '?';
-
-  Widget _avatar(String char, Color bg, Color fg) {
-    return Container(
-      width: 42, height: 42,
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
-      child: Center(child: Text(char.toUpperCase(), style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: fg))),
-    );
-  }
-
   String _previewText(Message msg) {
     switch (msg.type) {
-      case 'image': return '📷 Photo';
-      case 'voice_note': return '🎤 Voice message';
+      case 'image': return '📷  Photo';
+      case 'voice_note': return '🎤  Voice message';
       default: return msg.content;
     }
   }
@@ -473,14 +381,126 @@ class _ChatsScreenState extends State<ChatsScreen> {
     final today = DateTime(now.year, now.month, now.day);
     final msgDay = DateTime(dt.year, dt.month, dt.day);
     final diff = today.difference(msgDay).inDays;
-    if (diff == 0) return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    if (diff == 0) {
+      final h = dt.hour;
+      final m = dt.minute.toString().padLeft(2, '0');
+      final period = h < 12 ? 'AM' : 'PM';
+      final hour = (h % 12 == 0 ? 12 : h % 12).toString();
+      return '$hour:$m $period';
+    }
     if (diff == 1) return 'Yesterday';
     if (diff < 7) return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][dt.weekday - 1];
     return '${dt.day}/${dt.month}/${dt.year % 100}';
   }
 }
 
-// ── Short ID copy chip (used in empty state) ──────────────────────────────────
+// ── Circular Avatar ───────────────────────────────────────────────────────────
+
+class _Avatar extends StatelessWidget {
+  final String name;
+  final String pubkey;
+  final String? localPath;
+  final String? picUrl;
+  final bool isOnline;
+  final double size;
+  final Color bgColor;
+
+  const _Avatar({
+    required this.name,
+    required this.pubkey,
+    this.localPath,
+    this.picUrl,
+    required this.isOnline,
+    required this.size,
+    required this.bgColor,
+  });
+
+  String get _initial {
+    final n = name.trim();
+    if (n.isEmpty || n == '?') return '?';
+    // Skip '#' prefix
+    final clean = n.startsWith('#') ? n.substring(1) : n;
+    return clean.isNotEmpty ? clean[0].toUpperCase() : '?';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dotSize = size * 0.26;
+    final borderWidth = 2.0;
+    final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
+
+    return Stack(
+      children: [
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: bgColor),
+          clipBehavior: Clip.antiAlias,
+          child: localPath != null
+              ? Image.file(File(localPath!), fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _initials())
+              : picUrl != null && picUrl!.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: picUrl!,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => _initials(),
+                    )
+                  : _initials(),
+        ),
+        if (isOnline)
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              width: dotSize,
+              height: dotSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.online,
+                border: Border.all(color: scaffoldBg, width: borderWidth),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _initials() => Center(
+    child: Text(
+      _initial,
+      style: TextStyle(
+        fontSize: size * 0.4,
+        fontWeight: FontWeight.w700,
+        color: Colors.white,
+      ),
+    ),
+  );
+}
+
+// ── Unread badge ──────────────────────────────────────────────────────────────
+
+class _UnreadBadge extends StatelessWidget {
+  final int count;
+  const _UnreadBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = count > 99 ? '99+' : '$count';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: const BoxDecoration(
+        color: AppColors.online,
+        borderRadius: BorderRadius.all(Radius.circular(10)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+      ),
+    );
+  }
+}
+
+// ── Short ID chip (empty state) ───────────────────────────────────────────────
 
 class _ShortIdChip extends StatefulWidget {
   final String shortId;
@@ -508,32 +528,19 @@ class _ShortIdChipState extends State<_ShortIdChip> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: _copied
-              ? AppColors.primary.withAlpha(20)
-              : AppColors.primary.withAlpha(10),
+          color: _copied ? AppColors.primary.withAlpha(20) : AppColors.primary.withAlpha(8),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.primary.withAlpha(_copied ? 80 : 40),
-          ),
+          border: Border.all(color: AppColors.primary.withAlpha(_copied ? 80 : 30)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               '#${widget.shortId}',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-                letterSpacing: 1,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 1),
             ),
             const SizedBox(width: 8),
-            Icon(
-              _copied ? Icons.check : Icons.copy_outlined,
-              size: 14,
-              color: AppColors.primary,
-            ),
+            Icon(_copied ? Icons.check : Icons.copy_outlined, size: 14, color: AppColors.primary),
           ],
         ),
       ),

@@ -44,6 +44,7 @@ class MessageService {
   StreamSubscription? _meshRelayServerSub;
   StreamSubscription? _deliveryReceiptSub;
   Timer? _retryTimer;
+  Set<String> _prevNearbyPubkeys = {};
 
   MessageService({
     required NostrService nostrService,
@@ -328,6 +329,18 @@ class MessageService {
   }
 
   void _onNearbyChanged(Set<String> nearbyPubkeys) {
+    // Persist any newly-seen BLE devices to history so they remain visible
+    // in the Discovery tab even after disconnecting.
+    final added = nearbyPubkeys.difference(_prevNearbyPubkeys);
+    _prevNearbyPubkeys = Set.of(nearbyPubkeys);
+    if (added.isNotEmpty) {
+      final names = _bitchatService.nearbyDeviceNames;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      for (final pubkey in added) {
+        _dbService.upsertBleHistory(pubkey, names[pubkey], now);
+      }
+    }
+
     if (nearbyPubkeys.isEmpty) return;
     _deliverPendingToNearby(nearbyPubkeys);
     _syncNearbyProfilePictures(nearbyPubkeys);

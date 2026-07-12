@@ -98,31 +98,38 @@ class _NearbyTab extends StatefulWidget {
 
 class _NearbyTabState extends State<_NearbyTab> {
   StreamSubscription? _nearbySub;
-  Set<String> _nearbyPubkeys = {};
+  Set<String> _liveNearbyPubkeys = {};
+  List<Map<String, dynamic>> _bleHistory = [];
   final Map<String, Map<String, dynamic>> _profiles = {};
 
   @override
   void initState() {
     super.initState();
-    _nearbyPubkeys = Set.of(widget.messageService.nearbyUsers);
+    _liveNearbyPubkeys = Set.of(widget.messageService.nearbyUsers);
+    _loadHistory();
     _nearbySub = widget.messageService.nearbyChangedStream.listen((pubkeys) {
       if (!mounted) return;
-      setState(() => _nearbyPubkeys = pubkeys);
-      for (final pk in pubkeys) {
-        if (!_profiles.containsKey(pk)) _fetchProfile(pk);
-      }
+      setState(() => _liveNearbyPubkeys = pubkeys);
+      _loadHistory();
     });
-    // Fetch profiles for any already-nearby users
-    for (final pk in _nearbyPubkeys) {
-      _fetchProfile(pk);
+  }
+
+  Future<void> _loadHistory() async {
+    final rows = await widget.messageService.dbService.getBleHistory();
+    if (!mounted) return;
+    setState(() => _bleHistory = rows);
+    for (final row in rows) {
+      final pk = row['pubkey'] as String;
+      if (!_profiles.containsKey(pk)) _fetchProfile(pk);
     }
   }
 
   Future<void> _fetchProfile(String pubkey) async {
     final result = await ServerService().getProfile(pubkey);
-    if (result != null && mounted) {
-      setState(() => _profiles[pubkey] = result);
-    }
+    if (!mounted) return;
+    // Store empty map when server has no profile — distinguishes "loaded, no profile"
+    // from null = "still loading". _ProfileTile handles both cases differently.
+    setState(() => _profiles[pubkey] = result ?? {});
   }
 
   @override
@@ -134,7 +141,9 @@ class _NearbyTabState extends State<_NearbyTab> {
   @override
   Widget build(BuildContext context) {
     final myPubkey = widget.messageService.publicKey;
-    final peers = _nearbyPubkeys.where((pk) => pk != myPubkey).toList();
+    final peers = _bleHistory
+        .where((r) => (r['pubkey'] as String) != myPubkey)
+        .toList(); // already sorted lastSeen DESC from DB
 
     if (peers.isEmpty) {
       return Center(
@@ -143,10 +152,10 @@ class _NearbyTabState extends State<_NearbyTab> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.bluetooth_disabled_outlined, size: 56, color: AppColors.textMuted.withAlpha(80)),
+              Icon(Icons.bluetooth_searching_outlined, size: 56, color: AppColors.textMuted.withAlpha(80)),
               const SizedBox(height: 16),
               const Text(
-                'No one nearby',
+                'No one nearby yet',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
@@ -169,28 +178,35 @@ class _NearbyTabState extends State<_NearbyTab> {
         child: Divider(height: 1, color: AppColors.divider),
       ),
       itemBuilder: (ctx, i) {
-        final pk = peers[i];
+        final row = peers[i];
+        final pk = row['pubkey'] as String;
+        final isLive = _liveNearbyPubkeys.contains(pk);
         final profile = _profiles[pk];
+        // BLE handshake name — used as fallback when server has no profile
+        final bleName = row['displayName'] as String?;
         return _ProfileTile(
           pubkey: pk,
           profile: profile,
+          fallbackName: bleName,
           messageService: widget.messageService,
-          badge: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: AppColors.online.withAlpha(20),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AppColors.online.withAlpha(80)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(width: 6, height: 6, decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.online)),
-                const SizedBox(width: 4),
-                const Text('Nearby', style: TextStyle(fontSize: 10, color: AppColors.online, fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ),
+          badge: isLive
+              ? Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.online.withAlpha(20),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.online.withAlpha(80)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(width: 6, height: 6, decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.online)),
+                      const SizedBox(width: 4),
+                      const Text('Nearby', style: TextStyle(fontSize: 10, color: AppColors.online, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                )
+              : null,
         );
       },
     );
@@ -321,72 +337,112 @@ class _SearchTabState extends State<_SearchTab> {
 
 class _ProfileTile extends StatelessWidget {
   final String pubkey;
+  /// null  = still loading from server
+  /// {}    = loaded, no server profile found
+  /// {...} = full server profile
   final Map<String, dynamic>? profile;
   final MessageService messageService;
   final Widget? badge;
+  final String? fallbackName; // BLE handshake name when server has no profile
 
   const _ProfileTile({
     required this.pubkey,
     required this.profile,
     required this.messageService,
     this.badge,
+    this.fallbackName,
   });
+
+  String _initials(String name) {
+    final parts = name.trim().split(' ').where((p) => p.isNotEmpty).toList();
+    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    return name.trim().isEmpty ? '?' : name.trim().substring(0, 1).toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final name = profile?['display_name'] as String? ?? '';
-    final bio = profile?['bio'] as String? ?? '';
-    final picUrl = profile?['profile_picture_url'] as String?;
+    final isLoading = profile == null;
+    final hasProfile = profile != null && profile!.isNotEmpty;
+
+    final serverName = hasProfile ? (profile!['display_name'] as String? ?? '') : '';
+    final bio = hasProfile ? (profile!['bio'] as String? ?? '') : '';
+    final picUrl = hasProfile ? (profile!['profile_picture_url'] as String?) : null;
     final shortId = Contact.shortIdFor(pubkey);
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      leading: Container(
-        width: 46, height: 46,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: AppColors.inputBg,
-          border: Border.all(color: AppColors.divider),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: profile == null
-            ? const CircularProgressIndicator(strokeWidth: 2)
-            : picUrl != null && picUrl.isNotEmpty
-                ? CachedNetworkImage(
-                    imageUrl: picUrl,
-                    fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => const Icon(Icons.person_outline, color: AppColors.textMuted),
-                  )
-                : const Icon(Icons.person_outline, color: AppColors.textMuted),
-      ),
-      title: Row(
-        children: [
-          Expanded(
-            child: Text(
-              name.isNotEmpty ? '@$name' : '#$shortId',
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (badge != null) ...[const SizedBox(width: 8), badge!],
-        ],
-      ),
-      subtitle: profile == null
-          ? Text('#$shortId', style: const TextStyle(fontSize: 12, color: AppColors.mint, letterSpacing: 1.2))
-          : bio.isNotEmpty
-              ? Text(bio, style: const TextStyle(fontSize: 12, color: AppColors.textMuted), maxLines: 1, overflow: TextOverflow.ellipsis)
-              : name.isNotEmpty
-                  ? Text('#$shortId', style: const TextStyle(fontSize: 12, color: AppColors.mint, letterSpacing: 1.2))
-                  : null,
-      trailing: const Icon(Icons.chevron_right, size: 18, color: AppColors.textMuted),
-      onTap: profile == null
+    // Resolved display name: server name > BLE handshake name > short ID
+    // Strip leading '#' from BLE name since we add it ourselves if needed
+    final bleName = fallbackName?.replaceFirst(RegExp(r'^#'), '');
+    final displayName = serverName.isNotEmpty
+        ? serverName
+        : (bleName != null && bleName.isNotEmpty && bleName != shortId)
+            ? bleName
+            : '';
+
+    final titleText = displayName.isNotEmpty ? displayName : '#$shortId';
+    final showShortIdSubtitle = displayName.isNotEmpty;
+
+    return InkWell(
+      onTap: isLoading
           ? null
           : () => Navigator.push(context, MaterialPageRoute(
                 builder: (_) => UserProfileScreen(
-                  profile: profile!,
+                  profile: hasProfile ? profile! : {'pubkey': pubkey},
                   messageService: messageService,
                 ),
               )),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        child: Row(
+          children: [
+            // Avatar
+            Container(
+              width: 52, height: 52,
+              decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.inputBg),
+              clipBehavior: Clip.antiAlias,
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                  : picUrl != null && picUrl.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: picUrl,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) => _initialsAvatar(titleText),
+                        )
+                      : _initialsAvatar(titleText),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    titleText,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (!isLoading) ...[
+                    const SizedBox(height: 2),
+                    if (bio.isNotEmpty)
+                      Text(bio, style: const TextStyle(fontSize: 13, color: AppColors.textMuted), maxLines: 1, overflow: TextOverflow.ellipsis)
+                    else if (showShortIdSubtitle)
+                      Text('#$shortId', style: const TextStyle(fontSize: 13, color: AppColors.textMuted, letterSpacing: 0.5)),
+                  ],
+                ],
+              ),
+            ),
+            if (badge != null) ...[const SizedBox(width: 8), badge!],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _initialsAvatar(String name) {
+    final letters = _initials(name.startsWith('#') ? name.substring(1) : name);
+    return Center(
+      child: Text(
+        letters,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textMuted),
+      ),
     );
   }
 }
