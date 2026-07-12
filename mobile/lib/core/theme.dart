@@ -2,32 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
-  // ── Accent ────────────────────────────────────────────────────────────────
-  static const Color primary     = Color(0xFF000000);  // black — light mode
-  static const Color primaryDark = Color(0xFFFFFFFF);  // white — dark mode
+  // ── Accent (Beacon: cobalt hero, coral for presence/nearby) ──────────────
+  static const Color primary     = Color(0xFF2544FF);  // cobalt — light mode
+  static const Color primaryDark = Color(0xFF5C74FF);  // lifted cobalt — dark mode
+  static const Color coral       = Color(0xFFFF5C39);  // nearby / BLE presence
+  static const Color coralSoft   = Color(0xFFFF8A6E);
 
   // ── Legacy aliases (existing screens compile unchanged) ───────────────────
   static const Color teal      = primary;
-  static const Color tealLight = Color(0xFF333333);
-  static const Color tealSoft  = Color(0xFF333333);
+  static const Color tealLight = primaryDark;
+  static const Color tealSoft  = Color(0xFFD9E0FF);
   static const Color mint      = primary;
-  static const Color mintDark  = Color(0xFF333333);
-  static const Color mintSoft  = Color(0xFF333333);
+  static const Color mintDark  = primaryDark;
+  static const Color mintSoft  = Color(0xFFD9E0FF);
   static const Color blue      = primary;
-  static const Color blueDark  = Color(0xFF333333);
+  static const Color blueDark  = primaryDark;
   static const Color amber     = Color(0xFFFF9500);
   static const Color amberSoft = Color(0xFFFFB340);
 
-  // ── Light theme ───────────────────────────────────────────────────────────
-  static const Color bg            = Color(0xFFFFFFFF);  // pure white
-  static const Color surface       = Color(0xFFFAFAFA);
-  static const Color card          = Color(0xFFF5F5F5);
-  static const Color cardHover     = Color(0xFFEFEFEF);
-  static const Color divider       = Color(0xFFE8E8E8);
-  static const Color inputBg       = Color(0xFFF2F2F2);
-  static const Color textPrimary   = Color(0xFF000000);
-  static const Color textSecondary = Color(0xFF333333);
-  static const Color textMuted     = Color(0xFF8E8E8E);
+  // ── Light theme (white ground, lavender surfaces, navy ink) ──────────────
+  static const Color bg            = Color(0xFFFFFFFF);
+  static const Color surface       = Color(0xFFF4F6FF);
+  static const Color card          = Color(0xFFEEF1FF);
+  static const Color cardHover     = Color(0xFFE2E7FF);
+  static const Color divider       = Color(0xFFE3E7F7);
+  static const Color inputBg       = Color(0xFFEEF1FF);
+  static const Color textPrimary   = Color(0xFF14183C);
+  static const Color textSecondary = Color(0xFF3E4568);
+  static const Color textMuted     = Color(0xFF9AA3C8);
 
   // Legacy light aliases
   static const Color lightBg            = bg;
@@ -40,24 +42,24 @@ class AppColors {
   static const Color lightTextSecondary = textSecondary;
   static const Color lightTextMuted     = textMuted;
 
-  // ── Dark theme (iOS-style pure black) ────────────────────────────────────
-  static const Color darkBg            = Color(0xFF000000);
-  static const Color darkSurface       = Color(0xFF1C1C1E);
-  static const Color darkCard          = Color(0xFF2C2C2E);
-  static const Color darkCardHover     = Color(0xFF3A3A3C);
-  static const Color darkDivider       = Color(0xFF38383A);
-  static const Color darkInputBg       = Color(0xFF1C1C1E);
-  static const Color darkTextPrimary   = Color(0xFFFFFFFF);
-  static const Color darkTextSecondary = Color(0xFFAEAEB2);
-  static const Color darkTextMuted     = Color(0xFF636366);
+  // ── Dark theme (deep navy, not black — Beacon night) ─────────────────────
+  static const Color darkBg            = Color(0xFF0B0E22);
+  static const Color darkSurface       = Color(0xFF131735);
+  static const Color darkCard          = Color(0xFF1B2045);
+  static const Color darkCardHover     = Color(0xFF242A58);
+  static const Color darkDivider       = Color(0xFF262C5A);
+  static const Color darkInputBg       = Color(0xFF131735);
+  static const Color darkTextPrimary   = Color(0xFFEEF1FF);
+  static const Color darkTextSecondary = Color(0xFFB9C0E4);
+  static const Color darkTextMuted     = Color(0xFF6E77A8);
 
   // ── Status ────────────────────────────────────────────────────────────────
   static const Color online     = Color(0xFF34C759);
-  static const Color offline    = Color(0xFF8E8E8E);
+  static const Color offline    = Color(0xFF9AA3C8);
   static const Color delivered  = primary;
   static const Color error      = Color(0xFFFF3B30);
-  static const Color signal     = error;
-  static const Color signalSoft = Color(0xFFFF6961);
+  static const Color signal     = coral;      // BLE / nearby presence
+  static const Color signalSoft = coralSoft;
 }
 
 class AppTheme {
@@ -127,7 +129,7 @@ class AppTheme {
       colorScheme: ColorScheme(
         brightness: brightness,
         primary: primaryColor,
-        onPrimary: isDark ? Colors.black : Colors.white,
+        onPrimary: Colors.white,  // cobalt carries white text in both themes
         secondary: AppColors.error,
         onSecondary: Colors.white,
         surface: surface,
@@ -170,9 +172,9 @@ class AppTheme {
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: primaryColor,
-        foregroundColor: isDark ? Colors.black : Colors.white,
+        foregroundColor: Colors.white,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
       cardTheme: CardThemeData(
         color: card,

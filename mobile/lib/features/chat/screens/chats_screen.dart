@@ -12,18 +12,19 @@ import 'package:bitchat_messenger/features/chat/services/message_service.dart';
 import 'package:bitchat_messenger/features/profile/services/profile_sync_service.dart';
 import 'package:bitchat_messenger/features/chat/screens/chat_screen.dart';
 
-// Distinct avatar background colors derived from pubkey hash
+// Distinct avatar background colors derived from pubkey hash.
+// Beacon family — keep in sync with the palette in contacts_screen.dart.
 const _kAvatarPalette = [
-  Color(0xFF5C6BC0),
-  Color(0xFF26A69A),
-  Color(0xFFEF5350),
-  Color(0xFF7E57C2),
-  Color(0xFF29B6F6),
-  Color(0xFFFF7043),
-  Color(0xFF66BB6A),
-  Color(0xFFAB47BC),
-  Color(0xFFEC407A),
-  Color(0xFF8D6E63),
+  Color(0xFF3D5AFE),
+  Color(0xFF00A8B5),
+  Color(0xFFFF5C39),
+  Color(0xFF7C4DFF),
+  Color(0xFF0091EA),
+  Color(0xFFFF8F00),
+  Color(0xFF2E9E5B),
+  Color(0xFFD81B60),
+  Color(0xFF5C74FF),
+  Color(0xFF00B8D4),
 ];
 
 Color _avatarColor(String pubkey) {

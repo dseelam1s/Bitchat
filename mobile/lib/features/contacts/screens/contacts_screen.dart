@@ -14,11 +14,12 @@ import 'package:bitchat_messenger/core/server_service.dart';
 import 'package:bitchat_messenger/features/calls/screens/in_call_screen.dart';
 import 'package:bitchat_messenger/features/chat/screens/chat_screen.dart';
 
+// Beacon family — keep in sync with the palette in chats_screen.dart.
 const List<Color> _kAvatarPalette = [
-  Color(0xFF5C6BC0), Color(0xFF26A69A), Color(0xFFEF5350),
-  Color(0xFFAB47BC), Color(0xFF42A5F5), Color(0xFFFF7043),
-  Color(0xFF66BB6A), Color(0xFFEC407A), Color(0xFF26C6DA),
-  Color(0xFFFFA726),
+  Color(0xFF3D5AFE), Color(0xFF00A8B5), Color(0xFFFF5C39),
+  Color(0xFF7C4DFF), Color(0xFF0091EA), Color(0xFFFF8F00),
+  Color(0xFF2E9E5B), Color(0xFFD81B60), Color(0xFF5C74FF),
+  Color(0xFF00B8D4),
 ];
 
 Color _avatarColor(String pubkey) {
@@ -237,9 +238,9 @@ class _RecentsTabState extends State<_RecentsTab> {
             final theme = Theme.of(ctx);
             final isDark = theme.brightness == Brightness.dark;
 
-            final keyBg = isDark ? const Color(0xFF2A3344) : const Color(0xFFE8ECF2);
-            final keyTextColor = isDark ? const Color(0xFFE8ECF1) : const Color(0xFF0D1117);
-            final keySubColor = isDark ? const Color(0xFF8B95A5) : const Color(0xFF5A6478);
+            final keyBg = isDark ? AppColors.darkCard : AppColors.card;
+            final keyTextColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+            final keySubColor = isDark ? AppColors.darkTextMuted : AppColors.textSecondary;
 
             Widget dialKey(String label, {String? sub, VoidCallback? onTap, Widget? child}) {
               return GestureDetector(

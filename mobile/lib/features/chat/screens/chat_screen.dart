@@ -11,8 +11,8 @@ import 'package:bitchat_messenger/features/chat/services/message_service.dart';
 import 'package:bitchat_messenger/features/profile/services/profile_sync_service.dart';
 import 'package:bitchat_messenger/features/calls/screens/in_call_screen.dart';
 
-const _kPurple = Color(0xFF7C5CFC);
-const _kMetaGray = Color(0xFF8888AA);
+const _kAccent = AppColors.primary;
+const _kMetaGray = Color(0xFF9AA3C8);
 
 class ChatScreen extends StatefulWidget {
   final String contactPubkey;
@@ -235,7 +235,7 @@ class _ChatScreenState extends State<ChatScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.call_outlined, color: _kPurple),
+                leading: const Icon(Icons.call_outlined, color: _kAccent),
                 title: const Text('Voice call'),
                 onTap: () async {
                   Navigator.pop(ctx);
@@ -249,7 +249,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.videocam_outlined, color: _kPurple),
+                leading: const Icon(Icons.videocam_outlined, color: _kAccent),
                 title: const Text('Video call'),
                 onTap: () async {
                   Navigator.pop(ctx);
@@ -328,7 +328,7 @@ class _ChatScreenState extends State<ChatScreen> {
     Widget fallback = Container(
       width: size,
       height: size,
-      decoration: const BoxDecoration(color: _kPurple, shape: BoxShape.circle),
+      decoration: const BoxDecoration(color: _kAccent, shape: BoxShape.circle),
       child: Center(
         child: Text(
           initial,
@@ -443,7 +443,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   height: 44,
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.fromBorderSide(BorderSide(color: _kPurple, width: 2)),
+                    border: Border.fromBorderSide(BorderSide(color: _kAccent, width: 2)),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(2.5),
@@ -494,13 +494,13 @@ class _ChatScreenState extends State<ChatScreen> {
         actions: [
           if (widget.callService != null && widget.messageService.hasInternet)
             IconButton(
-              icon: const Icon(Icons.call_outlined, size: 22, color: _kPurple),
+              icon: const Icon(Icons.call_outlined, size: 22, color: _kAccent),
               onPressed: () => _showCallPicker(context),
               tooltip: 'Call',
             ),
           if (widget.callService != null && widget.messageService.hasInternet)
             IconButton(
-              icon: const Icon(Icons.videocam_outlined, size: 24, color: _kPurple),
+              icon: const Icon(Icons.videocam_outlined, size: 24, color: _kAccent),
               onPressed: () => _showCallPicker(context),
               tooltip: 'Video',
             ),
@@ -552,7 +552,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: _isLoadingInitial
                 ? const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2, color: _kPurple),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: _kAccent),
                   )
                 : _messages.isEmpty
                     ? Center(
@@ -560,7 +560,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.chat_bubble_outline,
-                                size: 48, color: _kPurple.withAlpha(80)),
+                                size: 48, color: _kAccent.withAlpha(80)),
                             const SizedBox(height: 12),
                             Text(
                               'No messages yet',
@@ -595,7 +595,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                         width: 20,
                                         height: 20,
                                         child: CircularProgressIndicator(
-                                            strokeWidth: 2, color: _kPurple),
+                                            strokeWidth: 2, color: _kAccent),
                                       ),
                                     ),
                                   )
@@ -679,7 +679,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           width: 44,
                           height: 44,
                           decoration: const BoxDecoration(
-                            color: _kPurple,
+                            color: _kAccent,
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.add, color: Colors.white, size: 22),
@@ -743,7 +743,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               width: 44,
                               height: 44,
                               decoration: const BoxDecoration(
-                                color: _kPurple,
+                                color: _kAccent,
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
@@ -811,7 +811,7 @@ class _DeliveryStatus extends StatelessWidget {
 
     if (isNearby && hasInternet) {
       label = 'Sending via best route';
-      color = _kPurple;
+      color = _kAccent;
       icon = Icons.wifi_tethering;
     } else if (isNearby) {
       label = 'Sending nearby';
@@ -819,7 +819,7 @@ class _DeliveryStatus extends StatelessWidget {
       icon = Icons.wifi_tethering;
     } else if (hasInternet) {
       label = 'Sending via internet';
-      color = _kPurple;
+      color = _kAccent;
       icon = Icons.signal_wifi_4_bar;
     } else {
       label = 'Will send when connection is available';
@@ -868,11 +868,13 @@ class _Bubble extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Sent: always purple. Received: white (light) / dark navy (dark).
-    final bubbleBg = isMe ? _kPurple : (isDark ? const Color(0xFF1E1E2E) : Colors.white);
+    // Sent: cobalt (lifted in dark). Received: white (light) / navy card (dark).
+    final bubbleBg = isMe
+        ? (isDark ? AppColors.primaryDark : AppColors.primary)
+        : (isDark ? AppColors.darkCard : Colors.white);
     final textColor = isMe
         ? Colors.white
-        : (isDark ? Colors.white : const Color(0xFF1A1A2E));
+        : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary);
 
     final isImage = message.type == 'image';
 
@@ -891,7 +893,7 @@ class _Bubble extends StatelessWidget {
           case 'delivered':
             statusIcon = const Icon(Icons.done_all, size: 12, color: _kMetaGray);
           case 'read':
-            statusIcon = const Icon(Icons.done_all, size: 12, color: _kPurple);
+            statusIcon = const Icon(Icons.done_all, size: 12, color: _kAccent);
         }
       }
     }
@@ -914,8 +916,8 @@ class _Bubble extends StatelessWidget {
         boxShadow: (!isMe && !isDark)
             ? [
                 BoxShadow(
-                  color: Colors.black.withAlpha(18),
-                  blurRadius: 6,
+                  color: AppColors.primary.withAlpha(26),
+                  blurRadius: 10,
                   offset: const Offset(0, 2),
                 ),
               ]
@@ -973,7 +975,7 @@ class _Bubble extends StatelessWidget {
     Widget fallback = Container(
       width: size,
       height: size,
-      decoration: const BoxDecoration(color: _kPurple, shape: BoxShape.circle),
+      decoration: const BoxDecoration(color: _kAccent, shape: BoxShape.circle),
       child: Center(
         child: Text(
           initial,
@@ -1044,7 +1046,7 @@ class _Bubble extends StatelessWidget {
           placeholder: (_, __) => const SizedBox(
             width: size,
             height: size,
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _kPurple)),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _kAccent)),
           ),
           errorWidget: (_, __, ___) => const SizedBox(
             width: size,
@@ -1057,7 +1059,7 @@ class _Bubble extends StatelessWidget {
     return const SizedBox(
       width: size,
       height: size,
-      child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _kPurple)),
+      child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _kAccent)),
     );
   }
 
