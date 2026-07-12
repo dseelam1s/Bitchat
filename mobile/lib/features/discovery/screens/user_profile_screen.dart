@@ -59,15 +59,19 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<void> _sendRequest() async {
     setState(() => _busy = true);
-    final ok = await ServerService().sendConnectionRequest(_pubkey);
+    final result = await ServerService().sendConnectionRequest(_pubkey);
     if (!mounted) return;
     setState(() {
       _busy = false;
-      if (ok) _connState = _ConnState.pending;
+      if (result.alreadyConnected) {
+        _connState = _ConnState.connected;
+      } else if (result.ok) {
+        _connState = _ConnState.pending;
+      }
     });
-    if (!ok) {
+    if (result.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not send request — try again')),
+        SnackBar(content: Text(result.error!)),
       );
     }
   }

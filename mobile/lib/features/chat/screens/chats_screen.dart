@@ -288,19 +288,10 @@ class _ChatsScreenState extends State<ChatsScreen> {
                   // Preview + unread badge row
                   Row(
                     children: [
-                      if (isMe)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 3),
-                          child: Icon(
-                            Icons.done_all,
-                            size: 14,
-                            color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
-                          ),
-                        ),
                       Expanded(
                         child: Text(
                           isMe
-                              ? _previewText(item.lastMessage)
+                              ? 'You: ${_previewText(item.lastMessage)}'
                               : _previewText(item.lastMessage),
                           style: TextStyle(
                             fontSize: 14,

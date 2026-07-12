@@ -141,6 +141,21 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  /// Id of the newest visible outgoing message — the only one that shows a
+  /// delivery-status word (iMessage style), so the chat stays uncluttered.
+  String? get _latestOutgoingMsgId {
+    for (var i = _messages.length - 1; i >= 0; i--) {
+      final m = _messages[i];
+      if (m.type == 'delivery_receipt' ||
+          m.type == 'read_receipt' ||
+          m.type == 'status_update') {
+        continue;
+      }
+      if (m.senderPubkey == widget.messageService.publicKey) return m.id;
+    }
+    return null;
+  }
+
   Future<void> _loadMessages({bool initial = false}) async {
     if (initial) {
       _offset = 0;
@@ -653,6 +668,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 contactName: _displayName ?? displayName,
                                 contactLocalPicPath: _localPicPath,
                                 contactPicUrl: widget.contactProfilePictureUrl,
+                                isLatestOutgoing: msg.id == _latestOutgoingMsgId,
                               ),
                             ],
                           );
@@ -852,6 +868,7 @@ class _Bubble extends StatelessWidget {
   final String? contactName;
   final String? contactLocalPicPath;
   final String? contactPicUrl;
+  final bool isLatestOutgoing;
 
   const _Bubble({
     required this.message,
@@ -861,6 +878,7 @@ class _Bubble extends StatelessWidget {
     this.contactName,
     this.contactLocalPicPath,
     this.contactPicUrl,
+    this.isLatestOutgoing = false,
   });
 
   @override
@@ -883,17 +901,26 @@ class _Bubble extends StatelessWidget {
       if (message.status == 'failed') {
         // Always show error regardless of transport.
         statusIcon = Icon(Icons.error_outline, size: 12, color: AppColors.error);
-      } else if (message.transport == 'server') {
-        // Ticks only for server (online) messages — BLE/offline needs no receipt.
-        switch (message.status) {
-          case 'pending':
-            statusIcon = const Icon(Icons.schedule, size: 12, color: _kMetaGray);
-          case 'sent':
-            statusIcon = const Icon(Icons.done, size: 12, color: _kMetaGray);
-          case 'delivered':
-            statusIcon = const Icon(Icons.done_all, size: 12, color: _kMetaGray);
-          case 'read':
-            statusIcon = const Icon(Icons.done_all, size: 12, color: _kAccent);
+      } else if (message.transport == 'server' && isLatestOutgoing) {
+        // Status word under the newest outgoing message only (iMessage
+        // style) — server messages only; BLE/offline needs no receipt.
+        // Read receipts intentionally not surfaced: 'read' shows as
+        // 'Delivered'.
+        final label = switch (message.status) {
+          'pending' => 'Sending…',
+          'sent' => 'Sent',
+          'delivered' || 'read' => 'Delivered',
+          _ => null,
+        };
+        if (label != null) {
+          statusIcon = Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10.5,
+              color: _kMetaGray,
+              fontWeight: FontWeight.w500,
+            ),
+          );
         }
       }
     }
@@ -1099,3 +1126,4 @@ class _Bubble extends StatelessWidget {
   }
 
 }
+

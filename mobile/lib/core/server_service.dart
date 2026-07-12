@@ -67,6 +67,35 @@ class ServerService {
         if (includeAuth && _accessToken != null) 'Authorization': 'Bearer $_accessToken',
       };
 
+  /// POST returning the raw response (after one 401 refresh retry), or null
+  /// when the server is unreachable. Use when the caller needs the server's
+  /// error detail instead of a silent null.
+  Future<http.Response?> _postRaw(
+    String path,
+    Map<String, dynamic> body, {
+    bool authenticated = false,
+  }) async {
+    try {
+      if (authenticated) await _loadTokens();
+      var res = await _client
+          .post(_uri(path),
+              headers: _authHeaders(includeAuth: authenticated), body: jsonEncode(body))
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode == 401 && authenticated && _refreshToken != null) {
+        final refreshed = await _refreshAccessToken();
+        if (refreshed) {
+          res = await _client
+              .post(_uri(path),
+                  headers: _authHeaders(includeAuth: authenticated), body: jsonEncode(body))
+              .timeout(const Duration(seconds: 10));
+        }
+      }
+      return res;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// POST with JSON body; returns decoded body or null on any error.
   Future<Map<String, dynamic>?> _post(
     String path,
@@ -517,13 +546,38 @@ class ServerService {
   // ── Discovery: connections ───────────────────────────────────────────────
 
   /// Send a connection request to another user.
-  Future<bool> sendConnectionRequest(String toPubkey) async {
-    final result = await _post(
+  ///
+  /// "Request already sent" and "Already connected" are success states, not
+  /// errors — the request exists, the UI just needs to reflect it. `error` is
+  /// non-null only on a real failure.
+  Future<({bool ok, bool alreadyConnected, String? error})>
+      sendConnectionRequest(String toPubkey) async {
+    final res = await _postRaw(
       'connections/request/',
       {'to_pubkey': toPubkey},
       authenticated: true,
     );
-    return result != null;
+    if (res == null) {
+      return (ok: false, alreadyConnected: false, error: 'Server unreachable — check your connection');
+    }
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return (ok: true, alreadyConnected: false, error: null);
+    }
+    String detail = '';
+    try {
+      detail = ((jsonDecode(res.body) as Map<String, dynamic>)['detail'] as String?) ?? '';
+    } catch (_) {}
+    if (detail == 'Request already sent.') {
+      return (ok: true, alreadyConnected: false, error: null);
+    }
+    if (detail == 'Already connected.') {
+      return (ok: true, alreadyConnected: true, error: null);
+    }
+    return (
+      ok: false,
+      alreadyConnected: false,
+      error: detail.isNotEmpty ? detail : 'Could not send request — try again',
+    );
   }
 
   /// Accept an incoming connection request.
