@@ -441,6 +441,13 @@ class _AppInitializerState extends State<AppInitializer>
       };
       _contactResolver = contactResolver;
 
+      // Let screens trigger resolution on demand (e.g. right after saving a
+      // pending contact) instead of waiting for a restart or connectivity flip.
+      messageService.resolvePendingContacts = () => contactResolver.resolveNow(
+            hasInternet: messageService.hasInternet,
+            nearbyPubkeys: messageService.nearbyUsers,
+          );
+
       // Authenticate with server — fire-and-forget, never blocks startup.
       // connectAndRegister wakes Render first (up to 50 s) then retries auth,
       // so .then() may fire well after the HomeScreen is already visible.
@@ -459,6 +466,13 @@ class _AppInitializerState extends State<AppInitializer>
           // Full registration done — catch up on missed messages.
           await messageService.fetchMissedServerMessages();
           messageService.retryPendingMessages();
+
+          // Server is awake and authenticated — pending contacts saved while
+          // it was cold-starting can resolve now.
+          contactResolver.resolveNow(
+            hasInternet: messageService.hasInternet,
+            nearbyPubkeys: messageService.nearbyUsers,
+          );
 
           // Restore contacts on first launch (needs auth to decrypt backup)
           final existing = await dbService.getAllContacts();

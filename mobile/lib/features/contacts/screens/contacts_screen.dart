@@ -856,6 +856,13 @@ class _ContactsTabState extends State<_ContactsTab> {
             name: name.isNotEmpty ? name : null,
           ));
           _loadContacts();
+          // Try to resolve right away — otherwise a contact saved while the
+          // server lookup failed stays pending until the next app restart.
+          final resolve = widget.messageService.resolvePendingContacts;
+          if (resolve != null) {
+            await resolve();
+            _loadContacts();
+          }
         },
         hasInternet: widget.messageService.hasInternet,
       ),

@@ -59,6 +59,11 @@ class MessageService {
   /// Called when the username changes — wired to ChannelService.setUsername in main.dart.
   void Function(String? username)? onUsernameChanged;
 
+  /// Triggers an immediate pending-contact resolution attempt — wired to
+  /// ContactResolverService.resolveNow in main.dart. Screens call this right
+  /// after saving a pending contact so it resolves without an app restart.
+  Future<void> Function()? resolvePendingContacts;
+
   /// Called when a group invite DM is received.
   void Function(String channelId, String channelName, String adminPubkey)? onGroupInvite;
 
