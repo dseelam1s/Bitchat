@@ -11,6 +11,8 @@ import 'package:bitchat_messenger/core/database_service.dart';
 import 'package:bitchat_messenger/features/chat/services/message_service.dart';
 import 'package:bitchat_messenger/features/profile/services/profile_sync_service.dart';
 import 'package:bitchat_messenger/features/chat/screens/chat_screen.dart';
+import 'package:bitchat_messenger/features/contacts/screens/contacts_screen.dart';
+import 'package:bitchat_messenger/features/profile/screens/profile_screen.dart';
 
 // Distinct avatar background colors derived from pubkey hash.
 // Beacon family — keep in sync with the palette in contacts_screen.dart.
@@ -34,11 +36,11 @@ Color _avatarColor(String pubkey) {
 
 class _DmItem {
   final Contact contact;
-  final Message lastMessage;
+  final Message? lastMessage; // null: saved contact with no conversation yet
   final int unread;
   final bool isNearby;
   _DmItem({required this.contact, required this.lastMessage, required this.unread, required this.isNearby});
-  int get sortTimestamp => lastMessage.timestamp;
+  int get sortTimestamp => lastMessage?.timestamp ?? 0;
 }
 
 class ChatsScreen extends StatefulWidget {
@@ -151,11 +153,11 @@ class _ChatsScreenState extends State<ChatsScreen> {
     final items = <_DmItem>[];
     final contactPubkeys = {for (final c in _contacts) c.pubkey};
     for (final contact in _contacts) {
-      final lastMsg = _lastMessages[contact.pubkey];
-      if (lastMsg == null) continue;
+      // Contacts without a conversation are included too — a saved person is
+      // just a chat that hasn't started yet (they sort below real chats).
       items.add(_DmItem(
         contact: contact,
-        lastMessage: lastMsg,
+        lastMessage: _lastMessages[contact.pubkey],
         unread: _unreadCounts[contact.pubkey] ?? 0,
         isNearby: nearby.contains(contact.pubkey),
       ));
@@ -184,22 +186,158 @@ class _ChatsScreenState extends State<ChatsScreen> {
     final items = _buildList();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final nearby = widget.messageService.nearbyUsers;
+
     return Scaffold(
       appBar: AppBar(
+        leadingWidth: 56,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: GestureDetector(
+            onTap: _openProfile,
+            child: CircleAvatar(
+              radius: 17,
+              backgroundColor: AppColors.primary,
+              child: Text(
+                (widget.messageService.username?.isNotEmpty == true)
+                    ? widget.messageService.username![0].toUpperCase()
+                    : '•',
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+              ),
+            ),
+          ),
+        ),
         title: const Text(
           'Chats',
           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 22, letterSpacing: -0.5),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit_outlined, size: 22),
-            tooltip: 'New message',
-            onPressed: () {},
+            icon: const Icon(Icons.call_outlined, size: 23),
+            tooltip: 'Calls',
+            onPressed: _openCalls,
           ),
           const SizedBox(width: 4),
         ],
       ),
-      body: items.isEmpty ? _buildEmpty() : _buildList2(items, isDark),
+      body: Column(
+        children: [
+          if (nearby.isNotEmpty) _buildNearbyStrip(nearby, isDark),
+          Expanded(
+            child: items.isEmpty ? _buildEmpty() : _buildList2(items, isDark),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(messageService: widget.messageService),
+      ),
+    ).then((_) => _loadAll());
+  }
+
+  void _openCalls() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ContactsScreen(
+          dbService: widget.dbService,
+          messageService: widget.messageService,
+          callService: widget.callService,
+        ),
+      ),
+    ).then((_) => _loadAll());
+  }
+
+  Widget _buildNearbyStrip(Set<String> nearby, bool isDark) {
+    final names = widget.messageService.nearbyDeviceNames;
+    final entries = nearby.toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+          child: Text(
+            '● IN RANGE NOW',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+              color: AppColors.coral,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 84,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+            itemCount: entries.length,
+            separatorBuilder: (_, i) => const SizedBox(width: 14),
+            itemBuilder: (_, i) {
+              final pubkey = entries[i];
+              final contactMatch =
+                  _contacts.where((c) => c.pubkey == pubkey).toList();
+              final raw = names[pubkey];
+              final cleaned = raw?.replaceAll(RegExp(r'\s*#\d+$'), '').trim();
+              final name = contactMatch.isNotEmpty &&
+                      contactMatch.first.name?.isNotEmpty == true
+                  ? contactMatch.first.name!
+                  : (cleaned?.isNotEmpty == true
+                      ? cleaned!
+                      : '#${Contact.shortIdFor(pubkey)}');
+              return GestureDetector(
+                onTap: () => _openNearbyUser(pubkey, suggestedName: name),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _avatarColor(pubkey),
+                        border: Border.all(color: AppColors.coral, width: 2.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.coral.withAlpha(70),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : '?',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 17),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      name.length > 9 ? '${name.substring(0, 8)}…' : name,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -219,7 +357,8 @@ class _ChatsScreenState extends State<ChatsScreen> {
 
   Widget _buildRow(_DmItem item, bool isDark) {
     final contact = item.contact;
-    final senderName = item.lastMessage.senderName;
+    final lastMsg = item.lastMessage;
+    final senderName = lastMsg?.senderName;
     final label = contact.name?.isNotEmpty == true
         ? contact.name!
         : (senderName != null && senderName.isNotEmpty)
@@ -227,7 +366,18 @@ class _ChatsScreenState extends State<ChatsScreen> {
             : '#${contact.shortId}';
     final hasUnread = item.unread > 0;
     final myPubkey = widget.messageService.publicKey;
-    final isMe = item.lastMessage.senderPubkey == myPubkey;
+    final isMe = lastMsg != null && lastMsg.senderPubkey == myPubkey;
+
+    final String preview;
+    if (lastMsg == null) {
+      preview = contact.isPending
+          ? 'Waiting to be found…'
+          : item.isNearby
+              ? '● nearby — say hi over bluetooth'
+              : 'No messages yet — say hi';
+    } else {
+      preview = isMe ? 'You: ${_previewText(lastMsg)}' : _previewText(lastMsg);
+    }
 
     return InkWell(
       onTap: () => _openDm(contact, resolvedName: label),
@@ -271,7 +421,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        _formatTime(item.lastMessage.timestamp),
+                        lastMsg == null ? '' : _formatTime(lastMsg.timestamp),
                         style: TextStyle(
                           fontSize: 12,
                           color: hasUnread
@@ -290,14 +440,14 @@ class _ChatsScreenState extends State<ChatsScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          isMe
-                              ? 'You: ${_previewText(item.lastMessage)}'
-                              : _previewText(item.lastMessage),
+                          preview,
                           style: TextStyle(
                             fontSize: 14,
-                            color: hasUnread
-                                ? (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)
-                                : (isDark ? AppColors.darkTextMuted : AppColors.textMuted),
+                            color: lastMsg == null && item.isNearby
+                                ? AppColors.coral
+                                : hasUnread
+                                    ? (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)
+                                    : (isDark ? AppColors.darkTextMuted : AppColors.textMuted),
                             fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal,
                           ),
                           maxLines: 1,

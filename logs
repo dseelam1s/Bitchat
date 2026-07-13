@@ -1,0 +1,824 @@
+PS C:\Users\durga\OneDrive\Documents\Durgareddy\Messaging\bitchat\mobile> flutter run -d R9TWA0REDBX
+Resolving dependencies...
+Downloading packages...
+  _flutterfire_internals 1.3.59 (1.3.73 available)
+  async 2.13.0 (2.13.1 available)
+  bip340 0.2.0 (0.3.1 available)
+  characters 1.4.0 (1.4.1 available)
+  code_assets 1.0.0 (1.2.1 available)
+  connectivity_plus 7.0.0 (7.2.0 available)
+  connectivity_plus_platform_interface 2.0.1 (2.1.0 available)
+  cross_file 0.3.5+2 (0.3.5+4 available)
+  cupertino_icons 1.0.8 (1.0.9 available)
+  dbus 0.7.12 (0.7.14 available)
+  firebase_core 3.15.2 (4.11.0 available)
+  firebase_core_platform_interface 6.0.3 (7.1.0 available)
+  firebase_core_web 2.24.1 (3.9.0 available)
+  firebase_messaging 15.2.10 (16.4.1 available)
+  firebase_messaging_platform_interface 4.6.10 (4.9.0 available)
+  firebase_messaging_web 3.10.10 (4.2.1 available)
+  flutter_blue_plus 2.2.1 (2.3.10 available)
+  flutter_blue_plus_android 8.2.1 (9.0.3 available)
+  flutter_blue_plus_darwin 8.2.1 (9.0.3 available)
+  flutter_blue_plus_linux 8.2.1 (9.0.3 available)
+  flutter_blue_plus_platform_interface 8.2.1 (9.0.3 available)
+  flutter_blue_plus_web 8.2.1 (9.0.3 available)
+  flutter_blue_plus_winrt 0.0.18 (0.0.20 available)
+  flutter_local_notifications 18.0.1 (22.0.1 available)
+  flutter_local_notifications_linux 5.0.0 (8.0.1 available)
+  flutter_local_notifications_platform_interface 8.0.0 (12.0.0 available)
+  flutter_plugin_android_lifecycle 2.0.34 (2.0.35 available)
+  flutter_secure_storage 10.0.0 (10.3.1 available)
+  flutter_secure_storage_darwin 0.2.0 (0.4.0 available)
+  flutter_secure_storage_linux 3.0.0 (3.0.1 available)
+  flutter_secure_storage_web 2.1.0 (2.1.1 available)
+  flutter_secure_storage_windows 4.1.0 (4.2.2 available)
+  flutter_webrtc 1.4.1 (1.5.2 available)
+  google_fonts 6.3.3 (8.1.0 available)
+  hooks 1.0.2 (2.0.2 available)
+  image_picker 1.2.1 (1.2.3 available)
+  image_picker_android 0.8.13+16 (0.8.13+19 available)
+  js 0.6.7 (0.7.2 available)
+  matcher 0.12.17 (0.12.20 available)
+  material_color_utilities 0.11.1 (0.13.0 available)
+  meta 1.17.0 (1.19.0 available)
+  native_toolchain_c 0.17.6 (0.19.2 available)
+  objective_c 9.3.0 (9.4.1 available)
+  path_provider 2.1.5 (2.1.6 available)
+  path_provider_android 2.2.22 (2.3.1 available)
+  path_provider_linux 2.2.1 (2.2.2 available)
+  path_provider_platform_interface 2.1.2 (2.1.3 available)
+  permission_handler 11.4.0 (12.0.3 available)
+  permission_handler_android 12.1.0 (13.0.1 available)
+  permission_handler_apple 9.4.7 (9.4.10 available)
+  pointycastle 3.9.1 (4.0.0 available)
+  share_plus 12.0.2 (13.2.0 available)
+  share_plus_platform_interface 6.1.0 (7.1.0 available)
+  shared_preferences 2.5.4 (2.5.5 available)
+  shared_preferences_android 2.4.21 (2.4.26 available)
+  shared_preferences_platform_interface 2.4.1 (2.4.2 available)
+  sqflite 2.4.2 (2.4.3 available)
+  sqflite_android 2.4.2+3 (2.4.3 available)
+  sqflite_common 2.5.6 (2.5.11 available)
+  sqflite_common_ffi 2.4.0+3 (2.4.2 available)
+  sqflite_darwin 2.4.2 (2.4.3+1 available)
+  sqflite_platform_interface 2.4.0 (2.4.1 available)
+  sqlite3 3.3.1 (3.4.0 available)
+  synchronized 3.4.0 (3.4.1 available)
+  test_api 0.7.7 (0.7.13 available)
+  timezone 0.10.1 (0.11.1 available)
+  url_launcher_web 2.4.2 (2.4.3 available)
+  vector_math 2.2.0 (2.4.0 available)
+  vm_service 15.0.2 (15.2.0 available)
+  web_socket_channel 2.4.0 (3.0.3 available)
+  win32 5.15.0 (6.3.0 available)
+  xml 6.6.1 (7.0.1 available)
+Got dependencies!
+72 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Launching lib\main.dart on SM A146U in debug mode...
+Running Gradle task 'assembleDebug'...                            100.6s
+✓ Built build\app\outputs\flutter-apk\app-debug.apk
+Installing build\app\outputs\flutter-apk\app-debug.apk...          10.3s
+D/FlutterJNI(21083): Beginning load of flutter...
+D/FlutterJNI(21083): flutter (null) was loaded normally!
+I/flutter (21083): [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(62)] Using the Impeller rendering backend (Vulkan).
+W/FlutterWebRTCPlugin(21083): audioFocusChangeListener [Earpiece(name=Earpiece)] Earpiece(name=Earpiece)
+W/FlutterWebRTCPlugin(21083): audioFocusChangeListener [Speakerphone(name=Speakerphone), Earpiece(name=Earpiece)] Speakerphone(name=Speakerphone)
+I/flutter (21083): [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(62)] Using the Impeller rendering backend (Vulkan).
+D/ProfileInstaller(21083): Installing profile for com.bitchat.bitchat_messenger
+I/FLTFireMsgService(21083): FlutterFirebaseMessagingBackgroundService started!
+W/FlutterWebRTCPlugin(21083): audioFocusChangeListener [Earpiece(name=Earpiece)] Earpiece(name=Earpiece)
+W/FlutterWebRTCPlugin(21083): audioFocusChangeListener [Speakerphone(name=Speakerphone), Earpiece(name=Earpiece)] Speakerphone(name=Speakerphone)
+I/tchat_messenger(21083): Background concurrent mark compact GC freed 3352KB AllocSpace bytes, 18(460KB) LOS objects, 63% free, 3473KB/9617KB, paused 500us,8.290ms total 60.535ms
+D/permissions_handler(21083): Bluetooth permission missing in manifest
+D/PhoneWindow(21083): forceLight changed to false [com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity] from com.android.internal.policy.PhoneWindow.updateForceLightNavigationBar:4536 com.android.internal.policy.PhoneWindow.setNavigationBarColor:4227 io.flutter.plugin.platform.PlatformPlugin.setSystemChromeSystemUIOverlayStyle:503 io.flutter.plugin.platform.PlatformPlugin.access$700:36 io.flutter.plugin.platform.PlatformPlugin$1.setSystemUiOverlayStyle:123
+I/Choreographer(21083): Skipped 51 frames!  The application may be doing too much work on its main thread.
+I/SurfaceView@59949cb(21083): onWindowVisibilityChanged(8) false io.flutter.embedding.android.FlutterSurfaceView{59949cb G.E...... ......ID 0,0-1080,2408} of VRI[MainActivity]@e906733
+D/SurfaceView@59949cb(21083): updateSurface: surface is not valid
+I/SurfaceView@59949cb(21083): releaseSurfaces: viewRoot = VRI[MainActivity]@e906733
+D/VRI[MainActivity]@e906733(21083): applyTransactionOnDraw applyImmediately
+D/HWUI    (21083): CacheManager::trimMemory(20)
+I/VRI[MainActivity]@e906733(21083): Relayout returned: old=(0,0,1080,2408) new=(0,0,1080,2408) relayoutAsync=false req=(1080,2408)8 dur=9 res=0x0 s={false 0x0} ch=false seqId=0
+D/SurfaceView@59949cb(21083): updateSurface: surface is not valid
+I/SurfaceView@59949cb(21083): releaseSurfaces: viewRoot = VRI[MainActivity]@e906733
+D/VRI[MainActivity]@e906733(21083): applyTransactionOnDraw applyImmediately
+D/permissions_handler(21083): Bluetooth permission missing in manifest
+D/ConnectivityManager(21083): StackLog: [android.net.ConnectivityManager.sendRequestForNetwork(ConnectivityManager.java:4744)] [android.net.ConnectivityManager.registerDefaultNetworkCallbackForUid(ConnectivityManager.java:5469)] [android.net.ConnectivityManager.registerDefaultNetworkCallback(ConnectivityManager.java:5436)] [android.net.ConnectivityManager.registerDefaultNetworkCallback(ConnectivityManager.java:5410)] [dev.fluttercommunity.plus.connectivity.ConnectivityBroadcastReceiver.onListen(ConnectivityBroadcastReceiver.java:77)] [io.flutter.plugin.common.EventChannel$IncomingStreamRequestHandler.onListen(EventChannel.java:218)] [io.flutter.plugin.common.EventChannel$IncomingStreamRequestHandler.onMessage(EventChannel.java:197)] [io.flutter.embedding.engine.dart.DartMessenger.invokeHandler(DartMessenger.java:292)] [io.flutter.embedding.engine.dart.DartMessenger.lambda$dispatchMessageToQueue$0$io-flutter-embedding-engine-dart-DartMessenger(DartMessenger.java:319)] [io.flutter.embedding.engine.dart.DartMessenger$$ExternalSyntheticLambda0.run(D8$$SyntheticClass:0)]
+Syncing files to device SM A146U...                                 4.0s
+
+Flutter run key commands.
+r Hot reload. 🔥🔥🔥
+R Hot restart.
+h List all available interactive commands.
+d Detach (terminate "flutter run" but leave application running).
+c Clear the screen
+q Quit (terminate the application on the device).
+
+A Dart VM Service on SM A146U is available at: http://127.0.0.1:58674/RBp89qJ0HgU=/
+The Flutter DevTools debugger and profiler on SM A146U is available at:
+http://127.0.0.1:58674/RBp89qJ0HgU=/devtools/?uri=ws://127.0.0.1:58674/RBp89qJ0HgU=/ws
+D/NearbyConnections(21083): NfcDispatcher created.
+E/MethodChannel#com.bitchat/foreground(21083): Failed to handle method call
+E/MethodChannel#com.bitchat/foreground(21083): android.app.ForegroundServiceStartNotAllowedException: startForegroundService() not allowed due to mAllowStartForeground false: service com.bitchat.bitchat_messenger/.MeshForegroundService
+E/MethodChannel#com.bitchat/foreground(21083):  at android.app.ForegroundServiceStartNotAllowedException$1.createFromParcel(ForegroundServiceStartNotAllowedException.java:54)
+E/MethodChannel#com.bitchat/foreground(21083):  at android.app.ForegroundServiceStartNotAllowedException$1.createFromParcel(ForegroundServiceStartNotAllowedException.java:50)
+E/MethodChannel#com.bitchat/foreground(21083):  at android.os.Parcel.readParcelableInternal(Parcel.java:5089)
+E/MethodChannel#com.bitchat/foreground(21083):  at android.os.Parcel.readParcelable(Parcel.java:5071)
+E/MethodChannel#com.bitchat/foreground(21083):  at android.os.Parcel.createExceptionOrNull(Parcel.java:3251)
+E/MethodChannel#com.bitchat/foreground(21083):  at android.os.Parcel.createException(Parcel.java:3240)
+E/MethodChannel#com.bitchat/foreground(21083):  at android.os.Parcel.readException(Parcel.java:3223)
+E/MethodChannel#com.bitchat/foreground(21083):  at android.os.Parcel.readException(Parcel.java:3165)
+E/MethodChannel#com.bitchat/foreground(21083):  at android.app.IActivityManager$Stub$Proxy.startService(IActivityManager.java:6623)
+E/MethodChannel#com.bitchat/foreground(21083):  at android.app.ContextImpl.startServiceCommon(ContextImpl.java:2035)
+E/MethodChannel#com.bitchat/foreground(21083):  at android.app.ContextImpl.startForegroundService(ContextImpl.java:2000)
+E/MethodChannel#com.bitchat/foreground(21083):  at android.content.ContextWrapper.startForegroundService(ContextWrapper.java:849)
+E/MethodChannel#com.bitchat/foreground(21083):  at com.bitchat.bitchat_messenger.MeshForegroundService$Companion.start(MeshForegroundService.kt:112)
+E/MethodChannel#com.bitchat/foreground(21083):  at com.bitchat.bitchat_messenger.MainActivity.configureFlutterEngine$lambda$4(MainActivity.kt:89)
+E/MethodChannel#com.bitchat/foreground(21083):  at com.bitchat.bitchat_messenger.MainActivity.$r8$lambda$-5DqC67iQPLOowQX264KvK-vQ7c(MainActivity.kt:0)
+E/MethodChannel#com.bitchat/foreground(21083):  at com.bitchat.bitchat_messenger.MainActivity$$ExternalSyntheticLambda5.onMethodCall(D8$$SyntheticClass:0)
+E/MethodChannel#com.bitchat/foreground(21083):  at io.flutter.plugin.common.MethodChannel$IncomingMethodCallHandler.onMessage(MethodChannel.java:267)
+E/MethodChannel#com.bitchat/foreground(21083):  at io.flutter.embedding.engine.dart.DartMessenger.invokeHandler(DartMessenger.java:292)
+E/MethodChannel#com.bitchat/foreground(21083):  at io.flutter.embedding.engine.dart.DartMessenger.lambda$dispatchMessageToQueue$0$io-flutter-embedding-engine-dart-DartMessenger(DartMessenger.java:319)
+E/MethodChannel#com.bitchat/foreground(21083):  at io.flutter.embedding.engine.dart.DartMessenger$$ExternalSyntheticLambda0.run(D8$$SyntheticClass:0)
+E/MethodChannel#com.bitchat/foreground(21083):  at android.os.Handler.handleCallback(Handler.java:959)
+E/MethodChannel#com.bitchat/foreground(21083):  at android.os.Handler.dispatchMessage(Handler.java:100)
+E/MethodChannel#com.bitchat/foreground(21083):  at android.os.Looper.loopOnce(Looper.java:257)
+E/MethodChannel#com.bitchat/foreground(21083):  at android.os.Looper.loop(Looper.java:342)
+E/MethodChannel#com.bitchat/foreground(21083):  at android.app.ActivityThread.main(ActivityThread.java:9638)
+E/MethodChannel#com.bitchat/foreground(21083):  at java.lang.reflect.Method.invoke(Native Method)
+E/MethodChannel#com.bitchat/foreground(21083):  at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:619)
+E/MethodChannel#com.bitchat/foreground(21083):  at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:929)
+I/BluetoothAdapter(21083): BluetoothAdapter() : com.bitchat.bitchat_messenger
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothGattServer(21083): registerCallback()
+D/BluetoothGattServer(21083): registerCallback() - UUID=812f8f46-dfd6-4fec-b351-937c3ae8a24a
+D/BluetoothGattServer(21083): onServerRegistered() - status=0 serverIf=5
+D/BluetoothGattServer(21083): addService() - service: 6e400001-b5a3-f393-e0a9-e50e24dcca9e
+D/BluetoothGattServer(21083): onServerConnectionState() - status=0 serverIf=5 connected=true device=XX:XX:XX:XX:92:2C
+D/AdvertiseSettings(21083): setTxPowerLevel: 3
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+I/BluetoothAdapter(21083): BluetoothAdapter() : com.bitchat.bitchat_messenger
+D/BluetoothLeAdvertiser(21083): TxPower == ADVERTISE_TX_POWER_HIGH
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothGattServer(21083): onServiceAdded() - handle=134 uuid=6e400001-b5a3-f393-e0a9-e50e24dcca9e status=0
+I/flutter (21083): [FBP] stopScan: already stopped
+D/BluetoothLeAdvertiser(21083): onAdvertisingSetStarted(0, 1, 0)
+D/[FBP-Android](21083): [FBP] onMethodCall: flutterRestart
+D/[FBP-Android](21083): [FBP] initializing BluetoothAdapter
+I/BluetoothAdapter(21083): BluetoothAdapter() : com.bitchat.bitchat_messenger
+D/[FBP-Android](21083): [FBP] disconnectAllDevices(flutterRestart)
+D/[FBP-Android](21083): [FBP] connectedPeripherals: 0
+D/BleGattService(21083): BLE advertising started
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=0 scannerId=3 mScannerId=0
+D/nearby_connections(21083): startAdvertising
+W/NearbyConnections(21083): Failed to start discovery.
+W/NearbyConnections(21083): com.google.android.gms.common.api.ApiException: 8034: MISSING_PERMISSION_ACCESS_COARSE_LOCATION
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzdo.setFailedResult(com.google.android.gms:play-services-nearby@@19.2.0:1)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzce.zzb(com.google.android.gms:play-services-nearby@@19.2.0:4)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzfr.zza(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzb.onTransact(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at android.os.Binder.execTransactInternal(Binder.java:1541)
+W/NearbyConnections(21083):     at android.os.Binder.execTransact(Binder.java:1480)
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Stop Scan with callback
+W/NearbyConnections(21083): Failed to start discovery.
+W/NearbyConnections(21083): com.google.android.gms.common.api.ApiException: 8034: MISSING_PERMISSION_ACCESS_COARSE_LOCATION
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzdo.setFailedResult(com.google.android.gms:play-services-nearby@@19.2.0:1)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzce.zzb(com.google.android.gms:play-services-nearby@@19.2.0:4)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzfr.zza(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzb.onTransact(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at android.os.Binder.execTransactInternal(Binder.java:1541)
+W/NearbyConnections(21083):     at android.os.Binder.execTransact(Binder.java:1480)
+I/flutter (21083): [FBP] stopScan: already stopped
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=0 scannerId=3 mScannerId=0
+D/BluetoothGattServer(21083): onServerConnectionState() - status=0 serverIf=5 connected=false device=XX:XX:XX:XX:92:2C
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Stop Scan with callback
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=0 scannerId=3 mScannerId=0
+W/NearbyConnections(21083): Failed to start discovery.
+W/NearbyConnections(21083): com.google.android.gms.common.api.ApiException: 8034: MISSING_PERMISSION_ACCESS_COARSE_LOCATION
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzdo.setFailedResult(com.google.android.gms:play-services-nearby@@19.2.0:1)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzce.zzb(com.google.android.gms:play-services-nearby@@19.2.0:4)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzfr.zza(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzb.onTransact(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at android.os.Binder.execTransactInternal(Binder.java:1541)
+W/NearbyConnections(21083):     at android.os.Binder.execTransact(Binder.java:1480)
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Stop Scan with callback
+I/flutter (21083): [FBP] stopScan: already stopped
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=0 scannerId=3 mScannerId=0
+W/NearbyConnections(21083): Failed to start discovery.
+W/NearbyConnections(21083): com.google.android.gms.common.api.ApiException: 8034: MISSING_PERMISSION_ACCESS_COARSE_LOCATION
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzdo.setFailedResult(com.google.android.gms:play-services-nearby@@19.2.0:1)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzce.zzb(com.google.android.gms:play-services-nearby@@19.2.0:4)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzfr.zza(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzb.onTransact(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at android.os.Binder.execTransactInternal(Binder.java:1541)
+W/NearbyConnections(21083):     at android.os.Binder.execTransact(Binder.java:1480)
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Stop Scan with callback
+I/flutter (21083): [FBP] stopScan: already stopped
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=0 scannerId=3 mScannerId=0
+W/NearbyConnections(21083): Failed to start discovery.
+W/NearbyConnections(21083): com.google.android.gms.common.api.ApiException: 8034: MISSING_PERMISSION_ACCESS_COARSE_LOCATION
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzdo.setFailedResult(com.google.android.gms:play-services-nearby@@19.2.0:1)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzce.zzb(com.google.android.gms:play-services-nearby@@19.2.0:4)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzfr.zza(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzb.onTransact(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at android.os.Binder.execTransactInternal(Binder.java:1541)
+W/NearbyConnections(21083):     at android.os.Binder.execTransact(Binder.java:1480)
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Stop Scan with callback
+W/NearbyConnections(21083): Failed to start discovery.
+W/NearbyConnections(21083): com.google.android.gms.common.api.ApiException: 8034: MISSING_PERMISSION_ACCESS_COARSE_LOCATION
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzdo.setFailedResult(com.google.android.gms:play-services-nearby@@19.2.0:1)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzce.zzb(com.google.android.gms:play-services-nearby@@19.2.0:4)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzfr.zza(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzb.onTransact(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at android.os.Binder.execTransactInternal(Binder.java:1541)
+W/NearbyConnections(21083):     at android.os.Binder.execTransact(Binder.java:1480)
+I/flutter (21083): [FBP] stopScan: already stopped
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=0 scannerId=3 mScannerId=0
+W/NearbyConnections(21083): Failed to start discovery.
+W/NearbyConnections(21083): com.google.android.gms.common.api.ApiException: 8034: MISSING_PERMISSION_ACCESS_COARSE_LOCATION
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzdo.setFailedResult(com.google.android.gms:play-services-nearby@@19.2.0:1)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzce.zzb(com.google.android.gms:play-services-nearby@@19.2.0:4)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzfr.zza(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzb.onTransact(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at android.os.Binder.execTransactInternal(Binder.java:1541)
+W/NearbyConnections(21083):     at android.os.Binder.execTransact(Binder.java:1480)
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Stop Scan with callback
+I/flutter (21083): [FBP] stopScan: already stopped
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=0 scannerId=3 mScannerId=0
+W/NearbyConnections(21083): Failed to start discovery.
+W/NearbyConnections(21083): com.google.android.gms.common.api.ApiException: 8034: MISSING_PERMISSION_ACCESS_COARSE_LOCATION
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzdo.setFailedResult(com.google.android.gms:play-services-nearby@@19.2.0:1)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzce.zzb(com.google.android.gms:play-services-nearby@@19.2.0:4)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzfr.zza(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzb.onTransact(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at android.os.Binder.execTransactInternal(Binder.java:1541)
+W/NearbyConnections(21083):     at android.os.Binder.execTransact(Binder.java:1480)
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Stop Scan with callback
+I/flutter (21083): [FBP] stopScan: already stopped
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=0 scannerId=3 mScannerId=0
+W/NearbyConnections(21083): Failed to start discovery.
+W/NearbyConnections(21083): com.google.android.gms.common.api.ApiException: 8034: MISSING_PERMISSION_ACCESS_COARSE_LOCATION
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzdo.setFailedResult(com.google.android.gms:play-services-nearby@@19.2.0:1)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzce.zzb(com.google.android.gms:play-services-nearby@@19.2.0:4)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzfr.zza(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzb.onTransact(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at android.os.Binder.execTransactInternal(Binder.java:1541)
+W/NearbyConnections(21083):     at android.os.Binder.execTransact(Binder.java:1480)
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Stop Scan with callback
+W/NearbyConnections(21083): Failed to start discovery.
+W/NearbyConnections(21083): com.google.android.gms.common.api.ApiException: 8034: MISSING_PERMISSION_ACCESS_COARSE_LOCATION
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzdo.setFailedResult(com.google.android.gms:play-services-nearby@@19.2.0:1)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzce.zzb(com.google.android.gms:play-services-nearby@@19.2.0:4)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzfr.zza(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzb.onTransact(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at android.os.Binder.execTransactInternal(Binder.java:1541)
+W/NearbyConnections(21083):     at android.os.Binder.execTransact(Binder.java:1480)
+I/flutter (21083): [FBP] stopScan: already stopped
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=0 scannerId=3 mScannerId=0
+W/NearbyConnections(21083): Failed to start discovery.
+W/NearbyConnections(21083): com.google.android.gms.common.api.ApiException: 8034: MISSING_PERMISSION_ACCESS_COARSE_LOCATION
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzdo.setFailedResult(com.google.android.gms:play-services-nearby@@19.2.0:1)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzce.zzb(com.google.android.gms:play-services-nearby@@19.2.0:4)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzfr.zza(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzb.onTransact(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at android.os.Binder.execTransactInternal(Binder.java:1541)
+W/NearbyConnections(21083):     at android.os.Binder.execTransact(Binder.java:1480)
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Stop Scan with callback
+I/flutter (21083): [FBP] stopScan: already stopped
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=0 scannerId=3 mScannerId=0
+W/NearbyConnections(21083): Failed to start discovery.
+W/NearbyConnections(21083): com.google.android.gms.common.api.ApiException: 8034: MISSING_PERMISSION_ACCESS_COARSE_LOCATION
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzdo.setFailedResult(com.google.android.gms:play-services-nearby@@19.2.0:1)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzce.zzb(com.google.android.gms:play-services-nearby@@19.2.0:4)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzfr.zza(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at com.google.android.gms.internal.nearby.zzb.onTransact(com.google.android.gms:play-services-nearby@@19.2.0:3)
+W/NearbyConnections(21083):     at android.os.Binder.execTransactInternal(Binder.java:1541)
+W/NearbyConnections(21083):     at android.os.Binder.execTransact(Binder.java:1480)
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Stop Scan with callback
+I/VRI[MainActivity]@e906733(21083): onDisplayChanged oldDisplayState=1 newDisplayState=2
+D/SurfaceView@59949cb(21083): updateSurface: surface is not valid
+I/SurfaceView@59949cb(21083): releaseSurfaces: viewRoot = VRI[MainActivity]@e906733
+D/VRI[MainActivity]@e906733(21083): applyTransactionOnDraw applyImmediately
+I/VRI[MainActivity]@e906733(21083): onDisplayChanged oldDisplayState=2 newDisplayState=2
+I/VRI[MainActivity]@e906733(21083): onDisplayChanged oldDisplayState=2 newDisplayState=2
+I/VRI[MainActivity]@e906733(21083): handleAppVisibility mAppVisible = false visible = true
+I/VRI[MainActivity]@e906733(21083): stopped(false) old = true
+D/VRI[MainActivity]@e906733(21083): WindowStopped on com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity set to false
+D/NearbyConnections(21083): Activity is visible.
+D/NearbyConnections(21083): Invalidating dispatch state.
+D/NearbyConnections(21083): Stopping NFC dispatching.
+D/NearbyConnections(21083): Can't stop NFC dispatching. Not dispatching.
+D/SurfaceView@59949cb(21083): updateSurface: surface is not valid
+I/SurfaceView@59949cb(21083): releaseSurfaces: viewRoot = VRI[MainActivity]@e906733
+D/VRI[MainActivity]@e906733(21083): applyTransactionOnDraw applyImmediately
+I/flutter (21083): [FBP] stopScan: already stopped
+I/SurfaceView@59949cb(21083): onWindowVisibilityChanged(0) false io.flutter.embedding.android.FlutterSurfaceView{59949cb V.E...... ......ID 0,0-1080,2408} of VRI[MainActivity]@e906733
+D/SurfaceView@59949cb(21083): updateSurface: surface is not valid
+I/SurfaceView@59949cb(21083): releaseSurfaces: viewRoot = VRI[MainActivity]@e906733
+D/VRI[MainActivity]@e906733(21083): applyTransactionOnDraw applyImmediately
+I/InsetsController(21083): onStateChanged: host=com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity, from=android.view.ViewRootImpl.relayoutWindow:11304, state=InsetsState: {mDisplayFrame=Rect(0, 0 - 1080, 2408), mDisplayCutout=DisplayCutout{insets=Rect(0, 64 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(468, 0 - 612, 64), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2408 physicalDisplayWidth=1080 physicalDisplayHeight=2408 density={2.8125} cutoutSpec={M 0,0 H -25.6‬ V 22.75555555555556 H 25.6‬ V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} sideOverrides={}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=113, center=Point(113, 113)}, RoundedCorner{position=TopRight, radius=113, center=Point(967, 113)}, RoundedCorner{position=BottomRight, radius=113, center=Point(967, 2295)}, RoundedCorner{position=BottomLeft, radius=113, center=Point(113, 2295)}]}  mRoundedCornerFrame=Rect(0, 0 - 1080, 2408), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(956, 0 - 1080, 64) rotation=0}, mDisplayShape=DisplayShape{ spec=-311912193 displayWidth=1080 displayHeight=2408 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}, mSources= { InsetsSource: {f54a0000 mType=statusBars mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {f54a0005 mType=mandatorySystemGestures mFrame=[0,0][1080,98] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {f54a0006 mType=tappableElement mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {fde80001 mType=navigationBars mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80004 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {fde80005 mType=mandatorySystemGestures mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80006 mType=tappableElement mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80024 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {3 mType=ime mFrame=[0,0][0,0] mVisible=false mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {27 mType=displayCutout mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null} }
+D/BufferQueueConsumer(21083): [](id:525b00000002,api:0,p:-1,c:21083) connect: controlledByApp=false
+I/BLASTBufferQueue(21083): [VRI[MainActivity]@e906733#2](f:0,a:0,s:0) constructor()
+I/BLASTBufferQueue_Java(21083): new BLASTBufferQueue, mName= VRI[MainActivity]@e906733 mNativeObject= 0xb40000737a2b4800 sc.mNativeObject= 0xb4000073304b1c40 caller= android.view.ViewRootImpl.updateBlastSurfaceIfNeeded:3397 android.view.ViewRootImpl.relayoutWindow:11361 android.view.ViewRootImpl.performTraversals:4544 android.view.ViewRootImpl.doTraversal:3708 android.view.ViewRootImpl$TraversalRunnable.run:12542 android.view.Choreographer$CallbackRecord.run:1751 android.view.Choreographer$CallbackRecord.run:1760 android.view.Choreographer.doCallbacks:1216 android.view.Choreographer.doFrame:1142 android.view.Choreographer$FrameDisplayEventReceiver.run:1707
+I/BLASTBufferQueue_Java(21083): update, w= 1080 h= 2408 mName = VRI[MainActivity]@e906733 mNativeObject= 0xb40000737a2b4800 sc.mNativeObject= 0xb4000073304b1c40 format= -3 caller= android.graphics.BLASTBufferQueue.<init>:88 android.view.ViewRootImpl.updateBlastSurfaceIfNeeded:3397 android.view.ViewRootImpl.relayoutWindow:11361 android.view.ViewRootImpl.performTraversals:4544 android.view.ViewRootImpl.doTraversal:3708 android.view.ViewRootImpl$TraversalRunnable.run:12542
+I/BLASTBufferQueue(21083): [VRI[MainActivity]@e906733#2](f:0,a:0,s:0) update width=1080 height=2408 format=-3 mTransformHint=0
+I/VRI[MainActivity]@e906733(21083): Relayout returned: old=(0,0,1080,2408) new=(0,0,1080,2408) relayoutAsync=false req=(1080,2408)0 dur=7 res=0x3 s={true 0xb400007328674000} ch=true seqId=0
+D/VRI[MainActivity]@e906733(21083): mThreadedRenderer.initialize() mSurface={isValid=true 0xb400007328674000} hwInitialized=true
+I/SurfaceView@59949cb(21083): windowStopped(false) true io.flutter.embedding.android.FlutterSurfaceView{59949cb V.E...... ......ID 0,0-1080,2408} of VRI[MainActivity]@e906733
+I/SurfaceView(21083): 93931979 Changes: creating=true format=false size=false visible=true alpha=false hint=false visible=true left=false top=false z=false attached=true lifecycleStrategy=false
+D/BufferQueueConsumer(21083): [](id:525b00000003,api:0,p:-1,c:21083) connect: controlledByApp=false
+I/BLASTBufferQueue(21083): [SurfaceView[com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity]@0#3](f:0,a:0,s:0) constructor()
+I/BLASTBufferQueue_Java(21083): update, w= 1080 h= 2408 mName = null mNativeObject= 0xb40000732866a800 sc.mNativeObject= 0xb40000737a0cdcc0 format= 4 caller= android.view.SurfaceView.createBlastSurfaceControls:1642 android.view.SurfaceView.updateSurface:1318 android.view.SurfaceView.setWindowStopped:474 android.view.SurfaceView.surfaceCreated:2172 android.view.ViewRootImpl.notifySurfaceCreated:3312 android.view.ViewRootImpl.performTraversals:5036
+I/BLASTBufferQueue(21083): [SurfaceView[com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity]@0#3](f:0,a:0,s:0) update width=1080 height=2408 format=4 mTransformHint=0
+I/SurfaceView(21083): 93931979 Cur surface: Surface(name=null mNativeObject=0)/@0x3a0a68
+I/SurfaceView@59949cb(21083): pST: sr = Rect(0, 0 - 1080, 2408) sw = 1080 sh = 2408
+D/SurfaceView(21083): 93931979 performSurfaceTransaction RenderWorker position = [0, 0, 1080, 2408] surfaceSize = 1080x2408
+I/SurfaceView@59949cb(21083): updateSurface: mVisible = true mSurface.isValid() = true
+I/SurfaceView@59949cb(21083): updateSurface: mSurfaceCreated = false surfaceChanged = true visibleChanged = true
+I/SurfaceView(21083): 93931979 visibleChanged -- surfaceCreated
+I/SurfaceView@59949cb(21083): surfaceCreated 1 #1 io.flutter.embedding.android.FlutterSurfaceView{59949cb V.E...... ......ID 0,0-1080,2408}
+I/SurfaceView(21083): 93931979 surfaceChanged -- format=4 w=1080 h=2408
+I/SurfaceView@59949cb(21083): surfaceChanged (1080,2408) 1 #1 io.flutter.embedding.android.FlutterSurfaceView{59949cb V.E...... ......ID 0,0-1080,2408}
+I/SurfaceView(21083): 93931979 surfaceRedrawNeeded
+V/SurfaceView(21083): Layout: x=0 y=0 w=1080 h=2408, frame=Rect(0, 0 - 1080, 2408)
+D/VRI[MainActivity]@e906733(21083): reportNextDraw android.view.ViewRootImpl.performTraversals:5193 android.view.ViewRootImpl.doTraversal:3708 android.view.ViewRootImpl$TraversalRunnable.run:12542 android.view.Choreographer$CallbackRecord.run:1751 android.view.Choreographer$CallbackRecord.run:1760
+I/GrallocExtra(21083): gralloc_extra_query:is_SW3D 0
+I/BLASTBufferQueue(21083): [SurfaceView[com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity]@0#3](f:0,a:0,s:0) onFrameAvailable the first frame is available
+I/GrallocExtra(21083): gralloc_extra_query:is_SW3D 0
+I/BLASTBufferQueue(21083): [SurfaceView[com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity]@0#3](f:0,a:1,s:0) acquireNextBufferLocked size=1080x2408 mFrameNumber=1 applyTransaction=true mTimestamp=3959428948927(auto) mPendingTransactions.size=0 graphicBufferId=90550795501595 transform=0
+D/tchat_messenger(21083): Can't load libmbrainSDK
+D/BluetoothLeAdvertiser(21083): Stop AdvertingSet
+D/BluetoothGattServer(21083): close()
+D/BluetoothGattServer(21083): unregisterCallback() - mServerIf=5
+I/SurfaceView(21083): 93931979 finishedDrawing
+I/SurfaceView(21083): 93931979 finishedDrawing
+I/Choreographer(21083): Skipped 60 frames!  The application may be doing too much work on its main thread.
+D/VRI[MainActivity]@e906733(21083): Setup new sync=wmsSync-VRI[MainActivity]@e906733#2
+I/VRI[MainActivity]@e906733(21083): Creating new active sync group VRI[MainActivity]@e906733#3
+D/VRI[MainActivity]@e906733(21083): Draw frame after cancel
+D/VRI[MainActivity]@e906733(21083): registerCallbacksForSync syncBuffer=false
+D/SurfaceView(21083): 93931979 updateSurfacePosition RenderWorker, frameNr = 1, position = [0, 0, 1080, 2408] surfaceSize = 1080x2408
+I/SurfaceView@59949cb(21083): uSP: rtp = Rect(0, 0 - 1080, 2408) rtsw = 1080 rtsh = 2408
+I/SurfaceView@59949cb(21083): onSSPAndSRT: pl = 0 pt = 0 sx = 1.0 sy = 1.0
+I/SurfaceView@59949cb(21083): aOrMT: VRI[MainActivity]@e906733 t = android.view.SurfaceControl$Transaction@7752fe0 fN = 1 android.view.SurfaceView.-$$Nest$mapplyOrMergeTransaction:0 android.view.SurfaceView$SurfaceViewPositionUpdateListener.positionChanged:1792 android.graphics.RenderNode$CompositePositionUpdateListener.positionChanged:398
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb40000737a2f0300 mBlastBufferQueue=0xb40000737a2b4800 fn= 1 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SurfaceView.applyOrMergeTransaction:1723 android.view.SurfaceView.-$$Nest$mapplyOrMergeTransaction:0 android.view.SurfaceView$SurfaceViewPositionUpdateListener.positionChanged:1792
+D/VRI[MainActivity]@e906733(21083): Received frameDrawingCallback syncResult=0 frameNum=1.
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007328923600 mBlastBufferQueue=0xb40000737a2b4800 fn= 1 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.ViewRootImpl$11.onFrameDraw:15016 android.view.ThreadedRenderer$1.onFrameDraw:761 <bottom of call stack>
+I/VRI[MainActivity]@e906733(21083): Setting up sync and frameCommitCallback
+I/BLASTBufferQueue(21083): [VRI[MainActivity]@e906733#2](f:0,a:0,s:0) onFrameAvailable the first frame is available
+I/BLASTBufferQueue(21083): [VRI[MainActivity]@e906733#2](f:0,a:1,s:0) acquireNextBufferLocked size=1080x2408 mFrameNumber=1 applyTransaction=true mTimestamp=3959474089619(auto) mPendingTransactions.size=0 graphicBufferId=90550795501602 transform=0
+I/VRI[MainActivity]@e906733(21083): Received frameCommittedCallback lastAttemptedDrawFrameNum=1 didProduceBuffer=true
+D/HWUI    (21083): CFMS:: SetUp Pid : 21083    Tid : 21152
+D/VRI[MainActivity]@e906733(21083): reportDrawFinished seqId=0
+I/InsetsSourceConsumer(21083): applyRequestedVisibilityToControl: visible=true, type=navigationBars, host=com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity
+I/InsetsSourceConsumer(21083): applyRequestedVisibilityToControl: visible=true, type=statusBars, host=com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity
+D/BluetoothLeAdvertiser(21083): onAdvertisingSetStopped(0)
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothGattServer(21083): registerCallback()
+D/BluetoothGattServer(21083): registerCallback() - UUID=e7512744-0ab9-451f-9181-12fd3a50aa45
+D/BluetoothGattServer(21083): onServerRegistered() - status=0 serverIf=5
+D/BluetoothGattServer(21083): addService() - service: 6e400001-b5a3-f393-e0a9-e50e24dcca9e
+D/AdvertiseSettings(21083): setTxPowerLevel: 3
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeAdvertiser(21083): TxPower == ADVERTISE_TX_POWER_HIGH
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+I/flutter (21083): [FBP] stopScan: already stopped
+D/BluetoothGattServer(21083): onServiceAdded() - handle=157 uuid=6e400001-b5a3-f393-e0a9-e50e24dcca9e status=0
+D/VRI[MainActivity]@e906733(21083): mThreadedRenderer.initializeIfNeeded()#2 mSurface={isValid=true 0xb400007328674000}
+D/InputMethodManagerUtils(21083): startInputInner - Id : 0
+I/InputMethodManager(21083): startInputInner - IInputMethodManagerGlobalInvoker.startInputOrWindowGainedFocus
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=0 scannerId=7 mScannerId=0
+D/InputTransport(21083): Input channel constructed: 'ClientS', fd=220
+D/BluetoothLeAdvertiser(21083): onAdvertisingSetStarted(0, 1, 0)
+I/Choreographer(21083): Skipped 40 frames!  The application may be doing too much work on its main thread.
+D/BleGattService(21083): BLE advertising started
+I/InsetsSourceConsumer(21083): applyRequestedVisibilityToControl: visible=false, type=ime, host=com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity
+D/[FBP-Android](21083): [FBP] onMethodCall: connect
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothGatt(21083): connect() - device: XX:XX:XX:XX:4E:55, auto: false
+D/BluetoothGatt(21083): registerApp()
+D/BluetoothGatt(21083): registerApp() - UUID=fba5fdcd-789d-4790-87f7-70426ff42327
+D/BluetoothGatt(21083): onClientRegistered() - status=0 clientIf=7
+D/[FBP-Android](21083): [FBP] onMethodCall: getAdapterState
+I/VRI[MainActivity]@e906733(21083): call setFrameRateCategory for touch hint category=high hint, reason=touch, vri=VRI[MainActivity]@e906733
+D/NearbyConnections(21083): NFC discovery started.
+D/NearbyConnections(21083): Invalidating dispatch state.
+D/NearbyConnections(21083): Starting NFC dispatching.
+D/NearbyConnections(21083): Cannot dispatch NFC events. NFC is not supported.
+D/nearby_connections(21083): startDiscovery
+D/BluetoothGattServer(21083): onServerConnectionState() - status=0 serverIf=5 connected=true device=XX:XX:XX:XX:4E:55
+D/BluetoothGatt(21083): onClientConnectionState() - status=0 clientIf=7 connected=true device=XX:XX:XX:XX:4E:55
+D/[FBP-Android](21083): [FBP] onConnectionStateChange:connected
+D/[FBP-Android](21083): [FBP]   status: SUCCESS
+D/[FBP-Android](21083): [FBP] onMethodCall: requestMtu
+D/BluetoothGatt(21083): configureMTU() - device: XX:XX:XX:XX:4E:55 mtu: 512
+D/BluetoothGattServer(21083): onConnectionUpdated() - Device=XX:XX:XX:XX:4E:55 interval=6 latency=0 timeout=500 status=0
+D/BluetoothGatt(21083): onConnectionUpdated() - Device=XX:XX:XX:XX:4E:55 interval=6 latency=0 timeout=500 status=0
+D/nearby_connections(21083): onEndpointFound
+D/nearby_connections(21083): requestConnection
+D/BluetoothGatt(21083): onConfigureMTU() - Device=XX:XX:XX:XX:4E:55 mtu=517 status=0
+D/[FBP-Android](21083): [FBP] onMtuChanged:
+D/[FBP-Android](21083): [FBP]   mtu: 517
+D/[FBP-Android](21083): [FBP]   status: GATT_SUCCESS (0)
+D/BluetoothGatt(21083): onConnectionUpdated() - Device=XX:XX:XX:XX:4E:55 interval=39 latency=0 timeout=500 status=0
+D/BluetoothGattServer(21083): onConnectionUpdated() - Device=XX:XX:XX:XX:4E:55 interval=39 latency=0 timeout=500 status=0
+D/nearby_connections(21083): dis.onConnectionInitiated
+D/nearby_connections(21083): acceptConnection
+D/nearby_connections(21083): dis.onConnectionResult
+D/[FBP-Android](21083): [FBP] onMethodCall: requestMtu
+D/BluetoothGatt(21083): configureMTU() - device: XX:XX:XX:XX:4E:55 mtu: 512
+D/BluetoothGatt(21083): onConfigureMTU() - Device=XX:XX:XX:XX:4E:55 mtu=517 status=0
+D/[FBP-Android](21083): [FBP] onMtuChanged:
+D/[FBP-Android](21083): [FBP]   mtu: 517
+D/[FBP-Android](21083): [FBP]   status: GATT_SUCCESS (0)
+D/[FBP-Android](21083): [FBP] onMethodCall: discoverServices
+D/BluetoothGatt(21083): discoverServices() - device: XX:XX:XX:XX:4E:55
+D/BluetoothGatt(21083): onSearchComplete() = Device=XX:XX:XX:XX:4E:55 Status=0
+D/[FBP-Android](21083): [FBP] onServicesDiscovered:
+D/[FBP-Android](21083): [FBP]   count: 5
+D/[FBP-Android](21083): [FBP]   status: 0GATT_SUCCESS
+D/[FBP-Android](21083): [FBP] onMethodCall: setNotifyValue
+D/BluetoothGatt(21083): setCharacteristicNotification() - uuid: 00002a05-0000-1000-8000-00805f9b34fb enable: true
+W/[FBP-Android](21083): [FBP] CCCD descriptor for characteristic not found: 2a05
+D/[FBP-Android](21083): [FBP] onMethodCall: setNotifyValue
+D/BluetoothGatt(21083): setCharacteristicNotification() - uuid: 6e400003-b5a3-f393-e0a9-e50e24dcca9e enable: true
+D/[FBP-Android](21083): [FBP] onDescriptorWrite:
+D/[FBP-Android](21083): [FBP]   chr: 6e400003-b5a3-f393-e0a9-e50e24dcca9e
+D/[FBP-Android](21083): [FBP]   desc: 2902
+D/[FBP-Android](21083): [FBP]   status: GATT_SUCCESS (0)
+D/[FBP-Android](21083): [FBP] onMethodCall: writeCharacteristic
+D/[FBP-Android](21083): [FBP] onCharacteristicWrite:
+D/[FBP-Android](21083): [FBP]   chr: 6e400002-b5a3-f393-e0a9-e50e24dcca9e
+D/[FBP-Android](21083): [FBP]   status: GATT_SUCCESS (0)
+D/[FBP-Android](21083): [FBP] onCharacteristicChanged:
+D/[FBP-Android](21083): [FBP]   chr: 6e400003-b5a3-f393-e0a9-e50e24dcca9e
+I/VRI[MainActivity]@e906733(21083): call setFrameRateCategory for touch hint category=no preference, reason=boost timeout, vri=VRI[MainActivity]@e906733
+D/BluetoothGatt(21083): onServiceChanged() - Device=XX:XX:XX:XX:4E:55
+D/BluetoothGatt(21083): onServiceChanged() - Device=XX:XX:XX:XX:4E:55
+D/[FBP-Android](21083): [FBP] onMethodCall: connect
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothGatt(21083): connect() - device: XX:XX:XX:XX:34:35, auto: false
+D/BluetoothGatt(21083): registerApp()
+D/BluetoothGatt(21083): registerApp() - UUID=4f65e581-0d50-4c9d-8fa9-7a18490eb4a5
+D/BluetoothGatt(21083): onClientRegistered() - status=0 clientIf=8
+E/BluetoothLeAdvertiser(21083): Legacy advertiser should be only disabled on timeout, but was enabled!
+D/BluetoothGattServer(21083): onServerConnectionState() - status=0 serverIf=5 connected=true device=XX:XX:XX:XX:96:4E
+D/BluetoothGattServer(21083): onServerConnectionState() - status=0 serverIf=5 connected=false device=XX:XX:XX:XX:34:35
+D/BluetoothGatt(21083): onClientConnectionState() - status=133 clientIf=8 connected=false device=XX:XX:XX:XX:34:35
+D/[FBP-Android](21083): [FBP] onConnectionStateChange:disconnected
+D/[FBP-Android](21083): [FBP]   status: ANDROID_SPECIFIC_ERROR
+D/BluetoothGatt(21083): close()
+D/BluetoothGatt(21083): unregisterApp() - mClientIf=8
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Stop Scan with callback
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=0 scannerId=7 mScannerId=0
+D/[FBP-Android](21083): [FBP] onMethodCall: disconnect
+D/[FBP-Android](21083): [FBP] already disconnected
+I/VRI[MainActivity]@e906733(21083): onDisplayChanged oldDisplayState=2 newDisplayState=2
+D/BluetoothGattServer(21083): onConnectionUpdated() - Device=XX:XX:XX:XX:96:4E interval=6 latency=0 timeout=500 status=0
+I/VRI[MainActivity]@e906733(21083): onDisplayChanged oldDisplayState=2 newDisplayState=2
+D/BluetoothGattServer(21083): onMtuChanged() - device=XX:XX:XX:XX:96:4E, mtu=512
+D/BluetoothGattServer(21083): onConnectionUpdated() - Device=XX:XX:XX:XX:96:4E interval=36 latency=0 timeout=500 status=0
+D/[FBP-Android](21083): [FBP] onMethodCall: connect
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothGatt(21083): connect() - device: XX:XX:XX:XX:34:35, auto: false
+D/BluetoothGatt(21083): registerApp()
+D/BluetoothGatt(21083): registerApp() - UUID=9d3f43be-c243-46c6-9010-eae22c598db1
+D/BluetoothGatt(21083): onClientRegistered() - status=0 clientIf=8
+D/BluetoothGattServer(21083): onMtuChanged() - device=XX:XX:XX:XX:96:4E, mtu=512
+D/BluetoothGattServer(21083): onServerConnectionState() - status=0 serverIf=5 connected=true device=XX:XX:XX:XX:34:35
+D/BluetoothGatt(21083): onClientConnectionState() - status=0 clientIf=8 connected=true device=XX:XX:XX:XX:34:35
+D/[FBP-Android](21083): [FBP] onConnectionStateChange:connected
+D/[FBP-Android](21083): [FBP]   status: SUCCESS
+D/[FBP-Android](21083): [FBP] onMethodCall: requestMtu
+D/BluetoothGatt(21083): configureMTU() - device: XX:XX:XX:XX:34:35 mtu: 512
+D/BluetoothGattServer(21083): onConnectionUpdated() - Device=XX:XX:XX:XX:34:35 interval=6 latency=0 timeout=500 status=0
+D/BluetoothGatt(21083): onConnectionUpdated() - Device=XX:XX:XX:XX:34:35 interval=6 latency=0 timeout=500 status=0
+D/BluetoothGatt(21083): onConfigureMTU() - Device=XX:XX:XX:XX:34:35 mtu=517 status=0
+D/[FBP-Android](21083): [FBP] onMtuChanged:
+D/[FBP-Android](21083): [FBP]   mtu: 517
+D/[FBP-Android](21083): [FBP]   status: GATT_SUCCESS (0)
+D/BluetoothGatt(21083): onServiceChanged() - Device=XX:XX:XX:XX:34:35
+D/BluetoothGatt(21083): onServiceChanged() - Device=XX:XX:XX:XX:4E:55
+D/BluetoothGattServer(21083): onConnectionUpdated() - Device=XX:XX:XX:XX:34:35 interval=39 latency=0 timeout=500 status=0
+D/BluetoothGatt(21083): onConnectionUpdated() - Device=XX:XX:XX:XX:34:35 interval=39 latency=0 timeout=500 status=0
+D/[FBP-Android](21083): [FBP] onMethodCall: requestMtu
+D/BluetoothGatt(21083): configureMTU() - device: XX:XX:XX:XX:34:35 mtu: 512
+D/BluetoothGatt(21083): onConfigureMTU() - Device=XX:XX:XX:XX:34:35 mtu=517 status=0
+D/[FBP-Android](21083): [FBP] onMtuChanged:
+D/[FBP-Android](21083): [FBP]   mtu: 517
+D/[FBP-Android](21083): [FBP]   status: GATT_SUCCESS (0)
+D/[FBP-Android](21083): [FBP] onMethodCall: discoverServices
+D/BluetoothGatt(21083): discoverServices() - device: XX:XX:XX:XX:34:35
+D/BluetoothGatt(21083): onSearchComplete() = Device=XX:XX:XX:XX:34:35 Status=0
+D/[FBP-Android](21083): [FBP] onServicesDiscovered:
+D/[FBP-Android](21083): [FBP]   count: 4
+D/[FBP-Android](21083): [FBP]   status: 0GATT_SUCCESS
+D/[FBP-Android](21083): [FBP] onMethodCall: setNotifyValue
+D/BluetoothGatt(21083): setCharacteristicNotification() - uuid: 00002a05-0000-1000-8000-00805f9b34fb enable: true
+W/[FBP-Android](21083): [FBP] CCCD descriptor for characteristic not found: 2a05
+D/BluetoothGatt(21083): onServiceChanged() - Device=XX:XX:XX:XX:34:35
+D/BluetoothGatt(21083): onServiceChanged() - Device=XX:XX:XX:XX:4E:55
+D/BluetoothGatt(21083): onServiceChanged() - Device=XX:XX:XX:XX:4E:55
+D/nearby_connections(21083): dis.onDisconnected
+D/BluetoothGattServer(21083): onServerConnectionState() - status=0 serverIf=5 connected=false device=XX:XX:XX:XX:34:35
+D/BluetoothGatt(21083): onClientConnectionState() - status=19 clientIf=8 connected=false device=XX:XX:XX:XX:34:35
+D/[FBP-Android](21083): [FBP] onConnectionStateChange:disconnected
+D/[FBP-Android](21083): [FBP]   status: REMOTE_USER_TERMINATED_CONNECTION
+D/BluetoothGatt(21083): close()
+D/BluetoothGatt(21083): unregisterApp() - mClientIf=8
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Stop Scan with callback
+D/[FBP-Android](21083): [FBP] onMethodCall: connect
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothGatt(21083): connect() - device: XX:XX:XX:XX:34:35, auto: false
+D/BluetoothGatt(21083): registerApp()
+D/BluetoothGatt(21083): registerApp() - UUID=4fd10366-a5cc-489c-aa76-c4a8168681e4
+D/BluetoothGatt(21083): onClientRegistered() - status=0 clientIf=8
+I/flutter (21083): [FBP] disconnect: enforcing 2000ms disconnect gap, delaying 1946ms
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=0 scannerId=7 mScannerId=0
+D/BluetoothGattServer(21083): onServerConnectionState() - status=0 serverIf=5 connected=false device=XX:XX:XX:XX:4E:55
+D/BluetoothGatt(21083): onClientConnectionState() - status=19 clientIf=7 connected=false device=XX:XX:XX:XX:4E:55
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Stop Scan with callback
+D/[FBP-Android](21083): [FBP] onConnectionStateChange:disconnected
+D/[FBP-Android](21083): [FBP]   status: REMOTE_USER_TERMINATED_CONNECTION
+D/BluetoothGatt(21083): close()
+D/BluetoothGatt(21083): unregisterApp() - mClientIf=7
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=0 scannerId=7 mScannerId=0
+D/[FBP-Android](21083): [FBP] onMethodCall: disconnect
+D/[FBP-Android](21083): [FBP] disconnect: cancelling connection in progress
+D/BluetoothGatt(21083): cancelOpen() - device: XX:XX:XX:XX:34:35
+D/BluetoothGatt(21083): close()
+D/BluetoothGatt(21083): unregisterApp() - mClientIf=8
+I/VRI[MainActivity]@e906733(21083): call setFrameRateCategory for touch hint category=high hint, reason=touch, vri=VRI[MainActivity]@e906733
+W/WindowOnBackDispatcher(21083): OnBackInvokedCallback is not enabled for the application.
+W/WindowOnBackDispatcher(21083): Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Stop Scan with callback
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=0 scannerId=7 mScannerId=0
+D/BluetoothGattServer(21083): onServerConnectionState() - status=0 serverIf=5 connected=false device=XX:XX:XX:XX:96:4E
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Stop Scan with callback
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=6 scannerId=-1 mScannerId=0
+E/BluetoothLeScanner(21083): registration failed because app is scanning too frequently
+D/BluetoothGattServer(21083): onServerConnectionState() - status=0 serverIf=5 connected=false device=XX:XX:XX:XX:34:35
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): could not find callback wrapper
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=6 scannerId=-1 mScannerId=0
+E/BluetoothLeScanner(21083): registration failed because app is scanning too frequently
+D/nearby_connections(21083): onEndpointLost
+W/WindowOnBackDispatcher(21083): OnBackInvokedCallback is not enabled for the application.
+W/WindowOnBackDispatcher(21083): Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): could not find callback wrapper
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=0 scannerId=7 mScannerId=0
+W/WindowOnBackDispatcher(21083): OnBackInvokedCallback is not enabled for the application.
+W/WindowOnBackDispatcher(21083): Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+I/InputMethodManager_LC(21083): showSoftInput(View,I)
+I/ImeTracker(21083): com.bitchat.bitchat_messenger:31af717d: onRequestShow at ORIGIN_CLIENT reason SHOW_SOFT_INPUT fromUser false
+I/InputMethodManager_LC(21083): ssi(): flags=0 view=com.bitchat.bitchat_messenger reason=SHOW_SOFT_INPUT
+I/InputMethodManager_LC(21083): ssi() view is not EditText
+D/InputMethodManagerUtils(21083): startInputInner - Id : 0
+I/InputMethodManager(21083): startInputInner - IInputMethodManagerGlobalInvoker.startInputOrWindowGainedFocus
+D/InputMethodManager(21083): showSoftInput() view=io.flutter.embedding.android.FlutterView{4ac7d72 VFE...... .F....ID 0,0-1080,2408 #1 aid=1073741824} flags=0 reason=SHOW_SOFT_INPUT
+D/InputTransport(21083): Input channel constructed: 'ClientS', fd=224
+I/AssistStructure(21083): Flattened final assist data: 520 bytes, containing 1 windows, 3 views
+D/InputConnectionAdaptor(21083): The input method toggled cursor monitoring on
+I/InsetsController(21083): onStateChanged: host=com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity, from=android.view.ViewRootImpl.handleResized:2789, state=InsetsState: {mDisplayFrame=Rect(0, 0 - 1080, 2408), mDisplayCutout=DisplayCutout{insets=Rect(0, 64 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(468, 0 - 612, 64), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2408 physicalDisplayWidth=1080 physicalDisplayHeight=2408 density={2.8125} cutoutSpec={M 0,0 H -25.6‬ V 22.75555555555556 H 25.6‬ V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} sideOverrides={}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=113, center=Point(113, 113)}, RoundedCorner{position=TopRight, radius=113, center=Point(967, 113)}, RoundedCorner{position=BottomRight, radius=113, center=Point(967, 2295)}, RoundedCorner{position=BottomLeft, radius=113, center=Point(113, 2295)}]}  mRoundedCornerFrame=Rect(0, 0 - 1080, 2408), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(956, 0 - 1080, 64) rotation=0}, mDisplayShape=DisplayShape{ spec=-311912193 displayWidth=1080 displayHeight=2408 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}, mSources= { InsetsSource: {f54a0000 mType=statusBars mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {f54a0005 mType=mandatorySystemGestures mFrame=[0,0][1080,98] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {f54a0006 mType=tappableElement mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {fde80001 mType=navigationBars mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80004 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {fde80005 mType=mandatorySystemGestures mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80006 mType=tappableElement mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80024 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {3 mType=ime mFrame=[0,1523][1080,2408] mVisible=false mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {27 mType=displayCutout mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null} }
+I/VRI[MainActivity]@e906733(21083): handleResized, frames=ClientWindowFrames{frame=[0,0][1080,2408] display=[0,0][1080,2408] parentFrame=[0,0][0,0]} displayId=0 dragResizing=false compatScale=1.0 frameChanged=false attachedFrameChanged=false configChanged=false displayChanged=false compatScaleChanged=false dragResizingChanged=false
+I/InsetsController(21083): onStateChanged: host=com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity, from=android.view.ViewRootImpl.handleResized:2789, state=InsetsState: {mDisplayFrame=Rect(0, 0 - 1080, 2408), mDisplayCutout=DisplayCutout{insets=Rect(0, 64 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(468, 0 - 612, 64), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2408 physicalDisplayWidth=1080 physicalDisplayHeight=2408 density={2.8125} cutoutSpec={M 0,0 H -25.6‬ V 22.75555555555556 H 25.6‬ V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} sideOverrides={}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=113, center=Point(113, 113)}, RoundedCorner{position=TopRight, radius=113, center=Point(967, 113)}, RoundedCorner{position=BottomRight, radius=113, center=Point(967, 2295)}, RoundedCorner{position=BottomLeft, radius=113, center=Point(113, 2295)}]}  mRoundedCornerFrame=Rect(0, 0 - 1080, 2408), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(956, 0 - 1080, 64) rotation=0}, mDisplayShape=DisplayShape{ spec=-311912193 displayWidth=1080 displayHeight=2408 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}, mSources= { InsetsSource: {f54a0000 mType=statusBars mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {f54a0005 mType=mandatorySystemGestures mFrame=[0,0][1080,98] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {f54a0006 mType=tappableElement mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {fde80001 mType=navigationBars mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80004 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {fde80005 mType=mandatorySystemGestures mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80006 mType=tappableElement mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80024 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {3 mType=ime mFrame=[0,1400][1080,2408] mVisible=false mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {27 mType=displayCutout mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null} }
+I/VRI[MainActivity]@e906733(21083): handleResized, frames=ClientWindowFrames{frame=[0,0][1080,2408] display=[0,0][1080,2408] parentFrame=[0,0][0,0]} displayId=0 dragResizing=false compatScale=1.0 frameChanged=false attachedFrameChanged=false configChanged=false displayChanged=false compatScaleChanged=false dragResizingChanged=false
+I/InsetsSourceConsumer(21083): applyRequestedVisibilityToControl: visible=false, type=ime, host=com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity
+D/InsetsController(21083): show(ime(), fromIme=true)
+I/InsetsController(21083): setRequestedVisibleTypes: visible=true, mask=ime, host=com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity, from=android.view.InsetsController.controlAnimationUnchecked:1498 android.view.InsetsController.applyAnimation:2228 android.view.InsetsController.applyAnimation:2159 android.view.InsetsController.show:1340 android.view.ViewRootImpl$ViewRootHandler.handleMessageImpl:8056 android.view.ViewRootImpl$ViewRootHandler.handleMessage:7991 android.os.Handler.dispatchMessage:107 android.os.Looper.loopOnce:257 android.os.Looper.loop:342 android.app.ActivityThread.main:9638
+I/InsetsController(21083): controlAnimationUncheckedInner: Added types=ime, animType=0, host=com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity, from=android.view.InsetsController.controlAnimationUnchecked:1502 android.view.InsetsController.applyAnimation:2228 android.view.InsetsController.applyAnimation:2159
+W/InteractionJankMonitor(21083): Initializing without READ_DEVICE_CONFIG permission. enabled=false, interval=1, missedFrameThreshold=3, frameTimeThreshold=64, package=com.bitchat.bitchat_messenger
+I/InsetsController(21083): onStateChanged: host=com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity, from=android.view.ViewRootImpl.handleResized:2789, state=InsetsState: {mDisplayFrame=Rect(0, 0 - 1080, 2408), mDisplayCutout=DisplayCutout{insets=Rect(0, 64 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(468, 0 - 612, 64), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2408 physicalDisplayWidth=1080 physicalDisplayHeight=2408 density={2.8125} cutoutSpec={M 0,0 H -25.6‬ V 22.75555555555556 H 25.6‬ V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} sideOverrides={}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=113, center=Point(113, 113)}, RoundedCorner{position=TopRight, radius=113, center=Point(967, 113)}, RoundedCorner{position=BottomRight, radius=113, center=Point(967, 2295)}, RoundedCorner{position=BottomLeft, radius=113, center=Point(113, 2295)}]}  mRoundedCornerFrame=Rect(0, 0 - 1080, 2408), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(956, 0 - 1080, 64) rotation=0}, mDisplayShape=DisplayShape{ spec=-311912193 displayWidth=1080 displayHeight=2408 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}, mSources= { InsetsSource: {f54a0000 mType=statusBars mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {f54a0005 mType=mandatorySystemGestures mFrame=[0,0][1080,98] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {f54a0006 mType=tappableElement mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {fde80001 mType=navigationBars mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80004 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {fde80005 mType=mandatorySystemGestures mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80006 mType=tappableElement mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80024 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {3 mType=ime mFrame=[0,1400][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {27 mType=displayCutout mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null} }
+I/VRI[MainActivity]@e906733(21083): handleResized, frames=ClientWindowFrames{frame=[0,0][1080,2408] display=[0,0][1080,2408] parentFrame=[0,0][0,0]} displayId=0 dragResizing=false compatScale=1.0 frameChanged=false attachedFrameChanged=false configChanged=false displayChanged=false compatScaleChanged=false dragResizingChanged=false
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb40000737a2f0d80 mBlastBufferQueue=0xb40000737a2b4800 fn= 4 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb40000737a2f1080 mBlastBufferQueue=0xb40000737a2b4800 fn= 5 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb40000737a2f0f00 mBlastBufferQueue=0xb40000737a2b4800 fn= 6 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d63780 mBlastBufferQueue=0xb40000737a2b4800 fn= 7 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d64e00 mBlastBufferQueue=0xb40000737a2b4800 fn= 8 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d64f80 mBlastBufferQueue=0xb40000737a2b4800 fn= 9 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d65100 mBlastBufferQueue=0xb40000737a2b4800 fn= 10 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d65400 mBlastBufferQueue=0xb40000737a2b4800 fn= 11 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d65580 mBlastBufferQueue=0xb40000737a2b4800 fn= 12 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d65700 mBlastBufferQueue=0xb40000737a2b4800 fn= 13 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d65880 mBlastBufferQueue=0xb40000737a2b4800 fn= 14 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d65a00 mBlastBufferQueue=0xb40000737a2b4800 fn= 15 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d65b80 mBlastBufferQueue=0xb40000737a2b4800 fn= 16 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d65d00 mBlastBufferQueue=0xb40000737a2b4800 fn= 17 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d65e80 mBlastBufferQueue=0xb40000737a2b4800 fn= 18 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007328924e00 mBlastBufferQueue=0xb40000737a2b4800 fn= 19 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007328925100 mBlastBufferQueue=0xb40000737a2b4800 fn= 20 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007328925280 mBlastBufferQueue=0xb40000737a2b4800 fn= 21 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/InsetsController(21083): cancelAnimation: types=ime, animType=0, host=com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity, from=android.view.InsetsController.notifyFinished:1890 android.view.InsetsAnimationControlImpl.applyChangeInsets:307 android.view.InsetsController.lambda$new$3:932
+I/ImeTracker(21083): com.bitchat.bitchat_messenger:31af717d: onShown
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007328925400 mBlastBufferQueue=0xb40000737a2b4800 fn= 22 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+D/InputConnectionAdaptor(21083): The input method toggled text monitoring on
+I/VRI[MainActivity]@e906733(21083): onDisplayChanged oldDisplayState=2 newDisplayState=2
+I/VRI[MainActivity]@e906733(21083): onDisplayChanged oldDisplayState=2 newDisplayState=2
+I/TextInputPlugin(21083): Composing region changed by the framework. Restarting the input method.
+D/InputMethodManagerUtils(21083): startInputInner - Id : 0
+I/InputMethodManager(21083): startInputInner - IInputMethodManagerGlobalInvoker.startInputOrWindowGainedFocus
+D/InputTransport(21083): Input channel constructed: 'ClientS', fd=229
+W/RemoteInputConnectionImpl(21083): getExtractedText on inactive InputConnection
+W/RemoteInputConnectionImpl(21083): getExtractedText on inactive InputConnection
+W/RemoteInputConnectionImpl(21083): getExtractedText on inactive InputConnection
+D/InputConnectionAdaptor(21083): The input method toggled cursor monitoring on
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Stop Scan with callback
+I/VRI[MainActivity]@e906733(21083): call setFrameRateCategory for touch hint category=no preference, reason=boost timeout, vri=VRI[MainActivity]@e906733
+I/VRI[MainActivity]@e906733(21083): call setFrameRateCategory for touch hint category=high hint, reason=touch, vri=VRI[MainActivity]@e906733
+I/ImeTracker(21083): com.bitchat.bitchat_messenger:73a2d2e3: onRequestHide at ORIGIN_CLIENT reason HIDE_SOFT_INPUT fromUser false
+I/InputMethodManager_LC(21083): hsifw() - flag : 0
+I/InputMethodManager_LC(21083): hsifw() - mService.hideSoftInput
+D/InsetsController(21083): hide(ime(), fromIme=true)
+I/InsetsController(21083): setRequestedVisibleTypes: visible=false, mask=ime, host=com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity, from=android.view.InsetsController.controlAnimationUnchecked:1498 android.view.InsetsController.applyAnimation:2228 android.view.InsetsController.applyAnimation:2159 android.view.InsetsController.hide:1452 android.view.ViewRootImpl$ViewRootHandler.handleMessageImpl:8063 android.view.ViewRootImpl$ViewRootHandler.handleMessage:7991 android.os.Handler.dispatchMessage:107 android.os.Looper.loopOnce:257 android.os.Looper.loop:342 android.app.ActivityThread.main:9638
+I/InsetsController(21083): controlAnimationUncheckedInner: Added types=ime, animType=1, host=com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity, from=android.view.InsetsController.controlAnimationUnchecked:1502 android.view.InsetsController.applyAnimation:2228 android.view.InsetsController.applyAnimation:2159
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb40000737a2f0900 mBlastBufferQueue=0xb40000737a2b4800 fn= 23 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+D/InputConnectionAdaptor(21083): The input method toggled cursor monitoring off
+I/InsetsController(21083): onStateChanged: host=com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity, from=android.view.ViewRootImpl.handleResized:2789, state=InsetsState: {mDisplayFrame=Rect(0, 0 - 1080, 2408), mDisplayCutout=DisplayCutout{insets=Rect(0, 64 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(468, 0 - 612, 64), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2408 physicalDisplayWidth=1080 physicalDisplayHeight=2408 density={2.8125} cutoutSpec={M 0,0 H -25.6‬ V 22.75555555555556 H 25.6‬ V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} sideOverrides={}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=113, center=Point(113, 113)}, RoundedCorner{position=TopRight, radius=113, center=Point(967, 113)}, RoundedCorner{position=BottomRight, radius=113, center=Point(967, 2295)}, RoundedCorner{position=BottomLeft, radius=113, center=Point(113, 2295)}]}  mRoundedCornerFrame=Rect(0, 0 - 1080, 2408), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(956, 0 - 1080, 64) rotation=0}, mDisplayShape=DisplayShape{ spec=-311912193 displayWidth=1080 displayHeight=2408 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}, mSources= { InsetsSource: {f54a0000 mType=statusBars mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {f54a0005 mType=mandatorySystemGestures mFrame=[0,0][1080,98] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {f54a0006 mType=tappableElement mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {fde80001 mType=navigationBars mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80004 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {fde80005 mType=mandatorySystemGestures mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80006 mType=tappableElement mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80024 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {3 mType=ime mFrame=[0,1400][1080,2408] mVisible=false mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {27 mType=displayCutout mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null} }
+I/VRI[MainActivity]@e906733(21083): handleResized, frames=ClientWindowFrames{frame=[0,0][1080,2408] display=[0,0][1080,2408] parentFrame=[0,0][0,0]} displayId=0 dragResizing=false compatScale=1.0 frameChanged=false attachedFrameChanged=false configChanged=false displayChanged=false compatScaleChanged=false dragResizingChanged=false
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d63000 mBlastBufferQueue=0xb40000737a2b4800 fn= 24 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/InsetsSourceConsumer(21083): applyRequestedVisibilityToControl: visible=true, type=navigationBars, host=com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb4000073643a9700 mBlastBufferQueue=0xb40000737a2b4800 fn= 25 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb4000073643a9d00 mBlastBufferQueue=0xb40000737a2b4800 fn= 26 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007305c6c000 mBlastBufferQueue=0xb40000737a2b4800 fn= 27 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007305c6c180 mBlastBufferQueue=0xb40000737a2b4800 fn= 28 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007305c6c480 mBlastBufferQueue=0xb40000737a2b4800 fn= 29 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007305c6c600 mBlastBufferQueue=0xb40000737a2b4800 fn= 30 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d65400 mBlastBufferQueue=0xb40000737a2b4800 fn= 31 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d65580 mBlastBufferQueue=0xb40000737a2b4800 fn= 32 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d65700 mBlastBufferQueue=0xb40000737a2b4800 fn= 33 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d65880 mBlastBufferQueue=0xb40000737a2b4800 fn= 34 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007455a00e00 mBlastBufferQueue=0xb40000737a2b4800 fn= 35 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007455a00f80 mBlastBufferQueue=0xb40000737a2b4800 fn= 36 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d65a00 mBlastBufferQueue=0xb40000737a2b4800 fn= 37 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d65b80 mBlastBufferQueue=0xb40000737a2b4800 fn= 38 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb40000737a2f0900 mBlastBufferQueue=0xb40000737a2b4800 fn= 39 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d63000 mBlastBufferQueue=0xb40000737a2b4800 fn= 40 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d65d00 mBlastBufferQueue=0xb40000737a2b4800 fn= 41 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007329d65e80 mBlastBufferQueue=0xb40000737a2b4800 fn= 42 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007328924e00 mBlastBufferQueue=0xb40000737a2b4800 fn= 43 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007328925100 mBlastBufferQueue=0xb40000737a2b4800 fn= 44 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+I/InsetsController(21083): cancelAnimation: types=ime, animType=1, host=com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity, from=android.view.InsetsController.notifyFinished:1890 android.view.InsetsAnimationControlImpl.applyChangeInsets:307 android.view.InsetsController.lambda$new$3:932
+I/ImeTracker(21083): com.bitchat.bitchat_messenger:702fa5a3: onRequestHide at ORIGIN_CLIENT reason HIDE_SOFT_INPUT_ON_ANIMATION_STATE_CHANGED fromUser false
+I/InputMethodManager_LC(21083): notifyImeHidden: IInputMethodManagerGlobalInvoker.hideSoftInput
+I/ImeTracker(21083): com.bitchat.bitchat_messenger:73a2d2e3: onHidden
+D/InputMethodManagerUtils(21083): startInputInner - Id : 0
+I/InputMethodManager(21083): startInputInner - IInputMethodManagerGlobalInvoker.startInputOrWindowGainedFocus
+I/VRI[MainActivity]@e906733(21083): mWNT: t=0xb400007328925280 mBlastBufferQueue=0xb40000737a2b4800 fn= 45 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:96 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:69 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0
+D/InputTransport(21083): Input channel constructed: 'ClientS', fd=228
+I/InsetsController(21083): onStateChanged: host=com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity, from=android.view.ViewRootImpl.handleResized:2789, state=InsetsState: {mDisplayFrame=Rect(0, 0 - 1080, 2408), mDisplayCutout=DisplayCutout{insets=Rect(0, 64 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(468, 0 - 612, 64), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2408 physicalDisplayWidth=1080 physicalDisplayHeight=2408 density={2.8125} cutoutSpec={M 0,0 H -25.6‬ V 22.75555555555556 H 25.6‬ V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} sideOverrides={}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=113, center=Point(113, 113)}, RoundedCorner{position=TopRight, radius=113, center=Point(967, 113)}, RoundedCorner{position=BottomRight, radius=113, center=Point(967, 2295)}, RoundedCorner{position=BottomLeft, radius=113, center=Point(113, 2295)}]}  mRoundedCornerFrame=Rect(0, 0 - 1080, 2408), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(956, 0 - 1080, 64) rotation=0}, mDisplayShape=DisplayShape{ spec=-311912193 displayWidth=1080 displayHeight=2408 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}, mSources= { InsetsSource: {f54a0000 mType=statusBars mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {f54a0005 mType=mandatorySystemGestures mFrame=[0,0][1080,98] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {f54a0006 mType=tappableElement mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {fde80001 mType=navigationBars mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80004 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {fde80005 mType=mandatorySystemGestures mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80006 mType=tappableElement mFrame=[0,2273][1080,2408] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {fde80024 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {3 mType=ime mFrame=[0,0][0,0] mVisible=false mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {27 mType=displayCutout mFrame=[0,0][1080,64] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null} }
+I/VRI[MainActivity]@e906733(21083): handleResized, frames=ClientWindowFrames{frame=[0,0][1080,2408] display=[0,0][1080,2408] parentFrame=[0,0][0,0]} displayId=0 dragResizing=false compatScale=1.0 frameChanged=false attachedFrameChanged=false configChanged=false displayChanged=false compatScaleChanged=false dragResizingChanged=false
+I/flutter (21083): [FBP] stopScan: already stopped
+D/[FBP-Android](21083): [FBP] onMethodCall: startScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Start Scan with callback
+D/BluetoothLeScanner(21083): onScannerRegistered() - status=0 scannerId=7 mScannerId=0
+W/WindowOnBackDispatcher(21083): OnBackInvokedCallback is not enabled for the application.
+W/WindowOnBackDispatcher(21083): Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+D/InputTransport(21083): Input channel destroyed: 'ClientS', fd=224
+D/InputTransport(21083): Input channel destroyed: 'ClientS', fd=229
+D/InputTransport(21083): Input channel destroyed: 'ClientS', fd=228
+W/tchat_messenger(21083): ApkAssets: Deleting an ApkAssets object '<empty> and /data/app/~~XermVFGwgqKhDZILQGQe_Q==/com.microsoft.office.officehubrow-1ee90w9sCGdDHMGR1Bhj7Q==/base.apk' with 1 weak references
+W/tchat_messenger(21083): ApkAssets: Deleting an ApkAssets object '<empty> and /data/app/~~XermVFGwgqKhDZILQGQe_Q==/com.microsoft.office.officehubrow-1ee90w9sCGdDHMGR1Bhj7Q==/split_config.en.apk' with 1 weak references
+W/tchat_messenger(21083): ApkAssets: Deleting an ApkAssets object '<empty> and /data/app/~~XermVFGwgqKhDZILQGQe_Q==/com.microsoft.office.officehubrow-1ee90w9sCGdDHMGR1Bhj7Q==/split_config.xxhdpi.apk' with 1 weak references
+W/tchat_messenger(21083): ApkAssets: Deleting an ApkAssets object '<empty> and /data/app/~~XermVFGwgqKhDZILQGQe_Q==/com.microsoft.office.officehubrow-1ee90w9sCGdDHMGR1Bhj7Q==/split_lenssampledoc.apk' with 1 weak references
+W/tchat_messenger(21083): ApkAssets: Deleting an ApkAssets object '<empty> and /data/app/~~XermVFGwgqKhDZILQGQe_Q==/com.microsoft.office.officehubrow-1ee90w9sCGdDHMGR1Bhj7Q==/split_mainassetpack.apk' with 1 weak references
+W/tchat_messenger(21083): ApkAssets: Deleting an ApkAssets object '<empty> and /data/app/~~bqb339KoJfxG3yn_-YcRpw==/com.microsoft.office.outlook-CAxP-cQFV7vfystl2PpBHw==/base.apk' with 1 weak references
+I/VRI[MainActivity]@e906733(21083): call setFrameRateCategory for touch hint category=no preference, reason=boost timeout, vri=VRI[MainActivity]@e906733
+I/ImeFocusController(21083): onPreWindowFocus: skipped hasWindowFocus=false mHasImeFocus=true
+I/ImeFocusController(21083): onPostWindowFocus: skipped hasWindowFocus=false mHasImeFocus=true
+D/InputTransport(21083): Input channel destroyed: 'ClientS', fd=220
+I/VRI[MainActivity]@e906733(21083): handleAppVisibility mAppVisible = true visible = false
+D/VRI[MainActivity]@e906733(21083): visibilityChanged oldVisibility=true newVisibility=false
+I/SurfaceView@59949cb(21083): onWindowVisibilityChanged(8) false io.flutter.embedding.android.FlutterSurfaceView{59949cb V.E...... ........ 0,0-1080,2408} of VRI[MainActivity]@e906733
+I/SurfaceView(21083): 93931979 Changes: creating=false format=false size=false visible=true alpha=false hint=false visible=true left=false top=false z=false attached=true lifecycleStrategy=false
+I/SurfaceView(21083): 93931979 Cur surface: Surface(name=null mNativeObject=-5476376652283418624)/@0x3a0a68
+I/SurfaceView(21083): 93931979 surfaceDestroyed
+I/SurfaceView@59949cb(21083): surfaceDestroyed callback.size 1 #2 io.flutter.embedding.android.FlutterSurfaceView{59949cb V.E...... ........ 0,0-1080,2408}
+I/SurfaceView@59949cb(21083): updateSurface: mVisible = false mSurface.isValid() = true
+I/BLASTBufferQueue(21083): [SurfaceView[com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity]@0#3](f:0,a:1,s:0) destructor()
+D/BufferQueueConsumer(21083): [SurfaceView[com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity]@0#3(BLAST Consumer)3](id:525b00000003,api:0,p:-1,c:21083) disconnect
+I/SurfaceView@59949cb(21083): releaseSurfaces: viewRoot = VRI[MainActivity]@e906733
+V/SurfaceView(21083): Layout: x=0 y=0 w=1080 h=2408, frame=Rect(0, 0 - 1080, 2408)
+D/SurfaceView(21083): 187537264 windowPositionLost, frameNr = 0
+D/HWUI    (21083): CacheManager::trimMemory(20)
+I/BLASTBufferQueue(21083): [VRI[MainActivity]@e906733#2](f:0,a:1,s:0) destructor()
+D/BufferQueueConsumer(21083): [VRI[MainActivity]@e906733#2(BLAST Consumer)2](id:525b00000002,api:0,p:-1,c:21083) disconnect
+I/VRI[MainActivity]@e906733(21083): Relayout returned: old=(0,0,1080,2408) new=(0,0,1080,2408) relayoutAsync=false req=(1080,2408)8 dur=9 res=0x2 s={false 0x0} ch=true seqId=0
+I/SurfaceView@59949cb(21083): windowStopped(true) false io.flutter.embedding.android.FlutterSurfaceView{59949cb V.E...... ........ 0,0-1080,2408} of VRI[MainActivity]@e906733
+D/SurfaceView@59949cb(21083): updateSurface: surface is not valid
+I/SurfaceView@59949cb(21083): releaseSurfaces: viewRoot = VRI[MainActivity]@e906733
+D/VRI[MainActivity]@e906733(21083): applyTransactionOnDraw applyImmediately
+D/SurfaceView@59949cb(21083): updateSurface: surface is not valid
+I/SurfaceView@59949cb(21083): releaseSurfaces: viewRoot = VRI[MainActivity]@e906733
+D/VRI[MainActivity]@e906733(21083): applyTransactionOnDraw applyImmediately
+D/VRI[MainActivity]@e906733(21083): Not drawing due to not visible. Reason=!mAppVisible && !mForceDecorViewVisibility
+D/VRI[MainActivity]@e906733(21083): Pending transaction will not be applied in sync with a draw due to view not visible
+D/HWUI    (21083): CacheManager::trimMemory(20)
+I/VRI[MainActivity]@e906733(21083): stopped(true) old = false
+D/VRI[MainActivity]@e906733(21083): WindowStopped on com.bitchat.bitchat_messenger/com.bitchat.bitchat_messenger.MainActivity set to true
+D/HWUI    (21083): CacheManager::trimMemory(20)
+D/NearbyConnections(21083): Activity is hidden.
+D/NearbyConnections(21083): Invalidating dispatch state.
+D/NearbyConnections(21083): Stopping NFC dispatching.
+D/NearbyConnections(21083): Can't stop NFC dispatching. Not dispatching.
+D/SurfaceView@59949cb(21083): updateSurface: surface is not valid
+I/SurfaceView@59949cb(21083): releaseSurfaces: viewRoot = VRI[MainActivity]@e906733
+D/VRI[MainActivity]@e906733(21083): applyTransactionOnDraw applyImmediately
+D/SurfaceView@59949cb(21083): updateSurface: surface is not valid
+I/SurfaceView@59949cb(21083): releaseSurfaces: viewRoot = VRI[MainActivity]@e906733
+D/VRI[MainActivity]@e906733(21083): applyTransactionOnDraw applyImmediately
+D/[FBP-Android](21083): [FBP] onMethodCall: stopScan
+D/BluetoothAdapter(21083): isLeEnabled(): ON
+D/BluetoothLeScanner(21083): Stop Scan with callback
+Lost connection to device.
+PS C:\User

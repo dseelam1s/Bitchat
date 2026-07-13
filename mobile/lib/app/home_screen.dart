@@ -8,9 +8,7 @@ import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:bitchat_messenger/features/calls/screens/incoming_call_screen.dart';
 import 'package:bitchat_messenger/features/calls/screens/in_call_screen.dart';
 import 'package:bitchat_messenger/features/chat/screens/chats_screen.dart';
-import 'package:bitchat_messenger/features/contacts/screens/contacts_screen.dart';
-import 'package:bitchat_messenger/features/discovery/screens/discovery_screen.dart';
-import 'package:bitchat_messenger/features/profile/screens/profile_screen.dart';
+import 'package:bitchat_messenger/features/radar/radar_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final DatabaseService dbService;
@@ -43,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadUnread();
     _messageSub = widget.messageService.messageStream.listen((_) {
-      if (_currentIndex == 1) return; // chats tab visible — badge not shown
+      if (_currentIndex == 0) return; // chats tab visible — badge not shown
       _unreadDebounce?.cancel();
       _unreadDebounce = Timer(const Duration(milliseconds: 300), _loadUnread);
     });
@@ -68,25 +66,16 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     _screens = [
-      // Tab 0 — Recents (calls)
-      ContactsScreen(
-        dbService: widget.dbService,
-        messageService: widget.messageService,
-        callService: widget.callService,
-      ),
-      // Tab 1 — Chats (DMs)
+      // Tab 0 — Chats (home: conversations + contacts + nearby strip)
       ChatsScreen(
         dbService: widget.dbService,
         messageService: widget.messageService,
         callService: widget.callService,
       ),
-      // Tab 2 — Discover (Nearby + Search)
-      DiscoveryScreen(
+      // Tab 1 — Radar (people around you; search for people far away)
+      RadarScreen(
         messageService: widget.messageService,
-      ),
-      // Tab 3 — Profile + Settings
-      ProfileScreen(
-        messageService: widget.messageService,
+        callService: widget.callService,
       ),
     ];
   }
@@ -164,18 +153,13 @@ class _HomeScreenState extends State<HomeScreen> {
             setState(() => _currentIndex = index);
             // Reload badge count when switching away from chats — do not zero manually,
             // let _loadUnread() compute the real count from DB
-            if (index != 1) _loadUnread();
+            if (index != 0) _loadUnread();
           },
           height: 60,
           destinations: <NavigationDestination>[
-            const NavigationDestination(
-              icon: Icon(Icons.people_outline, size: 22),
-              selectedIcon: Icon(Icons.people, size: 22),
-              label: 'People',
-            ),
             NavigationDestination(
               icon: Badge(
-                isLabelVisible: _totalUnread > 0 && _currentIndex != 1,
+                isLabelVisible: _totalUnread > 0 && _currentIndex != 0,
                 label: Text(
                   _totalUnread > 99 ? '99+' : '$_totalUnread',
                   style: const TextStyle(fontSize: 9),
@@ -188,14 +172,9 @@ class _HomeScreenState extends State<HomeScreen> {
               label: 'Chats',
             ),
             const NavigationDestination(
-              icon: Icon(Icons.explore_outlined, size: 22),
-              selectedIcon: Icon(Icons.explore, size: 22),
-              label: 'Discover',
-            ),
-            const NavigationDestination(
-              icon: Icon(Icons.person_outline, size: 22),
-              selectedIcon: Icon(Icons.person, size: 22),
-              label: 'Me',
+              icon: Icon(Icons.radar_outlined, size: 22),
+              selectedIcon: Icon(Icons.radar, size: 22),
+              label: 'Radar',
             ),
           ],
         ),
