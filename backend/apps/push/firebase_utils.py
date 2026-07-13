@@ -33,11 +33,15 @@ def _init():
         pass
 
 
-def send_push(token: str, title: str, body: str, data: dict = None) -> bool:
+def send_push(token: str, title: str, body: str, data: dict = None,
+              data_only: bool = False) -> bool:
     """Send an FCM push notification. Returns True on success.
 
     data: optional key/value strings included as FCM data payload.
           Flutter reads this via message.data to navigate to the right screen.
+    data_only: omit the notification block so Android does NOT auto-display a
+          banner — instead the app's background handler runs and can draw its
+          own UI (used for incoming calls → full-screen ringing screen).
     """
     _init()
     if not firebase_admin._apps:
@@ -46,7 +50,7 @@ def send_push(token: str, title: str, body: str, data: dict = None) -> bool:
         # FCM data values must be strings
         str_data = {k: str(v) for k, v in (data or {}).items()}
         message = messaging.Message(
-            notification=messaging.Notification(title=title, body=body),
+            notification=None if data_only else messaging.Notification(title=title, body=body),
             data=str_data if str_data else None,
             android=messaging.AndroidConfig(priority='high'),
             apns=messaging.APNSConfig(

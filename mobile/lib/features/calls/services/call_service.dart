@@ -51,6 +51,11 @@ class CallService {
   bool _isSpeakerOn = false;
   bool _isCameraOff = false;
 
+  /// Armed when the user taps Answer on the CallKit ringing screen (app was
+  /// killed). The WebRTC offer arrives moments later via WS replay — the UI
+  /// layer checks this flag and accepts immediately instead of ringing twice.
+  bool autoAnswerNextOffer = false;
+
   String? _myPubkey;
   String? _myName;
 

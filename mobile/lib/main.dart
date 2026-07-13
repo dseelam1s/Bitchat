@@ -1,7 +1,10 @@
 import 'dart:io' show Platform;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_callkit_incoming/entities/entities.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:uuid/uuid.dart';
 import 'package:bitchat_messenger/firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -72,8 +75,31 @@ void _handleNotificationTap(RemoteMessage message) {
 // Must be top-level — called by FCM when app is in background/terminated
 @pragma('vm:entry-point')
 Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
-  // No work needed — FCM notification messages are shown automatically by Android
-  // when the app is not in foreground. This handler just keeps the process alive.
+  // Message pushes carry a notification block and are shown by Android itself.
+  // Call pushes are data-only (see backend send_push data_only) so we can show
+  // a full-screen ringing UI with Answer/Decline — like any real calling app.
+  if (message.data['type'] == 'call') {
+    final callerName = (message.data['senderName'] as String?)?.trim();
+    await FlutterCallkitIncoming.showCallkitIncoming(CallKitParams(
+      id: const Uuid().v4(),
+      nameCaller: (callerName == null || callerName.isEmpty) ? 'Someone' : callerName,
+      appName: 'BitChat',
+      handle: 'BitChat call',
+      type: 0,
+      duration: 45000, // matches server-side PendingCallOffer expiry window
+      android: const AndroidParams(
+        isCustomNotification: false,
+        isShowLogo: false,
+        isShowFullLockedScreen: true,
+        ringtonePath: 'system_ringtone_default',
+        backgroundColor: '#2544FF',
+        actionColor: '#34C759',
+        textAccept: 'Answer',
+        textDecline: 'Decline',
+        incomingCallNotificationChannelName: 'Incoming Calls',
+      ),
+    ));
+  }
 }
 
 // Used for foreground notifications
@@ -432,6 +458,42 @@ class _AppInitializerState extends State<AppInitializer>
 
       // Persist call logs to DB
       callService.onCallLogged = (log) => dbService.insertCallLog(log);
+
+      // ── CallKit (full-screen incoming call UI when app was killed) ───────
+      // Answer/Decline on the native ringing screen; the WebRTC offer itself
+      // arrives via WS replay once the app connects, so Answer just arms
+      // auto-accept for the offer that's about to land.
+      FlutterCallkitIncoming.onEvent.listen((event) {
+        switch (event) {
+          case CallEventActionCallAccept():
+            callService.autoAnswerNextOffer = true;
+            final cur = callService.currentCall;
+            if (cur != null &&
+                cur.state == CallState.ringing &&
+                cur.direction == CallDirection.incoming) {
+              // Offer already arrived while the ringing screen was up.
+              callService.acceptCall();
+            }
+          case CallEventActionCallDecline():
+          case CallEventActionCallTimeout():
+            callService.autoAnswerNextOffer = false;
+          default:
+            break;
+        }
+      });
+      // Cold start from an accepted CallKit call (event may have fired
+      // before this listener attached) — best effort check.
+      try {
+        final active = await FlutterCallkitIncoming.activeCalls();
+        if (active.any((c) => c.isAccepted)) {
+          callService.autoAnswerNextOffer = true;
+        }
+      } catch (_) {}
+      // Dismiss the ringing UI when the call session ends for any reason
+      // (caller hung up, timeout, answered elsewhere).
+      callService.callStateStream.listen((session) {
+        if (session == null) FlutterCallkitIncoming.endAllCalls();
+      });
 
       // Contact resolver — auto-resolves pending contacts via server or BLE
       final contactResolver = ContactResolverService(dbService: dbService);

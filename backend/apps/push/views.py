@@ -69,7 +69,14 @@ def notify(request):
             token=identity.push_token_fcm,
             title=title,
             body=body,
-            data={'type': notification_type, 'senderPubkey': sender_pubkey},
+            data={
+                'type': notification_type,
+                'senderPubkey': sender_pubkey,
+                'senderName': sender_name,
+            },
+            # Calls: data-only so the app's background handler can show a
+            # full-screen ringing UI instead of a plain notification banner.
+            data_only=(notification_type == 'call'),
         )
 
     return Response({'ok': True})

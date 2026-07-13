@@ -4,7 +4,9 @@ import 'package:bitchat_messenger/core/theme.dart';
 import 'package:bitchat_messenger/features/calls/services/call_service.dart';
 import 'package:bitchat_messenger/core/database_service.dart';
 import 'package:bitchat_messenger/features/chat/services/message_service.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:bitchat_messenger/features/calls/screens/incoming_call_screen.dart';
+import 'package:bitchat_messenger/features/calls/screens/in_call_screen.dart';
 import 'package:bitchat_messenger/features/chat/screens/chats_screen.dart';
 import 'package:bitchat_messenger/features/contacts/screens/contacts_screen.dart';
 import 'package:bitchat_messenger/features/discovery/screens/discovery_screen.dart';
@@ -89,8 +91,29 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
   }
 
-  void _showIncomingCall(CallSession session) {
+  void _showIncomingCall(CallSession session) async {
     if (!mounted || _incomingCallShowing) return;
+
+    // User already answered on the CallKit ringing screen (app was killed) —
+    // skip the in-app ringing screen and go straight into the call.
+    if (widget.callService.autoAnswerNextOffer) {
+      widget.callService.autoAnswerNextOffer = false;
+      _incomingCallShowing = true;
+      FlutterCallkitIncoming.endAllCalls();
+      await widget.callService.acceptCall();
+      if (!mounted) {
+        _incomingCallShowing = false;
+        return;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => InCallScreen(callService: widget.callService),
+        ),
+      );
+      _incomingCallShowing = false;
+      return;
+    }
+
     _incomingCallShowing = true;
     Navigator.of(context).push(
       MaterialPageRoute(
