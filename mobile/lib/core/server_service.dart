@@ -26,14 +26,42 @@ class ServerService {
   String? _accessToken;
   String? _refreshToken;
 
+  // Kept in memory so a rejected refresh token can self-heal by
+  // re-authenticating instead of leaving the app signed out until restart.
+  String? _authPrivateKey;
+  String? _authPublicKey;
+
 
   // ── Token access ─────────────────────────────────────────────────────────
 
-  /// Returns the current JWT access token, or null if not authenticated.
+  /// Returns a valid JWT access token, or null if not authenticated.
   /// Used by SignalingService to connect the WebSocket.
+  ///
+  /// Proactively refreshes when the token is expired or about to expire —
+  /// otherwise WS reconnects would retry forever with a dead token.
   Future<String?> getAccessToken() async {
-    if (_accessToken == null) await _loadTokens();
+    if (_accessToken == null || _refreshToken == null) await _loadTokens();
+    if (_accessToken != null && _isTokenExpiring(_accessToken!)) {
+      await _refreshAccessToken();
+    }
     return _accessToken;
+  }
+
+  /// True when [jwt] is expired or within 2 minutes of expiry (so the WS
+  /// doesn't connect with a token about to die mid-session).
+  bool _isTokenExpiring(String jwt) {
+    try {
+      final parts = jwt.split('.');
+      if (parts.length != 3) return true;
+      final payload = jsonDecode(
+              utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))))
+          as Map<String, dynamic>;
+      final exp = payload['exp'] as int?;
+      if (exp == null) return false;
+      return DateTime.now().millisecondsSinceEpoch ~/ 1000 >= exp - 120;
+    } catch (_) {
+      return true;
+    }
   }
 
   // ── Token persistence ────────────────────────────────────────────────────
@@ -232,14 +260,29 @@ class ServerService {
         _accessToken = data['access'] as String;
         await _secureStorage.write(
             key: 'server_access_token', value: _accessToken);
+        // ROTATE_REFRESH_TOKENS is on server-side: each refresh returns a new
+        // refresh token and blacklists the old one. Discarding the new one
+        // kills auth on the SECOND refresh (~2h in) until app restart.
+        final newRefresh = data['refresh'] as String?;
+        if (newRefresh != null && newRefresh.isNotEmpty) {
+          _refreshToken = newRefresh;
+          await _secureStorage.write(
+              key: 'server_refresh_token', value: newRefresh);
+        }
         return true;
       }
     } catch (e) {
       // Network error or timeout — do not clear tokens, allow retry on next request
       return false;
     }
-    // Server rejected the refresh token (e.g. 401/400) — tokens are invalid; clear them
+    // Server rejected the refresh token (e.g. 401/400) — tokens are invalid.
+    // Self-heal: re-authenticate from the keypair instead of staying signed
+    // out until the next app restart.
     await _clearTokens();
+    if (_authPrivateKey != null && _authPublicKey != null) {
+      final result = await authenticate(_authPrivateKey!, _authPublicKey!);
+      return result?['access'] != null;
+    }
     return false;
   }
 
@@ -250,6 +293,8 @@ class ServerService {
   /// Returns `{'access': ..., 'refresh': ..., 'is_registered': bool}` or null.
   Future<Map<String, dynamic>?> authenticate(
       String privateKey, String publicKey) async {
+    _authPrivateKey = privateKey;
+    _authPublicKey = publicKey;
     // 1. Fetch challenge
     final challengeData = await _get('challenge/');
     if (challengeData == null) return null;
@@ -401,7 +446,9 @@ class ServerService {
   /// Returns the public URL on success, or throws a [ServerUploadException]
   /// with a human-readable reason on failure.
   Future<String> uploadProfilePicture(File imageFile) async {
-    final reachable = await ping();
+    // Fast ping first; if it fails the server may just be cold-starting on
+    // Render — wait for wakeup (up to 50 s) before declaring unreachable.
+    final reachable = (await ping()) || (await wakeup());
     if (!reachable) throw ServerUploadException('Server unreachable — check your connection');
 
     await _loadTokens();
@@ -466,7 +513,9 @@ class ServerService {
   ///
   /// Returns the public URL on success, or throws a [ServerUploadException] on failure.
   Future<String> uploadChatImage(File imageFile) async {
-    final reachable = await ping();
+    // Fast ping first; if it fails the server may just be cold-starting on
+    // Render — wait for wakeup (up to 50 s) before declaring unreachable.
+    final reachable = (await ping()) || (await wakeup());
     if (!reachable) throw ServerUploadException('Server unreachable — check your connection');
 
     await _loadTokens();

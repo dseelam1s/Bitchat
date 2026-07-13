@@ -770,12 +770,12 @@ class _ContactsTabState extends State<_ContactsTab> {
     );
   }
 
-  void _startCall(Contact contact) async {
+  void _startCall(Contact contact, {bool isVideo = false}) async {
     if (contact.isPending) return;
     final cs = widget.callService;
     if (cs == null || !widget.messageService.hasInternet) return;
     if (cs.hasActiveCall) return;
-    final err = await cs.startCall(contact.pubkey, remoteName: contact.name);
+    final err = await cs.startCall(contact.pubkey, remoteName: contact.name, isVideo: isVideo);
     if (!mounted) return;
     if (err != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
@@ -1053,11 +1053,17 @@ class _ContactsTabState extends State<_ContactsTab> {
               ),
               const SizedBox(width: 10),
             ],
-            if (canCall)
+            if (canCall) ...[
               GestureDetector(
                 onTap: () => _startCall(contact),
                 child: const Icon(Icons.call_outlined, size: 22, color: AppColors.mint),
               ),
+              const SizedBox(width: 16),
+              GestureDetector(
+                onTap: () => _startCall(contact, isVideo: true),
+                child: const Icon(Icons.videocam_outlined, size: 24, color: AppColors.mint),
+              ),
+            ],
           ],
         ),
       ),
@@ -1092,12 +1098,18 @@ class _ContactsTabState extends State<_ContactsTab> {
               ),
             if (!contact.isPending &&
                 widget.callService != null &&
-                widget.messageService.hasInternet)
+                widget.messageService.hasInternet) ...[
               ListTile(
                 leading: const Icon(Icons.call_outlined, color: AppColors.mint),
-                title: const Text('Call'),
+                title: const Text('Voice Call'),
                 onTap: () { Navigator.pop(ctx); _startCall(contact); },
               ),
+              ListTile(
+                leading: const Icon(Icons.videocam_outlined, color: AppColors.mint),
+                title: const Text('Video Call'),
+                onTap: () { Navigator.pop(ctx); _startCall(contact, isVideo: true); },
+              ),
+            ],
             if (contact.isPending)
               ListTile(
                 leading: const Icon(Icons.schedule, color: AppColors.textMuted),
