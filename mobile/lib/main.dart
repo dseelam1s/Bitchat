@@ -466,13 +466,16 @@ class _AppInitializerState extends State<AppInitializer>
       FlutterCallkitIncoming.onEvent.listen((event) {
         switch (event) {
           case CallEventActionCallAccept():
-            callService.autoAnswerNextOffer = true;
             final cur = callService.currentCall;
             if (cur != null &&
                 cur.state == CallState.ringing &&
                 cur.direction == CallDirection.incoming) {
               // Offer already arrived while the ringing screen was up.
               callService.acceptCall();
+            } else {
+              // Offer hasn't arrived yet (app cold-starting) — arm auto-accept
+              // for when the WS replays it.
+              callService.autoAnswerNextOffer = true;
             }
           case CallEventActionCallDecline():
           case CallEventActionCallTimeout():

@@ -190,7 +190,14 @@ class SignalingConsumer(AsyncWebsocketConsumer):
                     token=identity.push_token_fcm,
                     title='Incoming Call',
                     body=f'{caller_name} is calling you',
-                    data={'type': 'call', 'senderPubkey': self.pubkey},
+                    data={
+                        'type': 'call',
+                        'senderPubkey': self.pubkey,
+                        'senderName': caller_name,
+                    },
+                    # Data-only: the app's background handler shows the
+                    # full-screen CallKit ringing UI instead of a banner.
+                    data_only=True,
                 )
         except Exception:
             pass

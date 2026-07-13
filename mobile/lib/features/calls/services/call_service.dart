@@ -5,7 +5,6 @@ import 'package:uuid/uuid.dart';
 
 import 'package:bitchat_messenger/features/calls/models/call_log.dart';
 import 'package:bitchat_messenger/core/nostr_service.dart';
-import 'package:bitchat_messenger/core/server_service.dart';
 import 'package:bitchat_messenger/core/signaling_service.dart';
 
 enum CallState { idle, calling, ringing, connected, ended }
@@ -64,6 +63,11 @@ class CallService {
 
   // Pending ICE candidates collected before remote description is set
   final List<RTCIceCandidate> _pendingCandidates = [];
+
+  // Local candidates already sent — re-sent when the answer arrives, because
+  // candidates sent while the receiver's app was killed are lost (the server
+  // stores/replays only the call offer, not ICE candidates).
+  final List<Map<String, dynamic>> _sentLocalCandidates = [];
 
   // Rate limiting: track last call offer time per remote pubkey
   final Map<String, DateTime> _lastCallOfferTime = {};
@@ -174,11 +178,9 @@ class CallService {
       'isVideo': isVideo,
     });
 
-    // Push notification so receiver wakes up even if app is killed
-    ServerService().notifyCall(
-      recipientPubkey: remotePubkey,
-      callerName: remoteName,
-    );
+    // No client-side push here: the signaling server sends the call push
+    // itself when it routes/stores the offer — sending both produced
+    // duplicate incoming-call notifications.
 
     // Auto-timeout after 60 seconds if no answer
     Timer(const Duration(seconds: 60), () {
@@ -295,6 +297,13 @@ class CallService {
     }
     _pendingCandidates.clear();
 
+    // Receiver answered from a killed app: candidates we sent during ringing
+    // never reached them (WS was down; server replays only the offer).
+    // Re-send them all — duplicates are harmless to WebRTC.
+    for (final payload in List<Map<String, dynamic>>.of(_sentLocalCandidates)) {
+      await _sendSignal(call.remotePubkey, payload);
+    }
+
     call.state = CallState.connected;
     call.connectedAt = DateTime.now();
     _notifyState();
@@ -368,18 +377,24 @@ class CallService {
   // ── Internal ─────────────────────────────────────────────────────────────
 
   Future<void> _setupPeerConnection() async {
+    _sentLocalCandidates.clear();
     _peerConnection = await createPeerConnection(_iceServers);
 
     _peerConnection!.onIceCandidate = (candidate) async {
       final call = _currentCall;
       if (call == null) return;
-      await _sendSignal(call.remotePubkey, {
+      final payload = {
         '__type': 'call_ice',
         'callId': call.callId,
         'candidate': candidate.candidate,
         'sdpMid': candidate.sdpMid,
         'sdpMLineIndex': candidate.sdpMLineIndex,
-      });
+      };
+      // Cache for re-send: if the receiver's app was killed, candidates sent
+      // now are lost (server replays only the offer). They're re-sent when
+      // the answer arrives — see handleCallAnswer.
+      _sentLocalCandidates.add(payload);
+      await _sendSignal(call.remotePubkey, payload);
     };
 
     _peerConnection!.onTrack = (event) {

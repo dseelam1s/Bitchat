@@ -96,11 +96,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // User already answered on the CallKit ringing screen (app was killed) —
     // skip the in-app ringing screen and go straight into the call.
-    if (widget.callService.autoAnswerNextOffer) {
+    if (widget.callService.autoAnswerNextOffer &&
+        session.state == CallState.ringing) {
       widget.callService.autoAnswerNextOffer = false;
       _incomingCallShowing = true;
       FlutterCallkitIncoming.endAllCalls();
-      await widget.callService.acceptCall();
+      try {
+        await widget.callService.acceptCall();
+      } catch (_) {
+        _incomingCallShowing = false;
+        return;
+      }
       if (!mounted) {
         _incomingCallShowing = false;
         return;
