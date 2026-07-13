@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:uuid/uuid.dart';
 
@@ -238,8 +239,13 @@ class CallService {
     );
 
     // Flush any ICE candidates that arrived before the offer
+    debugPrint('[CALL] offer handled, flushing ${_pendingCandidates.length} queued candidates');
     for (final candidate in _pendingCandidates) {
-      await pc.addCandidate(candidate);
+      try {
+        await pc.addCandidate(candidate);
+      } catch (e) {
+        debugPrint('[CALL] flush addCandidate failed: $e');
+      }
     }
     _pendingCandidates.clear();
   }
@@ -288,18 +294,25 @@ class CallService {
     final pc = _peerConnection;
     if (pc == null) return;
 
+    debugPrint('[CALL] answer received for ${call.callId}, setting remote description');
     await pc.setRemoteDescription(
       RTCSessionDescription(sdp, sdpType),
     );
 
+    debugPrint('[CALL] flushing ${_pendingCandidates.length} queued candidates');
     for (final candidate in _pendingCandidates) {
-      await pc.addCandidate(candidate);
+      try {
+        await pc.addCandidate(candidate);
+      } catch (e) {
+        debugPrint('[CALL] flush addCandidate failed: $e');
+      }
     }
     _pendingCandidates.clear();
 
     // Receiver answered from a killed app: candidates we sent during ringing
     // never reached them (WS was down; server replays only the offer).
     // Re-send them all — duplicates are harmless to WebRTC.
+    debugPrint('[CALL] re-sending ${_sentLocalCandidates.length} local candidates');
     for (final payload in List<Map<String, dynamic>>.of(_sentLocalCandidates)) {
       await _sendSignal(call.remotePubkey, payload);
     }
@@ -315,14 +328,25 @@ class CallService {
     required String sdpMid,
     required int sdpMLineIndex,
   }) async {
+    // Drop candidates that don't belong to the current call — late stragglers
+    // from an ended call must never be queued, or they get flushed into the
+    // NEXT call's peer connection and poison its ICE negotiation.
+    if (_currentCall == null || _currentCall!.callId != callId) {
+      debugPrint('[CALL] ice: dropped candidate for stale call $callId');
+      return;
+    }
     final iceCandidate = RTCIceCandidate(candidate, sdpMid, sdpMLineIndex);
     if (_peerConnection != null &&
-        _currentCall?.callId == callId &&
         await _peerConnection!.getRemoteDescription() != null) {
-      await _peerConnection!.addCandidate(iceCandidate);
+      try {
+        await _peerConnection!.addCandidate(iceCandidate);
+      } catch (e) {
+        debugPrint('[CALL] ice: addCandidate failed: $e');
+      }
     } else {
       // Queue until remote description is set
       _pendingCandidates.add(iceCandidate);
+      debugPrint('[CALL] ice: queued candidate (remote description not set yet)');
     }
   }
 
@@ -405,6 +429,7 @@ class CallService {
     };
 
     _peerConnection!.onConnectionState = (state) {
+      debugPrint('[CALL] connection state: $state');
       if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
           state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
         _endCallLocally(reason: 'connection_failed');
@@ -465,6 +490,10 @@ class CallService {
 
     _currentCall?.state = CallState.ended;
     _notifyState();
+
+    // Stale candidate queues must not leak into the next call's connection.
+    _pendingCandidates.clear();
+    _sentLocalCandidates.clear();
 
     await _peerConnection?.close();
     _peerConnection = null;
