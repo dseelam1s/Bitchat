@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:bitchat_messenger/core/theme.dart';
@@ -29,8 +30,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isDiscoverableNearby = true;
   String? _profilePictureUrl;
   String? _localProfilePicturePath;
-  int _contactCount = 0;
-  int _bleHistoryCount = 0;
 
   @override
   void initState() {
@@ -38,17 +37,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _usernameController = TextEditingController(text: widget.messageService.username ?? '');
     _loadProfilePicture();
     _loadProfileSettings();
-    _loadCounts();
-  }
-
-  Future<void> _loadCounts() async {
-    final contacts = await widget.messageService.dbService.getAllContacts();
-    final bleHistory = await widget.messageService.dbService.getBleHistory();
-    if (!mounted) return;
-    setState(() {
-      _contactCount = contacts.where((c) => !c.isPending).length;
-      _bleHistoryCount = bleHistory.length;
-    });
   }
 
   Future<void> _loadProfilePicture() async {
@@ -260,155 +248,176 @@ class _ProfileScreenState extends State<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
 
-                // ── Avatar + stats row ─────────────────────────────────────
+                // ── Identity key card ──────────────────────────────────────
+                // Your identity is a key you carry, not an account — the card
+                // presents the short ID as the thing you hand to people.
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Avatar with camera overlay
-                      GestureDetector(
-                        onTap: _showProfilePictureOptions,
-                        child: Stack(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF2544FF), Color(0xFF1B33C8)],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withAlpha(70),
+                          blurRadius: 18,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Container(
-                              width: 86, height: 86,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isDark ? AppColors.darkCard : AppColors.card,
-                              ),
-                              clipBehavior: Clip.antiAlias,
-                              child: _localProfilePicturePath != null
-                                  ? Image.file(File(_localProfilePicturePath!), fit: BoxFit.cover)
-                                  : _profilePictureUrl != null && _profilePictureUrl!.isNotEmpty
-                                      ? CachedNetworkImage(
-                                          imageUrl: _profilePictureUrl!,
-                                          fit: BoxFit.cover,
-                                          errorWidget: (_, __, ___) => _initialsWidget(),
-                                        )
-                                      : _initialsWidget(),
-                            ),
-                            Positioned(
-                              right: 0, bottom: 0,
-                              child: Container(
-                                width: 26, height: 26,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: cs.surface,
-                                  border: Border.all(color: cs.surface, width: 2),
-                                ),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: isDark ? AppColors.darkCardHover : AppColors.card,
+                            // Avatar with camera overlay
+                            GestureDetector(
+                              onTap: _showProfilePictureOptions,
+                              child: Stack(
+                                children: [
+                                  Container(
+                                    width: 64, height: 64,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.white.withAlpha(40),
+                                      border: Border.all(color: Colors.white.withAlpha(90), width: 2),
+                                    ),
+                                    clipBehavior: Clip.antiAlias,
+                                    child: _localProfilePicturePath != null
+                                        ? Image.file(File(_localProfilePicturePath!), fit: BoxFit.cover)
+                                        : _profilePictureUrl != null && _profilePictureUrl!.isNotEmpty
+                                            ? CachedNetworkImage(
+                                                imageUrl: _profilePictureUrl!,
+                                                fit: BoxFit.cover,
+                                                errorWidget: (_, __, ___) => _initialsWidget(),
+                                              )
+                                            : _initialsWidget(),
                                   ),
-                                  child: Icon(Icons.add, size: 14, color: cs.onSurface),
-                                ),
+                                  Positioned(
+                                    right: 0, bottom: 0,
+                                    child: Container(
+                                      width: 22, height: 22,
+                                      decoration: const BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.white,
+                                      ),
+                                      child: const Icon(Icons.add, size: 14, color: Color(0xFF2544FF)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  GestureDetector(
+                                    onTap: _showEditNameDialog,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            displayName.isNotEmpty ? displayName : 'Set your name',
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w800,
+                                              color: displayName.isNotEmpty
+                                                  ? Colors.white
+                                                  : Colors.white.withAlpha(170),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Icon(Icons.edit, size: 14, color: Colors.white.withAlpha(160)),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Your key — no phone number, no account',
+                                    style: TextStyle(fontSize: 11.5, color: Colors.white.withAlpha(150)),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                      ),
-
-                      const SizedBox(width: 24),
-
-                      // Stats — Contacts / Nearby / Visibility
-                      Expanded(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        const SizedBox(height: 16),
+                        // The short ID — the calling card
+                        Row(
                           children: [
-                            _statCol('$_contactCount', 'Contacts'),
-                            _statCol('$_bleHistoryCount', 'Nearby'),
-                            _statCol(_isPublic ? 'Public' : 'Private', 'Profile'),
+                            Expanded(
+                              child: Text(
+                                '#$shortId',
+                                style: const TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  letterSpacing: 3,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.copy, size: 20, color: Colors.white.withAlpha(220)),
+                              tooltip: 'Copy ID',
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: '#$shortId'));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('ID copied'), duration: Duration(seconds: 2)),
+                                );
+                              },
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.share_outlined, size: 20, color: Colors.white.withAlpha(220)),
+                              tooltip: 'Share ID',
+                              onPressed: () {
+                                SharePlus.instance.share(ShareParams(
+                                  text: 'Reach me on BitChat — my ID is #$shortId',
+                                ));
+                              },
+                            ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // ── Name + short ID ────────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        displayName.isNotEmpty ? displayName : 'Set your name',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: displayName.isNotEmpty ? cs.onSurface : AppColors.textMuted,
+                        Text(
+                          'Share this ID so people can find you — nearby or far.',
+                          style: TextStyle(fontSize: 11.5, color: Colors.white.withAlpha(150)),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      GestureDetector(
-                        onTap: () {
-                          Clipboard.setData(ClipboardData(text: '#$shortId'));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Short ID copied'), duration: Duration(seconds: 2)),
-                          );
-                        },
-                        child: Text(
-                          '#$shortId',
-                          style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // ── Action buttons ─────────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _actionButton(
-                          label: 'Edit profile',
-                          onTap: _showEditNameDialog,
-                          isDark: isDark,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _actionButton(
-                          label: 'Share profile',
-                          onTap: () {
-                            Clipboard.setData(ClipboardData(text: '#$shortId'));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Short ID copied to clipboard'), duration: Duration(seconds: 2)),
-                            );
-                          },
-                          isDark: isDark,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
 
                 const Divider(height: 1),
                 const SizedBox(height: 8),
 
-                // ── Privacy section ────────────────────────────────────────
-                _sectionHeader('Privacy'),
+                // ── Beacon section (visibility) ────────────────────────────
+                _sectionHeader('Beacon'),
                 _settingsCard(
                   isDark: isDark,
                   children: [
                     _switchRow(
-                      icon: Icons.public_outlined,
-                      label: 'Public profile',
-                      subtitle: 'Anyone can find and message you',
-                      value: _isPublic,
-                      onChanged: _togglePublic,
+                      icon: Icons.radar_outlined,
+                      label: 'Light my beacon',
+                      subtitle: 'People around you can see you on their radar',
+                      value: _isDiscoverableNearby,
+                      onChanged: _isPublic ? _toggleDiscoverableNearby : null,
                     ),
                     _cardDivider(),
                     _switchRow(
-                      icon: Icons.bluetooth_outlined,
-                      label: 'Discoverable nearby',
-                      subtitle: 'Show up in Nearby tab for people around you',
-                      value: _isDiscoverableNearby,
-                      onChanged: _isPublic ? _toggleDiscoverableNearby : null,
+                      icon: Icons.public_outlined,
+                      label: 'Findable by search',
+                      subtitle: 'Anyone can find you by name or ID',
+                      value: _isPublic,
+                      onChanged: _togglePublic,
                     ),
                   ],
                 ),
@@ -453,43 +462,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _statCol(String value, String label) => Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Text(
-        value,
-        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-      ),
-      const SizedBox(height: 2),
-      Text(
-        label,
-        style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-      ),
-    ],
-  );
-
-  Widget _actionButton({required String label, required VoidCallback onTap, required bool isDark}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 34,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkCard : AppColors.card,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
-          ),
-        ),
       ),
     );
   }
