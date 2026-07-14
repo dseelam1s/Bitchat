@@ -27,7 +27,6 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _usernameController;
   bool _isPublic = true;
-  bool _isDiscoverableNearby = true;
   String? _profilePictureUrl;
   String? _localProfilePicturePath;
 
@@ -59,7 +58,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (result != null && mounted) {
       setState(() {
         _isPublic = result['is_public'] as bool? ?? true;
-        _isDiscoverableNearby = result['is_discoverable_nearby'] as bool? ?? true;
       });
     }
   }
@@ -75,14 +73,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     widget.messageService.setUsername(name.isNotEmpty ? name : null);
   }
 
-  Future<void> _togglePublic(bool value) async {
+  /// One visibility switch — sets both server flags (search + nearby)
+  /// together. Two separate toggles was a privacy quiz nobody asked for.
+  Future<void> _toggleVisibility(bool value) async {
     setState(() => _isPublic = value);
-    await ServerService().updateProfile(isPublic: value);
-  }
-
-  Future<void> _toggleDiscoverableNearby(bool value) async {
-    setState(() => _isDiscoverableNearby = value);
-    await ServerService().updateProfile(isDiscoverableNearby: value);
+    await ServerService().updateProfile(
+      isPublic: value,
+      isDiscoverableNearby: value,
+    );
   }
 
   void _showEditNameDialog() {
@@ -399,25 +397,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const Divider(height: 1),
                 const SizedBox(height: 8),
 
-                // ── Beacon section (visibility) ────────────────────────────
-                _sectionHeader('Beacon'),
+                // ── Visibility ─────────────────────────────────────────────
+                _sectionHeader('Visibility'),
                 _settingsCard(
                   isDark: isDark,
                   children: [
                     _switchRow(
                       icon: Icons.radar_outlined,
-                      label: 'Light my beacon',
-                      subtitle: 'People around you can see you on their radar',
-                      value: _isDiscoverableNearby,
-                      onChanged: _isPublic ? _toggleDiscoverableNearby : null,
-                    ),
-                    _cardDivider(),
-                    _switchRow(
-                      icon: Icons.public_outlined,
-                      label: 'Findable by search',
-                      subtitle: 'Anyone can find you by name or ID',
+                      label: 'Visible to others',
+                      subtitle: 'People can find you nearby and by search. '
+                          'Off: only your contacts can reach you.',
                       value: _isPublic,
-                      onChanged: _togglePublic,
+                      onChanged: _toggleVisibility,
                     ),
                   ],
                 ),
@@ -602,12 +593,10 @@ class _SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<_SettingsScreen> {
   bool _backupActive = false;
-  late int _ttl;
 
   @override
   void initState() {
     super.initState();
-    _ttl = widget.messageService.ttl;
     BackupService().isBackupActive().then((v) {
       if (mounted) setState(() => _backupActive = v);
     });
@@ -790,36 +779,9 @@ class _SettingsScreenState extends State<_SettingsScreen> {
           const SizedBox(height: 24),
 
           // ── Messaging ─────────────────────────────────────────────────────
+          // Relay range (mesh TTL) slider removed — an engineer's knob users
+          // can't reason about; the default in AppConstants applies.
           _sectionLabel('MESSAGING'),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Text('Relay range', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-                    const Spacer(),
-                    Text('$_ttl hops', style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
-                  ],
-                ),
-                Slider(
-                  value: _ttl.toDouble(),
-                  min: 1, max: 15, divisions: 14,
-                  label: '$_ttl',
-                  onChanged: (v) => setState(() {
-                    _ttl = v.toInt();
-                    widget.messageService.setTTL(_ttl);
-                  }),
-                ),
-                Text(
-                  'How far your message travels through nearby devices when offline.',
-                  style: TextStyle(fontSize: 11, color: AppColors.textMuted.withAlpha(160)),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, indent: 20),
           _tile(Icons.network_check_outlined, 'Test Connection', onTap: _testConnection),
 
           const SizedBox(height: 24),
