@@ -110,17 +110,23 @@ class _RadarScreenState extends State<RadarScreen>
     return peers;
   }
 
-  /// Stable position for a pubkey: hash → angle + slight radial jitter.
-  /// No RSSI in v1, so the band conveys "in range vs seen earlier",
-  /// not distance.
-  Offset _positionFor(String pubkey, bool live, Offset center, double bandRadius) {
+  /// Position within a band: peers are spread evenly around the circle
+  /// (golden-angle spacing, indexed per band) so dots never stack, with a
+  /// small hash-based jitter so it doesn't look mechanical. No RSSI in v1 —
+  /// the band conveys "in range vs seen earlier", not distance.
+  Offset _positionFor(String pubkey, int indexInBand, int bandCount,
+      Offset center, double bandRadius) {
     var h = 0;
     for (final unit in pubkey.codeUnits) {
       h = (h * 31 + unit) & 0x7fffffff;
     }
-    final angle = (h % 3600) / 3600 * 2 * math.pi;
-    final jitter = 0.78 + ((h >> 12) % 100) / 100 * 0.32; // 0.78–1.10
-    final r = bandRadius * jitter;
+    final base = 2 * math.pi * indexInBand / math.max(bandCount, 1);
+    final jitterA = ((h % 100) / 100 - 0.5) * (math.pi / math.max(bandCount, 3));
+    // Start offset keeps the first dot away from 12 o'clock, where the
+    // band labels (IN RANGE / SEEN EARLIER) live.
+    final angle = base + jitterA - math.pi / 2 + 0.6;
+    final jitterR = 0.85 + ((h >> 12) % 100) / 100 * 0.2; // 0.85–1.05
+    final r = bandRadius * jitterR;
     return Offset(center.dx + r * math.cos(angle), center.dy + r * math.sin(angle));
   }
 
@@ -424,14 +430,29 @@ class _RadarScreenState extends State<RadarScreen>
                       ),
                     ),
 
-                    // Peer dots
-                    for (final peer in peers)
-                      _buildPeerDot(
-                        peer,
-                        _positionFor(peer.pubkey, peer.live, center,
-                            peer.live ? bandLive : bandHistory),
-                        isDark,
-                      ),
+                    // Peer dots — indexed per band for even spacing
+                    ...() {
+                      final livePeers = peers.where((p) => p.live).toList();
+                      final histPeers = peers.where((p) => !p.live).toList();
+                      final dots = <Widget>[];
+                      for (var i = 0; i < livePeers.length; i++) {
+                        dots.add(_buildPeerDot(
+                          livePeers[i],
+                          _positionFor(livePeers[i].pubkey, i,
+                              livePeers.length, center, bandLive),
+                          isDark,
+                        ));
+                      }
+                      for (var i = 0; i < histPeers.length; i++) {
+                        dots.add(_buildPeerDot(
+                          histPeers[i],
+                          _positionFor(histPeers[i].pubkey, i,
+                              histPeers.length, center, bandHistory),
+                          isDark,
+                        ));
+                      }
+                      return dots;
+                    }(),
 
                     // Empty state hint
                     if (peers.isEmpty)
