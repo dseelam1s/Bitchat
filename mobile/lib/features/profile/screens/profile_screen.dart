@@ -2,8 +2,10 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:bitchat_messenger/core/demo_data.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:bitchat_messenger/core/theme.dart';
@@ -783,6 +785,27 @@ class _SettingsScreenState extends State<_SettingsScreen> {
           // can't reason about; the default in AppConstants applies.
           _sectionLabel('MESSAGING'),
           _tile(Icons.network_check_outlined, 'Test Connection', onTap: _testConnection),
+
+          if (kDebugMode) ...[
+            const SizedBox(height: 24),
+            _sectionLabel('DEVELOPER'),
+            _tile(Icons.auto_awesome_outlined, 'Load demo data', onTap: () async {
+              final myPubkey = widget.messageService.publicKey ?? '';
+              await DemoData.seed(widget.messageService.dbService, myPubkey);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Demo data loaded — reopen Chats')));
+              }
+            }),
+            const Divider(height: 1, indent: 20),
+            _tile(Icons.cleaning_services_outlined, 'Clear demo data', onTap: () async {
+              await DemoData.clear(widget.messageService.dbService);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Demo data cleared')));
+              }
+            }),
+          ],
 
           const SizedBox(height: 24),
 
