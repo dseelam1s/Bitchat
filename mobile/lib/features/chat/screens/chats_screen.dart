@@ -495,7 +495,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Start a conversation from your contacts or share your ID with friends.',
+              'Open the Radar to see who\'s around you, or share your ID so friends can find you.',
               style: TextStyle(fontSize: 14, color: AppColors.textMuted, height: 1.5),
               textAlign: TextAlign.center,
             ),

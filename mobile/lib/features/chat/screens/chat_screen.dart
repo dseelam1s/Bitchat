@@ -748,24 +748,30 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       const SizedBox(width: 10),
 
-                      // Purple mic/send circle — toggles on text
+                      // Send button — dims when there's nothing to send.
+                      // (Mic icon removed: voice notes aren't built yet and a
+                      // button that does nothing erodes trust.)
                       ValueListenableBuilder<TextEditingValue>(
                         valueListenable: _textController,
                         builder: (_, val, __) {
                           final hasText = val.text.isNotEmpty;
                           return GestureDetector(
                             onTap: hasText ? _sendMessage : null,
-                            child: Container(
-                              width: 44,
-                              height: 44,
-                              decoration: const BoxDecoration(
-                                color: _kAccent,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                hasText ? Icons.send_rounded : Icons.mic_outlined,
-                                color: Colors.white,
-                                size: 22,
+                            child: AnimatedOpacity(
+                              duration: const Duration(milliseconds: 150),
+                              opacity: hasText ? 1.0 : 0.45,
+                              child: Container(
+                                width: 44,
+                                height: 44,
+                                decoration: const BoxDecoration(
+                                  color: _kAccent,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.send_rounded,
+                                  color: Colors.white,
+                                  size: 22,
+                                ),
                               ),
                             ),
                           );

@@ -43,26 +43,11 @@ class ContactsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Calls page = recents only. The contacts manager and dialpad that used
+    // to live here duplicated what Chats (merged contacts) and Radar (search
+    // by ID) now do — two parallel ways to do everything is confusion.
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Recents'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.people_outline),
-            tooltip: 'Contacts',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => _ContactsListScreen(
-                  dbService: dbService,
-                  messageService: messageService,
-                  callService: callService,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Calls')),
       body: _RecentsTab(
         dbService: dbService,
         messageService: messageService,
@@ -464,24 +449,7 @@ class _RecentsTabState extends State<_RecentsTab> {
             itemBuilder: (_, i) => _buildLogTile(_logs[i]),
           );
 
-    return Stack(
-      children: [
-        body,
-        if (widget.callService != null)
-          Positioned(
-            right: 16,
-            bottom: 24,
-            child: FloatingActionButton(
-              heroTag: 'dialpad_fab',
-              onPressed: _showDialpad,
-              backgroundColor: AppColors.mint,
-              foregroundColor: Colors.white,
-              tooltip: 'Call by Short ID',
-              child: const Icon(Icons.dialpad),
-            ),
-          ),
-      ],
-    );
+    return body;
   }
 
   Widget _buildLogTile(CallLog log) {
