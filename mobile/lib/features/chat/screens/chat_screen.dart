@@ -36,11 +36,18 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen>
+    with SingleTickerProviderStateMixin {
   final _textController = TextEditingController();
   final _scrollController = ScrollController();
   List<Message> _messages = [];
   StreamSubscription? _messageSub;
+  StreamSubscription? _rangeSub;
+
+  // Presence Field: live range events shown inline in the conversation.
+  bool _inRange = false;
+  final List<_RangeEvent> _rangeEvents = [];
+  late final AnimationController _sendPulse;
 
   static const _pageSize = 50;
   int _offset = 0;
@@ -62,6 +69,22 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    _sendPulse = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1600))
+      ..repeat();
+    _inRange = widget.messageService.nearbyUsers.contains(widget.contactPubkey);
+    _rangeSub = widget.messageService.nearbyChangedStream.listen((set) {
+      final now = set.contains(widget.contactPubkey);
+      if (now != _inRange && mounted) {
+        setState(() {
+          _inRange = now;
+          _rangeEvents.add(_RangeEvent(
+            entered: now,
+            timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          ));
+        });
+      }
+    });
     _displayName = widget.contactName;
     _localPicPath = widget.contactProfilePictureLocalPath;
     _syncContactProfile();
@@ -139,6 +162,25 @@ class _ChatScreenState extends State<ChatScreen> {
       _lastTypingSent = now;
       widget.messageService.sendTypingIndicator(widget.contactPubkey);
     }
+  }
+
+  /// Messages merged with live range events, chronologically — the
+  /// conversation records when you were actually near each other.
+  List<Object> get _chatItems {
+    if (_rangeEvents.isEmpty) return _messages;
+    final items = <Object>[];
+    var ei = 0;
+    for (final m in _messages) {
+      while (ei < _rangeEvents.length &&
+          _rangeEvents[ei].timestamp <= m.timestamp) {
+        items.add(_rangeEvents[ei++]);
+      }
+      items.add(m);
+    }
+    while (ei < _rangeEvents.length) {
+      items.add(_rangeEvents[ei++]);
+    }
+    return items;
   }
 
   /// Id of the newest visible outgoing message — the only one that shows a
@@ -413,6 +455,8 @@ class _ChatScreenState extends State<ChatScreen> {
     _textController.removeListener(_onTextChanged);
     _textController.dispose();
     _scrollController.dispose();
+    _rangeSub?.cancel();
+    _sendPulse.dispose();
     super.dispose();
   }
 
@@ -432,11 +476,16 @@ class _ChatScreenState extends State<ChatScreen> {
     final cs = theme.colorScheme;
 
     final statusLabel = _contactIsTyping
-        ? 'typing...'
+        ? 'typing…'
         : isNearby
-            ? 'Nearby'
+            ? '● IN RANGE · bluetooth'
             : (widget.messageService.hasInternet ? 'Online' : 'Offline');
     final statusOnline = _contactIsTyping || isNearby || widget.messageService.hasInternet;
+    final statusColor = _contactIsTyping || isNearby
+        ? AppColors.coral
+        : statusOnline
+            ? AppColors.online
+            : AppColors.darkTextMuted;
 
     return Scaffold(
       appBar: AppBar(
@@ -448,6 +497,21 @@ class _ChatScreenState extends State<ChatScreen> {
           padding: const EdgeInsets.only(left: 12),
         ),
         titleSpacing: 0,
+        // Presence Field: coral line under the header while they're in range
+        bottom: isNearby
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(2.5),
+                child: Container(
+                  height: 2.5,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [
+                      AppColors.coral,
+                      AppColors.coral.withAlpha(30),
+                    ]),
+                  ),
+                ),
+              )
+            : null,
         title: Row(
           children: [
             Stack(
@@ -456,9 +520,19 @@ class _ChatScreenState extends State<ChatScreen> {
                 Container(
                   width: 44,
                   height: 44,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.fromBorderSide(BorderSide(color: _kAccent, width: 2)),
+                    border: Border.fromBorderSide(BorderSide(
+                        color: isNearby ? AppColors.coral : _kAccent, width: 2)),
+                    boxShadow: isNearby
+                        ? [
+                            BoxShadow(
+                              color: AppColors.coral.withAlpha(110),
+                              blurRadius: 10,
+                              spreadRadius: 1,
+                            ),
+                          ]
+                        : null,
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(2.5),
@@ -497,9 +571,11 @@ class _ChatScreenState extends State<ChatScreen> {
                 Text(
                   statusLabel,
                   style: TextStyle(
-                    fontSize: 12,
-                    color: statusOnline ? AppColors.online : AppColors.darkTextMuted,
-                    fontWeight: FontWeight.w500,
+                    fontSize: isNearby && !_contactIsTyping ? 10.5 : 12,
+                    color: statusColor,
+                    fontWeight:
+                        isNearby || _contactIsTyping ? FontWeight.w700 : FontWeight.w500,
+                    letterSpacing: isNearby && !_contactIsTyping ? 0.5 : 0,
                   ),
                 ),
               ],
@@ -565,10 +641,25 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: _isLoadingInitial
-                ? const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2, color: _kAccent),
-                  )
+            child: Stack(
+              children: [
+                // Presence Field: faint beacon rings rise from the bottom —
+                // you are the beacon; slightly stronger while they're in range.
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: _BeaconRingsPainter(
+                        isDark: isDark,
+                        inRange: isNearby,
+                      ),
+                    ),
+                  ),
+                ),
+                _isLoadingInitial
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: _kAccent),
+                      )
                 : _messages.isEmpty
                     ? Center(
                         child: Column(
@@ -599,7 +690,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     : ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                        itemCount: _messages.length + 1,
+                        itemCount: _chatItems.length + 1,
                         itemBuilder: (context, index) {
                           if (index == 0) {
                             return _isLoadingMore
@@ -630,7 +721,15 @@ class _ChatScreenState extends State<ChatScreen> {
                                       );
                           }
 
-                          final msg = _messages[index - 1];
+                          final item = _chatItems[index - 1];
+                          if (item is _RangeEvent) {
+                            return _RangeDivider(
+                              entered: item.entered,
+                              name: _displayName ?? displayName,
+                              timestamp: item.timestamp,
+                            );
+                          }
+                          final msg = item as Message;
                           if (msg.type == 'delivery_receipt' ||
                               msg.type == 'read_receipt' ||
                               msg.type == 'status_update') {
@@ -649,7 +748,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           final hasConn = widget.messageService.hasInternet ||
                               widget.messageService.hasNearbyDevices;
 
-                          final showTs = _showTimestamp(index - 1);
+                          final showTs = _showTimestamp(_messages.indexOf(msg));
                           return Column(
                             mainAxisSize: MainAxisSize.min,
                             // stretch forces full-width so crossAxisAlignment.end
@@ -674,6 +773,8 @@ class _ChatScreenState extends State<ChatScreen> {
                           );
                         },
                       ),
+              ],
+            ),
           ),
 
           // ── Input bar ───────────────────────────────────────────────────
@@ -748,29 +849,60 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       const SizedBox(width: 10),
 
-                      // Send button — dims when there's nothing to send.
-                      // (Mic icon removed: voice notes aren't built yet and a
-                      // button that does nothing erodes trust.)
+                      // Send button — coral with a ripple pulse when the
+                      // message will travel through the air (no internet,
+                      // contact in BLE range); cobalt and still when online.
                       ValueListenableBuilder<TextEditingValue>(
                         valueListenable: _textController,
                         builder: (_, val, __) {
                           final hasText = val.text.isNotEmpty;
+                          final airPath = !widget.messageService.hasInternet &&
+                              widget.messageService.nearbyUsers
+                                  .contains(widget.contactPubkey);
                           return GestureDetector(
                             onTap: hasText ? _sendMessage : null,
                             child: AnimatedOpacity(
                               duration: const Duration(milliseconds: 150),
                               opacity: hasText ? 1.0 : 0.45,
-                              child: Container(
-                                width: 44,
-                                height: 44,
-                                decoration: const BoxDecoration(
-                                  color: _kAccent,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.send_rounded,
-                                  color: Colors.white,
-                                  size: 22,
+                              child: SizedBox(
+                                width: 52,
+                                height: 52,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    if (airPath)
+                                      AnimatedBuilder(
+                                        animation: _sendPulse,
+                                        builder: (_, __) {
+                                          final t = _sendPulse.value;
+                                          return Container(
+                                            width: 40 + 12 * t,
+                                            height: 40 + 12 * t,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: AppColors.coral.withAlpha(
+                                                    ((1 - t) * 150).round()),
+                                                width: 2,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    Container(
+                                      width: 44,
+                                      height: 44,
+                                      decoration: BoxDecoration(
+                                        color: airPath ? AppColors.coral : _kAccent,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.send_rounded,
+                                        color: Colors.white,
+                                        size: 22,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -892,10 +1024,21 @@ class _Bubble extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Sent: cobalt (lifted in dark). Received: white (light) / navy card (dark).
+    // Presence Field bubbles:
+    // outgoing — cobalt online, coral when it went through the air (BLE);
+    // incoming — airy outline, no filled slab.
+    final viaAir = message.transport == 'bitchat';
     final bubbleBg = isMe
-        ? (isDark ? AppColors.primaryDark : AppColors.primary)
-        : (isDark ? AppColors.darkCard : Colors.white);
+        ? (viaAir
+            ? AppColors.coral
+            : (isDark ? AppColors.primaryDark : AppColors.primary))
+        : Colors.transparent;
+    final bubbleBorder = isMe
+        ? null
+        : Border.all(
+            color: isDark ? const Color(0xFF3A4386) : const Color(0xFFC9D2F5),
+            width: 1.5,
+          );
     final textColor = isMe
         ? Colors.white
         : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary);
@@ -931,11 +1074,46 @@ class _Bubble extends StatelessWidget {
       }
     }
 
-    final bubbleContent = isImage
+    Widget bubbleContent = isImage
         ? _buildImageContent(context)
         : Text(
             message.content,
             style: TextStyle(color: textColor, fontSize: 15, height: 1.4),
+          );
+
+    // Air badge under content on BLE-sent messages
+    if (isMe && viaAir) {
+      bubbleContent = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          bubbleContent,
+          const SizedBox(height: 4),
+          Text(
+            '↯ through the air · no internet',
+            style: TextStyle(
+              fontSize: 9.5,
+              letterSpacing: 0.5,
+              color: Colors.white.withAlpha(200),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Asymmetric "speaking corner": sharp corner points at the speaker.
+    final radius = isMe
+        ? const BorderRadius.only(
+            topLeft: Radius.circular(18),
+            topRight: Radius.circular(4),
+            bottomLeft: Radius.circular(18),
+            bottomRight: Radius.circular(18),
+          )
+        : const BorderRadius.only(
+            topLeft: Radius.circular(4),
+            topRight: Radius.circular(18),
+            bottomLeft: Radius.circular(18),
+            bottomRight: Radius.circular(18),
           );
 
     final bubble = Container(
@@ -945,16 +1123,8 @@ class _Bubble extends StatelessWidget {
       constraints: BoxConstraints(minWidth: 72, maxWidth: MediaQuery.of(context).size.width * 0.65),
       decoration: BoxDecoration(
         color: bubbleBg,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: (!isMe && !isDark)
-            ? [
-                BoxShadow(
-                  color: AppColors.primary.withAlpha(26),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ]
-            : null,
+        border: bubbleBorder,
+        borderRadius: radius,
       ),
       child: bubbleContent,
     );
@@ -1133,3 +1303,84 @@ class _Bubble extends StatelessWidget {
 
 }
 
+
+/// A live presence change recorded while the chat was open.
+class _RangeEvent {
+  final bool entered;
+  final int timestamp; // epoch seconds
+  _RangeEvent({required this.entered, required this.timestamp});
+}
+
+/// Inline divider marking when the contact came into / left Bluetooth range.
+class _RangeDivider extends StatelessWidget {
+  final bool entered;
+  final String name;
+  final int timestamp;
+  const _RangeDivider({
+    required this.entered,
+    required this.name,
+    required this.timestamp,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dt = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    final color = entered ? AppColors.coral : AppColors.textMuted;
+    final label = entered
+        ? '$name came into range · $hh:$mm'
+        : 'left range · $hh:$mm';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(width: 36, height: 1, color: color.withAlpha(110)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                fontSize: 9,
+                letterSpacing: 1.1,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
+            ),
+          ),
+          Container(width: 36, height: 1, color: color.withAlpha(110)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Faint beacon rings rising from the bottom edge of the conversation —
+/// you are the beacon. Slightly stronger while the contact is in range.
+class _BeaconRingsPainter extends CustomPainter {
+  final bool isDark;
+  final bool inRange;
+  _BeaconRingsPainter({required this.isDark, required this.inRange});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height + 140);
+    final boost = inRange ? 1.6 : 1.0;
+    final cobalt = (isDark ? AppColors.primaryDark : AppColors.primary)
+        .withAlpha((16 * boost).round());
+    final coral = AppColors.coral.withAlpha((20 * boost).round());
+
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    canvas.drawCircle(center, 190, paint..color = coral);
+    canvas.drawCircle(center, 260, paint..color = cobalt);
+    canvas.drawCircle(center, 330, paint..color = cobalt.withAlpha(10));
+  }
+
+  @override
+  bool shouldRepaint(_BeaconRingsPainter old) =>
+      old.isDark != isDark || old.inRange != inRange;
+}
