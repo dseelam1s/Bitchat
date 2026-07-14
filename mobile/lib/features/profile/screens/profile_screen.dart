@@ -381,7 +381,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               tooltip: 'Share ID',
                               onPressed: () {
                                 SharePlus.instance.share(ShareParams(
-                                  text: 'Reach me on BitChat — my ID is #$shortId',
+                                  text: 'Find me on Reach — my ID is #$shortId',
                                 ));
                               },
                             ),
@@ -446,7 +446,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 32),
                 Center(
                   child: Text(
-                    'v0.1.0',
+                    'v1.0.0',
                     style: TextStyle(fontSize: 11, color: AppColors.textMuted.withAlpha(80)),
                   ),
                 ),
@@ -558,7 +558,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: const Text('Privacy Policy'),
         content: const SingleChildScrollView(
           child: Text(
-            'BitChat is a decentralized, end-to-end encrypted messaging app.\n\n'
+            'Reach is a decentralized, end-to-end encrypted messaging app.\n\n'
             'Data We Collect:\n'
             '• Your keypair is generated on-device and never sent to any server in plaintext.\n'
             '• Messages are encrypted on-device before transmission.\n'

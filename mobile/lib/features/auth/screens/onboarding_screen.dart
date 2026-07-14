@@ -312,7 +312,7 @@ class _WelcomeViewState extends State<_WelcomeView> {
           const SizedBox(height: 28),
 
           const Text(
-            'BitChat',
+            'Reach',
             style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.w700,

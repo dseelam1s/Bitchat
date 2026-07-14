@@ -539,10 +539,12 @@ class _RadarScreenState extends State<RadarScreen>
     );
   }
 
+  // Same palette + hash as chats/contacts so a person keeps one color everywhere.
   static const _dotPalette = [
-    Color(0xFF3D5AFE), Color(0xFF00A8B5), Color(0xFF7C4DFF),
-    Color(0xFF0091EA), Color(0xFF2E9E5B), Color(0xFFD81B60),
-    Color(0xFF5C74FF), Color(0xFF00B8D4),
+    Color(0xFF3D5AFE), Color(0xFF00A8B5), Color(0xFFFF5C39),
+    Color(0xFF7C4DFF), Color(0xFF0091EA), Color(0xFFFF8F00),
+    Color(0xFF2E9E5B), Color(0xFFD81B60), Color(0xFF5C74FF),
+    Color(0xFF00B8D4),
   ];
 
   Color _dotColor(String pubkey) {

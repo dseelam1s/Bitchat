@@ -83,8 +83,8 @@ Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
     await FlutterCallkitIncoming.showCallkitIncoming(CallKitParams(
       id: const Uuid().v4(),
       nameCaller: (callerName == null || callerName.isEmpty) ? 'Someone' : callerName,
-      appName: 'BitChat',
-      handle: 'BitChat call',
+      appName: 'Reach',
+      handle: 'Reach call',
       type: 0,
       duration: 45000, // matches server-side PendingCallOffer expiry window
       android: const AndroidParams(
@@ -106,7 +106,7 @@ Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
 final _localNotifications = FlutterLocalNotificationsPlugin();
 const _androidChannel = AndroidNotificationChannel(
   'bitchat_messages',
-  'BitChat Notifications',
+  'Reach Notifications',
   description: 'Messages and incoming calls',
   importance: Importance.high,
   playSound: true,
@@ -228,7 +228,7 @@ class _BitChatAppState extends State<BitChatApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BitChat Messenger',
+      title: 'Reach',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

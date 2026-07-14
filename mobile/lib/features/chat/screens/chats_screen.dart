@@ -30,8 +30,13 @@ const _kAvatarPalette = [
 ];
 
 Color _avatarColor(String pubkey) {
-  final hash = pubkey.codeUnits.fold(0, (a, b) => a ^ b);
-  return _kAvatarPalette[hash.abs() % _kAvatarPalette.length];
+  // Same hash as contacts_screen so a person keeps one color everywhere.
+  if (pubkey.isEmpty) return _kAvatarPalette[0];
+  int hash = 0;
+  for (final c in pubkey.codeUnits) {
+    hash = (hash * 31 + c) & 0x7FFFFFFF;
+  }
+  return _kAvatarPalette[hash % _kAvatarPalette.length];
 }
 
 class _DmItem {

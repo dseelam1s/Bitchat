@@ -1163,7 +1163,9 @@ class _Bubble extends StatelessWidget {
             children: [
               _contactAvatarWidget(32),
               const SizedBox(width: 8),
-              bubble,
+              // Flexible: bubble border added 3px — without this the row
+              // overflows when content hits max width.
+              Flexible(child: bubble),
             ],
           ),
         ),

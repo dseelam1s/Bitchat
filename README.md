@@ -1,37 +1,44 @@
-# BitChat
+# Reach
 
-Offline-first encrypted messaging using Nostr + BLE mesh, with an optional server comfort layer.
+Talk to the world around you. Reach is a private messenger with a superpower:
+it works even without internet — phones find each other over Bluetooth and
+talk directly. No phone number, no account; your identity is a key that
+lives on your device.
 
-## Monorepo Structure
+- **Radar** — see people around you, even in airplane mode
+- **Chats** — end-to-end encrypted messages, images, voice & video calls
+- **Your key** — an 8-digit ID you share; no phone number ever
+
+## Monorepo
 
 ```
-bitchat/
-  mobile/     Flutter app (Android + iOS)
-  backend/    Django REST API + WebSocket server
+mobile/     Flutter app (Android, iOS planned)
+backend/    Django REST + WebSocket signaling (Render)
 ```
 
-## Mobile
+## Run
 
 ```bash
-cd mobile
-flutter pub get
-flutter run
+# app
+cd mobile && flutter pub get && flutter run
+
+# backend
+cd backend && python -m venv venv && venv\Scripts\activate
+pip install -r requirements.txt && cp .env.example .env
+python manage.py migrate && python manage.py runserver
 ```
 
-## Backend
+## Release build (Android)
+
+Signing expects `mobile/android/key.properties` + `upload-keystore.jks`
+(never committed — see `.gitignore`). Then:
 
 ```bash
-cd backend
-python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env          # fill in secrets
-python manage.py migrate
-python manage.py runserver
+cd mobile && flutter build appbundle --release
 ```
 
 ## Architecture
 
-- **Transport layer**: BLE mesh (offline) + Nostr relays (online)
-- **Server**: comfort layer only — short IDs, push notifications, key backup
-- **Encryption**: NIP-44 end-to-end, server never sees plaintext
+- **Nearby**: BLE + Nearby Connections — discovery, messages, images, no infrastructure
+- **Apart**: server relays E2E-encrypted payloads (NIP-44), WebRTC calls with TURN fallback
+- **Server sees**: ciphertext, short IDs, push tokens. Never plaintext.

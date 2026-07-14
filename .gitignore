@@ -29,3 +29,8 @@ logd.txt
 log.txt
 logs
 *.log
+
+# Release signing — keep these OUT of git
+mobile/android/upload-keystore.jks
+mobile/android/key.properties
+mobile/android/keystore_password.txt
