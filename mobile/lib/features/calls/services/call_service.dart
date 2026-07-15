@@ -258,18 +258,22 @@ class CallService {
     }
 
     // Cold-start race: auto-answer can fire while handleIncomingOffer is
-    // still building the peer connection (observed 337ms gap on device).
-    // Wait for it instead of silently giving up.
-    var pc = _peerConnection;
-    for (var i = 0;
-        i < 20 && pc == null && _currentCall?.callId == call.callId;
-        i++) {
-      debugPrint('[CALL] acceptCall waiting for peer connection…');
-      await Future.delayed(const Duration(milliseconds: 300));
+    // still setting up. The peer connection existing isn't enough — the
+    // REMOTE OFFER must be installed before createAnswer is legal. Wait
+    // for that exact condition (observed gaps of 150-350ms on device).
+    RTCPeerConnection? pc;
+    var ready = false;
+    for (var i = 0; i < 20 && _currentCall?.callId == call.callId; i++) {
       pc = _peerConnection;
+      if (pc != null && (await pc.getRemoteDescription()) != null) {
+        ready = true;
+        break;
+      }
+      debugPrint('[CALL] acceptCall waiting for remote offer…');
+      await Future.delayed(const Duration(milliseconds: 300));
     }
-    if (pc == null) {
-      debugPrint('[CALL] acceptCall gave up: peer connection never appeared');
+    if (!ready || pc == null) {
+      debugPrint('[CALL] acceptCall gave up: remote offer never installed');
       return;
     }
 
