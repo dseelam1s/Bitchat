@@ -36,6 +36,34 @@ final navigatorKey = GlobalKey<NavigatorState>();
 // Globals set once services are ready — safe to read from notification handlers
 MessageService? _globalMessageService;
 DatabaseService? _globalDbService;
+CallService? _globalCallService;
+SignalingService? _globalSignalingService;
+
+/// Show the native ringing UI for an incoming call push.
+/// Used by both the background handler and the foreground listener — a
+/// data-only push renders nothing by itself in the foreground.
+Future<void> _showCallkitRinging(String? callerName) async {
+  await FlutterCallkitIncoming.showCallkitIncoming(CallKitParams(
+    id: const Uuid().v4(),
+    nameCaller:
+        (callerName == null || callerName.trim().isEmpty) ? 'Someone' : callerName.trim(),
+    appName: 'Reach',
+    handle: 'Reach call',
+    type: 0,
+    duration: 45000, // matches server-side PendingCallOffer expiry window
+    android: const AndroidParams(
+      isCustomNotification: false,
+      isShowLogo: false,
+      isShowFullLockedScreen: true,
+      ringtonePath: 'system_ringtone_default',
+      backgroundColor: '#2544FF',
+      actionColor: '#34C759',
+      textAccept: 'Answer',
+      textDecline: 'Decline',
+      incomingCallNotificationChannelName: 'Incoming Calls',
+    ),
+  ));
+}
 
 /// Navigate to a chat screen from a notification tap.
 /// Looks up the contact in the DB and opens ChatScreen.
@@ -79,26 +107,7 @@ Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
   // Call pushes are data-only (see backend send_push data_only) so we can show
   // a full-screen ringing UI with Answer/Decline — like any real calling app.
   if (message.data['type'] == 'call') {
-    final callerName = (message.data['senderName'] as String?)?.trim();
-    await FlutterCallkitIncoming.showCallkitIncoming(CallKitParams(
-      id: const Uuid().v4(),
-      nameCaller: (callerName == null || callerName.isEmpty) ? 'Someone' : callerName,
-      appName: 'Reach',
-      handle: 'Reach call',
-      type: 0,
-      duration: 45000, // matches server-side PendingCallOffer expiry window
-      android: const AndroidParams(
-        isCustomNotification: false,
-        isShowLogo: false,
-        isShowFullLockedScreen: true,
-        ringtonePath: 'system_ringtone_default',
-        backgroundColor: '#2544FF',
-        actionColor: '#34C759',
-        textAccept: 'Answer',
-        textDecline: 'Decline',
-        incomingCallNotificationChannelName: 'Incoming Calls',
-      ),
-    ));
+    await _showCallkitRinging(message.data['senderName'] as String?);
   }
 }
 
@@ -161,6 +170,18 @@ void main() async {
     FirebaseMessaging.onMessage.listen((message) {
       final notifType = message.data['type'] as String?;
       if (notifType != 'call') return; // messages arrive via WS; skip duplicate pop-up
+
+      // Call pushes are data-only. Reaching this listener in the foreground
+      // means the WS missed the offer (e.g. silently disconnected while BLE
+      // kept messaging alive) — ring the native UI and revive the WS so the
+      // server replays the stored offer.
+      if (message.notification == null) {
+        if (_globalCallService?.hasActiveCall != true) {
+          _showCallkitRinging(message.data['senderName'] as String?);
+        }
+        _globalSignalingService?.connect();
+        return;
+      }
       final notification = message.notification;
       if (notification == null) return;
       final senderPubkey = message.data['senderPubkey'] as String?;
@@ -556,6 +577,8 @@ class _AppInitializerState extends State<AppInitializer>
 
       // Expose to notification tap handler before showing HomeScreen
       _globalMessageService = messageService;
+      _globalCallService = callService;
+      _globalSignalingService = signalingService;
       _globalDbService = dbService;
 
       // Show HomeScreen immediately — user sees the app right away
