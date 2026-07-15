@@ -9,6 +9,7 @@ import 'package:bitchat_messenger/features/chat/services/message_service.dart';
 import 'package:bitchat_messenger/features/calls/services/call_service.dart';
 import 'package:bitchat_messenger/features/chat/screens/chat_screen.dart';
 import 'package:bitchat_messenger/core/widgets/peer_avatar.dart';
+import 'package:share_plus/share_plus.dart';
 
 /// The Radar — BitChat's signature screen.
 ///
@@ -453,20 +454,54 @@ class _RadarScreenState extends State<RadarScreen>
                       return dots;
                     }(),
 
-                    // Empty state hint
+                    // Empty state: give the screen a job — invite people.
                     if (peers.isEmpty)
                       Positioned(
                         left: 40,
                         right: 40,
                         bottom: 24,
-                        child: Text(
-                          'People running BitChat appear here when they\'re nearby — same room, same street. Share your ID to reach someone far away.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            height: 1.5,
-                            color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
-                          ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'People running Reach appear here when they\'re nearby — same room, same street.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                height: 1.5,
+                                color: isDark
+                                    ? AppColors.darkTextMuted
+                                    : AppColors.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            GestureDetector(
+                              onTap: () {
+                                final pubkey =
+                                    widget.messageService.publicKey;
+                                if (pubkey == null) return;
+                                SharePlus.instance.share(ShareParams(
+                                  text:
+                                      'Find me on Reach — my ID is #${Contact.shortIdFor(pubkey)}',
+                                ));
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 11),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: const Text(
+                                  'Invite a friend',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13.5,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                   ],

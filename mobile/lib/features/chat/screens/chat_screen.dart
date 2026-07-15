@@ -10,6 +10,7 @@ import 'package:bitchat_messenger/features/calls/services/call_service.dart';
 import 'package:bitchat_messenger/features/chat/services/message_service.dart';
 import 'package:bitchat_messenger/features/profile/services/profile_sync_service.dart';
 import 'package:bitchat_messenger/features/calls/screens/in_call_screen.dart';
+import 'package:bitchat_messenger/features/contacts/models/contact.dart';
 
 const _kAccent = AppColors.primary;
 const _kMetaGray = Color(0xFF9AA3C8);
@@ -162,6 +163,55 @@ class _ChatScreenState extends State<ChatScreen>
       _lastTypingSent = now;
       widget.messageService.sendTypingIndicator(widget.contactPubkey);
     }
+  }
+
+  /// Conversation start: an identity card instead of a bare caption —
+  /// who this is, their key, and the present connection context.
+  Widget _buildConversationStart(String displayName, bool isDark) {
+    final shortId = Contact.shortIdFor(widget.contactPubkey);
+    final isNearby =
+        widget.messageService.nearbyUsers.contains(widget.contactPubkey);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+      child: Column(
+        children: [
+          _buildContactAvatar(displayName, 72),
+          const SizedBox(height: 10),
+          Text(
+            displayName,
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '#$shortId',
+            style: const TextStyle(
+                fontSize: 12, color: _kMetaGray, letterSpacing: 2),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: isNearby
+                  ? AppColors.coral.withAlpha(22)
+                  : (isDark ? AppColors.darkCard : AppColors.card),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              isNearby
+                  ? '● you\'re near each other right now'
+                  : '🔒 end-to-end encrypted',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: isNearby
+                    ? AppColors.coral
+                    : (isDark ? AppColors.darkTextMuted : AppColors.textMuted),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Messages merged with live range events, chronologically — the
@@ -675,23 +725,29 @@ class _ChatScreenState extends State<ChatScreen>
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.chat_bubble_outline,
-                                size: 48, color: _kAccent.withAlpha(80)),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No messages yet',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: cs.onSurface.withAlpha(120),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Say hi to get the conversation started',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: cs.onSurface.withAlpha(80),
+                            _buildConversationStart(displayName, isDark),
+                            // One-tap opener — an empty screen telling you to
+                            // type is homework; a wave is an invitation.
+                            GestureDetector(
+                              onTap: () {
+                                widget.messageService.sendMessage(
+                                    widget.contactPubkey, '👋');
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 22, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: _kAccent,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: const Text(
+                                  '👋  Say hi',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -717,18 +773,7 @@ class _ChatScreenState extends State<ChatScreen>
                                   )
                                 : _hasMore
                                     ? const SizedBox(height: 4)
-                                    : Padding(
-                                        padding: const EdgeInsets.only(bottom: 8),
-                                        child: Center(
-                                          child: Text(
-                                            'Beginning of conversation',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: cs.onSurface.withAlpha(80),
-                                            ),
-                                          ),
-                                        ),
-                                      );
+                                    : _buildConversationStart(displayName, isDark);
                           }
 
                           final item = _chatItems[index - 1];
@@ -1146,7 +1191,10 @@ class _Bubble extends StatelessWidget {
       padding: isImage
           ? const EdgeInsets.all(4)
           : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      constraints: BoxConstraints(minWidth: 72, maxWidth: MediaQuery.of(context).size.width * 0.65),
+      constraints: BoxConstraints(
+          minWidth: 72,
+          maxWidth:
+              isImage ? 260 : MediaQuery.of(context).size.width * 0.65),
       decoration: BoxDecoration(
         color: bubbleBg,
         border: bubbleBorder,
@@ -1244,51 +1292,93 @@ class _Bubble extends StatelessWidget {
 
   Widget _buildImageContent(BuildContext context) {
     final content = message.content;
-    const size = 200.0;
-    const radius = BorderRadius.all(Radius.circular(16));
+    // Photos read as photos, not stamps: larger, portrait-friendly,
+    // asymmetric speaking-corner like text bubbles, time chip overlaid.
+    const w = 250.0;
+    const h = 300.0;
+    final radius = isMe
+        ? const BorderRadius.only(
+            topLeft: Radius.circular(18),
+            topRight: Radius.circular(4),
+            bottomLeft: Radius.circular(18),
+            bottomRight: Radius.circular(18),
+          )
+        : const BorderRadius.only(
+            topLeft: Radius.circular(4),
+            topRight: Radius.circular(18),
+            bottomLeft: Radius.circular(18),
+            bottomRight: Radius.circular(18),
+          );
 
+    final timeDt =
+        DateTime.fromMillisecondsSinceEpoch(message.timestamp * 1000);
+    final timeLabel =
+        '${timeDt.hour.toString().padLeft(2, '0')}:${timeDt.minute.toString().padLeft(2, '0')}';
+
+    Widget image;
     if (content.startsWith('local:')) {
-      final path = content.substring(6);
-      return ClipRRect(
-        borderRadius: radius,
-        child: Image.file(
-          File(path),
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const SizedBox(
-            width: size,
-            height: size,
-            child: Center(child: Icon(Icons.broken_image_outlined)),
-          ),
+      image = Image.file(
+        File(content.substring(6)),
+        width: w,
+        height: h,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const SizedBox(
+          width: w,
+          height: h,
+          child: Center(child: Icon(Icons.broken_image_outlined)),
         ),
       );
-    }
-    if (content.startsWith('http')) {
-      return ClipRRect(
-        borderRadius: radius,
-        child: CachedNetworkImage(
-          imageUrl: content,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          placeholder: (_, __) => const SizedBox(
-            width: size,
-            height: size,
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _kAccent)),
-          ),
-          errorWidget: (_, __, ___) => const SizedBox(
-            width: size,
-            height: size,
-            child: Center(child: Icon(Icons.broken_image_outlined)),
-          ),
+    } else if (content.startsWith('http')) {
+      image = CachedNetworkImage(
+        imageUrl: content,
+        width: w,
+        height: h,
+        fit: BoxFit.cover,
+        placeholder: (_, __) => const SizedBox(
+          width: w,
+          height: h,
+          child: Center(
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: _kAccent)),
+        ),
+        errorWidget: (_, __, ___) => const SizedBox(
+          width: w,
+          height: h,
+          child: Center(child: Icon(Icons.broken_image_outlined)),
         ),
       );
+    } else {
+      image = const SizedBox(
+        width: w,
+        height: h,
+        child: Center(
+            child:
+                CircularProgressIndicator(strokeWidth: 2, color: _kAccent)),
+      );
     }
-    return const SizedBox(
-      width: size,
-      height: size,
-      child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: _kAccent)),
+
+    return ClipRRect(
+      borderRadius: radius,
+      child: Stack(
+        children: [
+          image,
+          Positioned(
+            right: 8,
+            bottom: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.black.withAlpha(110),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                timeLabel,
+                style: const TextStyle(color: Colors.white, fontSize: 10.5),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
