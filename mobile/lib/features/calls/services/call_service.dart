@@ -252,25 +252,48 @@ class CallService {
 
   Future<void> acceptCall() async {
     final call = _currentCall;
-    if (call == null || call.state != CallState.ringing) return;
+    if (call == null || call.state != CallState.ringing) {
+      debugPrint('[CALL] acceptCall skipped: state=${call?.state}');
+      return;
+    }
 
     final pc = _peerConnection;
-    if (pc == null) return;
+    if (pc == null) {
+      debugPrint('[CALL] acceptCall skipped: no peer connection');
+      return;
+    }
 
-    // Create answer
-    final answer = await pc.createAnswer(_sdpConstraints(video: call.isVideo));
-    await pc.setLocalDescription(answer);
+    try {
+      final answer = await pc.createAnswer(_sdpConstraints(video: call.isVideo));
+      await pc.setLocalDescription(answer);
+      debugPrint('[CALL] answer created');
 
-    call.state = CallState.connected;
-    call.connectedAt = DateTime.now();
-    _notifyState();
+      call.state = CallState.connected;
+      call.connectedAt = DateTime.now();
+      _notifyState();
 
-    await _sendSignal(call.remotePubkey, {
-      '__type': 'call_answer',
-      'callId': call.callId,
-      'sdp': answer.sdp,
-      'sdpType': answer.type,
-    });
+      // The answer must survive a cold start (accepted from the killed-app
+      // ringing UI): the WS may still be handshaking. Retry until it's up.
+      var sent = false;
+      for (var i = 0; i < 6 && !sent; i++) {
+        if (_signalingService.isConnected) {
+          await _sendSignal(call.remotePubkey, {
+            '__type': 'call_answer',
+            'callId': call.callId,
+            'sdp': answer.sdp,
+            'sdpType': answer.type,
+          });
+          sent = true;
+          debugPrint('[CALL] answer sent (attempt ${i + 1})');
+        } else {
+          debugPrint('[CALL] WS not ready for answer — retrying');
+          await Future.delayed(const Duration(seconds: 2));
+        }
+      }
+      if (!sent) debugPrint('[CALL] answer NEVER sent — WS never connected');
+    } catch (e) {
+      debugPrint('[CALL] acceptCall failed: $e');
+    }
   }
 
   Future<void> declineCall() async {
