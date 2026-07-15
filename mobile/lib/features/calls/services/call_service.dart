@@ -257,9 +257,19 @@ class CallService {
       return;
     }
 
-    final pc = _peerConnection;
+    // Cold-start race: auto-answer can fire while handleIncomingOffer is
+    // still building the peer connection (observed 337ms gap on device).
+    // Wait for it instead of silently giving up.
+    var pc = _peerConnection;
+    for (var i = 0;
+        i < 20 && pc == null && _currentCall?.callId == call.callId;
+        i++) {
+      debugPrint('[CALL] acceptCall waiting for peer connection…');
+      await Future.delayed(const Duration(milliseconds: 300));
+      pc = _peerConnection;
+    }
     if (pc == null) {
-      debugPrint('[CALL] acceptCall skipped: no peer connection');
+      debugPrint('[CALL] acceptCall gave up: peer connection never appeared');
       return;
     }
 
