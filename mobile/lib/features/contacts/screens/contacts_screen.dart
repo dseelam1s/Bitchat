@@ -12,6 +12,7 @@ import 'package:bitchat_messenger/features/profile/services/profile_picture_cach
 import 'package:bitchat_messenger/features/profile/services/profile_sync_service.dart';
 import 'package:bitchat_messenger/core/server_service.dart';
 import 'package:bitchat_messenger/features/calls/screens/in_call_screen.dart';
+import 'package:bitchat_messenger/core/widgets/peer_avatar.dart';
 import 'package:bitchat_messenger/features/chat/screens/chat_screen.dart';
 
 // Beacon family — keep in sync with the palette in chats_screen.dart.
@@ -43,15 +44,34 @@ class ContactsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Calls page = recents only. The contacts manager and dialpad that used
-    // to live here duplicated what Chats (merged contacts) and Radar (search
-    // by ID) now do — two parallel ways to do everything is confusion.
-    return Scaffold(
-      appBar: AppBar(title: const Text('Calls')),
-      body: _RecentsTab(
-        dbService: dbService,
-        messageService: messageService,
-        callService: callService,
+    // Two tabs: call history + the contacts book (with per-contact
+    // voice/video call buttons). Reached from the phone icon in Chats.
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Calls & Contacts'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Calls'),
+              Tab(text: 'Contacts'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            _RecentsTab(
+              dbService: dbService,
+              messageService: messageService,
+              callService: callService,
+            ),
+            _ContactsTab(
+              dbService: dbService,
+              messageService: messageService,
+              callService: callService,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -102,6 +122,7 @@ class _RecentsTab extends StatefulWidget {
 
 class _RecentsTabState extends State<_RecentsTab> {
   List<CallLog> _logs = [];
+  Map<String, Contact> _contactsByPubkey = {};
 
   @override
   void initState() {
@@ -115,7 +136,13 @@ class _RecentsTabState extends State<_RecentsTab> {
 
   Future<void> _load() async {
     final logs = await widget.dbService.getCallLogs();
-    if (mounted) setState(() => _logs = logs);
+    final contacts = await widget.dbService.getContacts();
+    if (mounted) {
+      setState(() {
+        _logs = logs;
+        _contactsByPubkey = {for (final c in contacts) c.pubkey: c};
+      });
+    }
   }
 
   Future<void> _call(CallLog log) async {
@@ -453,11 +480,12 @@ class _RecentsTabState extends State<_RecentsTab> {
   }
 
   Widget _buildLogTile(CallLog log) {
-    final name = (log.remoteName?.isNotEmpty == true)
-        ? log.remoteName!
-        : '#${Contact.shortIdFor(log.remotePubkey)}';
-    final initial = (name.startsWith('#') ? name.substring(1) : name)
-        .substring(0, 1).toUpperCase();
+    final contact = _contactsByPubkey[log.remotePubkey];
+    final name = (contact?.name?.isNotEmpty == true)
+        ? contact!.name!
+        : (log.remoteName?.isNotEmpty == true)
+            ? log.remoteName!
+            : '#${Contact.shortIdFor(log.remotePubkey)}';
     final isMissed = log.isMissed;
     final avatarColor = _avatarColor(log.remotePubkey);
     final dt = DateTime.fromMillisecondsSinceEpoch(log.startedAt * 1000);
@@ -479,16 +507,12 @@ class _RecentsTabState extends State<_RecentsTab> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           child: Row(
             children: [
-              // Circular avatar
-              Container(
-                width: 52, height: 52,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: avatarColor),
-                child: Center(
-                  child: Text(
-                    initial,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white),
-                  ),
-                ),
+              PeerAvatar(
+                name: name,
+                localPath: contact?.profilePictureLocalPath,
+                picUrl: contact?.profilePictureUrl,
+                size: 52,
+                bgColor: avatarColor,
               ),
               const SizedBox(width: 14),
               Expanded(

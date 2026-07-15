@@ -13,6 +13,8 @@ import 'package:bitchat_messenger/features/profile/services/profile_sync_service
 import 'package:bitchat_messenger/features/chat/screens/chat_screen.dart';
 import 'package:bitchat_messenger/features/contacts/screens/contacts_screen.dart';
 import 'package:bitchat_messenger/features/profile/screens/profile_screen.dart';
+import 'package:bitchat_messenger/features/profile/services/profile_picture_cache_service.dart';
+import 'package:bitchat_messenger/core/widgets/peer_avatar.dart';
 
 // Distinct avatar background colors derived from pubkey hash.
 // Beacon family — keep in sync with the palette in contacts_screen.dart.
@@ -71,11 +73,13 @@ class _ChatsScreenState extends State<ChatsScreen> {
   StreamSubscription? _nearbySub;
   StreamSubscription? _messageSub;
   Timer? _reloadDebounce;
+  String? _myPicPath;
 
   @override
   void initState() {
     super.initState();
     _loadAll();
+    _loadMyPicture();
     _batchSyncProfiles();
     _nearbySub = widget.messageService.nearbyChangedStream.listen((_) {
       if (mounted) setState(() {});
@@ -87,6 +91,13 @@ class _ChatsScreenState extends State<ChatsScreen> {
         if (mounted) _loadAll();
       });
     });
+  }
+
+  Future<void> _loadMyPicture() async {
+    final pubkey = widget.messageService.publicKey;
+    if (pubkey == null) return;
+    final path = await ProfilePictureCacheService().localPath(pubkey);
+    if (path != null && mounted) setState(() => _myPicPath = path);
   }
 
   void _batchSyncProfiles() {
@@ -200,16 +211,12 @@ class _ChatsScreenState extends State<ChatsScreen> {
           padding: const EdgeInsets.only(left: 16),
           child: GestureDetector(
             onTap: _openProfile,
-            child: CircleAvatar(
-              radius: 17,
-              backgroundColor: AppColors.primary,
-              child: Text(
-                (widget.messageService.username?.isNotEmpty == true)
-                    ? widget.messageService.username![0].toUpperCase()
-                    : '•',
-                style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
-              ),
+            child: PeerAvatar(
+              name: widget.messageService.username ?? '•',
+              localPath: _myPicPath,
+              picUrl: widget.messageService.profilePictureUrl,
+              size: 34,
+              bgColor: AppColors.primary,
             ),
           ),
         ),
@@ -296,34 +303,25 @@ class _ChatsScreenState extends State<ChatsScreen> {
                   : (cleaned?.isNotEmpty == true
                       ? cleaned!
                       : '#${Contact.shortIdFor(pubkey)}');
+              final contactPic = contactMatch.isNotEmpty ? contactMatch.first : null;
               return GestureDetector(
                 onTap: () => _openNearbyUser(pubkey, suggestedName: name),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _avatarColor(pubkey),
-                        border: Border.all(color: AppColors.coral, width: 2.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.coral.withAlpha(70),
-                            blurRadius: 8,
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Text(
-                          name.isNotEmpty ? name[0].toUpperCase() : '?',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 17),
+                    PeerAvatar(
+                      name: name,
+                      localPath: contactPic?.profilePictureLocalPath,
+                      picUrl: contactPic?.profilePictureUrl,
+                      size: 48,
+                      bgColor: _avatarColor(pubkey),
+                      border: Border.all(color: AppColors.coral, width: 2.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.coral.withAlpha(70),
+                          blurRadius: 8,
                         ),
-                      ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(

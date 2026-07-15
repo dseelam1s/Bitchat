@@ -8,6 +8,7 @@ import 'package:bitchat_messenger/features/contacts/models/contact.dart';
 import 'package:bitchat_messenger/features/chat/services/message_service.dart';
 import 'package:bitchat_messenger/features/calls/services/call_service.dart';
 import 'package:bitchat_messenger/features/chat/screens/chat_screen.dart';
+import 'package:bitchat_messenger/core/widgets/peer_avatar.dart';
 
 /// The Radar — BitChat's signature screen.
 ///
@@ -184,14 +185,12 @@ class _RadarScreenState extends State<RadarScreen>
             children: [
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: peer.live ? AppColors.primary : AppColors.textMuted,
-                    child: Text(
-                      peer.name.isNotEmpty ? peer.name[0].toUpperCase() : '?',
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18),
-                    ),
+                  PeerAvatar(
+                    name: peer.name,
+                    localPath: _contacts[peer.pubkey]?.profilePictureLocalPath,
+                    picUrl: _contacts[peer.pubkey]?.profilePictureUrl,
+                    size: 48,
+                    bgColor: peer.live ? AppColors.primary : AppColors.textMuted,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -483,6 +482,7 @@ class _RadarScreenState extends State<RadarScreen>
   Widget _buildPeerDot(_RadarPeer peer, Offset pos, bool isDark) {
     const dotSize = 44.0;
     final color = _dotColor(peer.pubkey);
+    final contact = _contacts[peer.pubkey];
     return Positioned(
       left: pos.dx - dotSize / 2,
       top: pos.dy - dotSize / 2,
@@ -493,35 +493,27 @@ class _RadarScreenState extends State<RadarScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: dotSize,
-                height: dotSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color,
-                  border: peer.live
-                      ? Border.all(color: AppColors.coral, width: 2.5)
-                      : Border.all(
-                          color: (isDark ? AppColors.darkTextMuted : AppColors.textMuted)
-                              .withAlpha(120),
-                          width: 1.5),
-                  boxShadow: peer.live
-                      ? [
-                          BoxShadow(
-                            color: AppColors.coral.withAlpha(90),
-                            blurRadius: 12,
-                            spreadRadius: 1,
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Center(
-                  child: Text(
-                    peer.name.isNotEmpty ? peer.name[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
-                  ),
-                ),
+              PeerAvatar(
+                name: peer.name,
+                localPath: contact?.profilePictureLocalPath,
+                picUrl: contact?.profilePictureUrl,
+                size: dotSize,
+                bgColor: color,
+                border: peer.live
+                    ? Border.all(color: AppColors.coral, width: 2.5)
+                    : Border.all(
+                        color: (isDark ? AppColors.darkTextMuted : AppColors.textMuted)
+                            .withAlpha(120),
+                        width: 1.5),
+                boxShadow: peer.live
+                    ? [
+                        BoxShadow(
+                          color: AppColors.coral.withAlpha(90),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        ),
+                      ]
+                    : null,
               ),
               const SizedBox(height: 3),
               Text(

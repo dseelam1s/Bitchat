@@ -603,6 +603,17 @@ class MessageService {
 
     if (sent) {
       await _dbService.updateMessageStatus(message.id, 'sent');
+      // Emit the status change — without this the open chat keeps showing
+      // 'Sending…' until the next reload (the DB alone doesn't update UI).
+      _messageController.add(Message(
+        id: message.id,
+        senderPubkey: '',
+        receiverPubkey: '',
+        content: '',
+        type: 'status_update',
+        timestamp: message.timestamp,
+        status: 'sent',
+      ));
     }
     // On first failure keep status as 'pending' — retry timer will escalate
     // to 'failed' after 2 minutes if connectivity is available but send keeps failing.

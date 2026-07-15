@@ -248,156 +248,144 @@ class _ProfileScreenState extends State<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
 
-                // ── Identity key card ──────────────────────────────────────
-                // Your identity is a key you carry, not an account — the card
-                // presents the short ID as the thing you hand to people.
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFF2544FF), Color(0xFF1B33C8)],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withAlpha(70),
-                          blurRadius: 18,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
+                // ── Identity — calm, centered ───────────────────────────────────
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // Avatar with camera overlay
-                            GestureDetector(
-                              onTap: _showProfilePictureOptions,
-                              child: Stack(
-                                children: [
-                                  Container(
-                                    width: 64, height: 64,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.white.withAlpha(40),
-                                      border: Border.all(color: Colors.white.withAlpha(90), width: 2),
-                                    ),
-                                    clipBehavior: Clip.antiAlias,
-                                    child: _localProfilePicturePath != null
-                                        ? Image.file(File(_localProfilePicturePath!), fit: BoxFit.cover)
-                                        : _profilePictureUrl != null && _profilePictureUrl!.isNotEmpty
-                                            ? CachedNetworkImage(
-                                                imageUrl: _profilePictureUrl!,
-                                                fit: BoxFit.cover,
-                                                errorWidget: (_, __, ___) => _initialsWidget(),
-                                              )
-                                            : _initialsWidget(),
-                                  ),
-                                  Positioned(
-                                    right: 0, bottom: 0,
-                                    child: Container(
-                                      width: 22, height: 22,
-                                      decoration: const BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: Colors.white,
-                                      ),
-                                      child: const Icon(Icons.add, size: 14, color: Color(0xFF2544FF)),
-                                    ),
-                                  ),
-                                ],
+                        GestureDetector(
+                          onTap: _showProfilePictureOptions,
+                          child: Stack(
+                            children: [
+                              Container(
+                                width: 96, height: 96,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isDark ? AppColors.darkCard : AppColors.card,
+                                  border: Border.all(color: AppColors.primary.withAlpha(60), width: 2),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: _localProfilePicturePath != null
+                                    ? Image.file(File(_localProfilePicturePath!), fit: BoxFit.cover)
+                                    : _profilePictureUrl != null && _profilePictureUrl!.isNotEmpty
+                                        ? CachedNetworkImage(
+                                            imageUrl: _profilePictureUrl!,
+                                            fit: BoxFit.cover,
+                                            errorWidget: (_, __, ___) => _initialsWidget(),
+                                          )
+                                        : _initialsWidget(),
                               ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  GestureDetector(
-                                    onTap: _showEditNameDialog,
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Flexible(
-                                          child: Text(
-                                            displayName.isNotEmpty ? displayName : 'Set your name',
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w800,
-                                              color: displayName.isNotEmpty
-                                                  ? Colors.white
-                                                  : Colors.white.withAlpha(170),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Icon(Icons.edit, size: 14, color: Colors.white.withAlpha(160)),
-                                      ],
-                                    ),
+                              Positioned(
+                                right: 2, bottom: 2,
+                                child: Container(
+                                  width: 28, height: 28,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppColors.primary,
+                                    border: Border.all(color: cs.surface, width: 2),
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Your key — no phone number, no account',
-                                    style: TextStyle(fontSize: 11.5, color: Colors.white.withAlpha(150)),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // The short ID — the calling card
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '#$shortId',
-                                style: const TextStyle(
-                                  fontSize: 30,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                  letterSpacing: 3,
+                                  child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
                                 ),
                               ),
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.copy, size: 20, color: Colors.white.withAlpha(220)),
-                              tooltip: 'Copy ID',
-                              onPressed: () {
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        GestureDetector(
+                          onTap: _showEditNameDialog,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                displayName.isNotEmpty ? displayName : 'Set your name',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.3,
+                                  color: displayName.isNotEmpty ? cs.onSurface : AppColors.textMuted,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Icon(Icons.edit, size: 15, color: AppColors.textMuted.withAlpha(160)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Short ID chip + share — the key you hand to people
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
                                 Clipboard.setData(ClipboardData(text: '#$shortId'));
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text('ID copied'), duration: Duration(seconds: 2)),
                                 );
                               },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isDark ? AppColors.darkCard : AppColors.card,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      '#$shortId',
+                                      style: TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 2,
+                                        color: cs.onSurface,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Icon(Icons.copy, size: 15, color: AppColors.textMuted),
+                                  ],
+                                ),
+                              ),
                             ),
-                            IconButton(
-                              icon: Icon(Icons.share_outlined, size: 20, color: Colors.white.withAlpha(220)),
-                              tooltip: 'Share ID',
-                              onPressed: () {
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () {
                                 SharePlus.instance.share(ShareParams(
                                   text: 'Find me on Reach — my ID is #$shortId',
                                 ));
                               },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.share_outlined, size: 15, color: Colors.white),
+                                    SizedBox(width: 6),
+                                    Text('Share',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 13.5)),
+                                  ],
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                        Text(
-                          'Share this ID so people can find you — nearby or far.',
-                          style: TextStyle(fontSize: 11.5, color: Colors.white.withAlpha(150)),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'No phone number — your ID is how people find you.',
+                          style: TextStyle(fontSize: 12, color: AppColors.textMuted),
                         ),
+                        const SizedBox(height: 12),
                       ],
                     ),
                   ),
                 ),
-
-                const Divider(height: 1),
-                const SizedBox(height: 8),
 
                 // ── Visibility ─────────────────────────────────────────────
                 _sectionHeader('Visibility'),

@@ -518,12 +518,14 @@ class _ChatScreenState extends State<ChatScreen>
               clipBehavior: Clip.none,
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.fromBorderSide(BorderSide(
-                        color: isNearby ? AppColors.coral : _kAccent, width: 2)),
+                    border: isNearby
+                        ? const Border.fromBorderSide(
+                            BorderSide(color: AppColors.coral, width: 2))
+                        : null,
                     boxShadow: isNearby
                         ? [
                             BoxShadow(
@@ -535,8 +537,8 @@ class _ChatScreenState extends State<ChatScreen>
                         : null,
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(2.5),
-                    child: _buildContactAvatar(displayName, 39),
+                    padding: EdgeInsets.all(isNearby ? 2.0 : 0),
+                    child: _buildContactAvatar(displayName, isNearby ? 38 : 42),
                   ),
                 ),
                 Positioned(
@@ -1074,11 +1076,27 @@ class _Bubble extends StatelessWidget {
       }
     }
 
+    final timeDt = DateTime.fromMillisecondsSinceEpoch(message.timestamp * 1000);
+    final timeLabel =
+        '${timeDt.hour.toString().padLeft(2, '0')}:${timeDt.minute.toString().padLeft(2, '0')}';
+    final timeColor = isMe
+        ? Colors.white.withAlpha(165)
+        : (isDark ? AppColors.darkTextMuted : AppColors.textMuted);
+
     Widget bubbleContent = isImage
         ? _buildImageContent(context)
-        : Text(
-            message.content,
-            style: TextStyle(color: textColor, fontSize: 15, height: 1.4),
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                message.content,
+                style: TextStyle(color: textColor, fontSize: 15, height: 1.4),
+              ),
+              const SizedBox(height: 2),
+              Text(timeLabel,
+                  style: TextStyle(fontSize: 10, color: timeColor)),
+            ],
           );
 
     // Air badge under content on BLE-sent messages
@@ -1161,10 +1179,8 @@ class _Bubble extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              _contactAvatarWidget(32),
-              const SizedBox(width: 8),
-              // Flexible: bubble border added 3px — without this the row
-              // overflows when content hits max width.
+              // No per-message avatar in 1:1 chats — the header already says
+              // who you're talking to; repeating it is visual noise.
               Flexible(child: bubble),
             ],
           ),
