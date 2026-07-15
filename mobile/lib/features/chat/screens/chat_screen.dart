@@ -557,30 +557,38 @@ class _ChatScreenState extends State<ChatScreen>
               ],
             ),
             const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  displayName,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: cs.onSurface,
-                    letterSpacing: -0.3,
+            // Flexible + ellipsis: the coral in-range status is wide — without
+            // this the title row overflows next to the call buttons.
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: cs.onSurface,
+                      letterSpacing: -0.3,
+                    ),
                   ),
-                ),
-                Text(
-                  statusLabel,
-                  style: TextStyle(
-                    fontSize: isNearby && !_contactIsTyping ? 10.5 : 12,
-                    color: statusColor,
-                    fontWeight:
-                        isNearby || _contactIsTyping ? FontWeight.w700 : FontWeight.w500,
-                    letterSpacing: isNearby && !_contactIsTyping ? 0.5 : 0,
+                  Text(
+                    statusLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: isNearby && !_contactIsTyping ? 10.5 : 12,
+                      color: statusColor,
+                      fontWeight:
+                          isNearby || _contactIsTyping ? FontWeight.w700 : FontWeight.w500,
+                      letterSpacing: isNearby && !_contactIsTyping ? 0.5 : 0,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
