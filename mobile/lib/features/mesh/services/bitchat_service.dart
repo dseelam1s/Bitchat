@@ -138,10 +138,27 @@ class BitChatService {
     _bleActive = await _bleService.start(_myPubkey!, username: _myUsername, shortId: _myShortId, profilePictureUrl: _myProfilePictureUrl);
   }
 
+  /// 'Visible to others' toggle: when off we stop advertising, so this
+  /// device disappears from other people's radars. We keep discovering,
+  /// so the user can still see others and message existing contacts.
+  bool _discoverable = true;
+
+  Future<void> setDiscoverable(bool on) async {
+    _discoverable = on;
+    if (!on) {
+      try {
+        await _nearby?.stopAdvertising();
+      } catch (_) {}
+      _isAdvertising = false;
+    } else {
+      await _startMesh();
+    }
+  }
+
   Future<void> _startMesh() async {
     if (_nearby != null) {
       // Android: Nearby Connections
-      if (!_isAdvertising) await _startAdvertising();
+      if (!_isAdvertising && _discoverable) await _startAdvertising();
       if (!_isDiscovering) await _startDiscovery();
     } else if (_multipeer != null && _myPubkey != null) {
       // iOS: MultipeerConnectivity

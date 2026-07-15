@@ -79,6 +79,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// together. Two separate toggles was a privacy quiz nobody asked for.
   Future<void> _toggleVisibility(bool value) async {
     setState(() => _isPublic = value);
+    // Enforce locally too: stop/start BLE advertising so radar visibility
+    // actually matches the switch — the server flag only gates search.
+    await widget.messageService.setDiscoverableNearby(value);
     await ServerService().updateProfile(
       isPublic: value,
       isDiscoverableNearby: value,

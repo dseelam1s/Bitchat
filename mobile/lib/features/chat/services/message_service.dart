@@ -59,6 +59,11 @@ class MessageService {
   /// Called when the username changes — wired to ChannelService.setUsername in main.dart.
   void Function(String? username)? onUsernameChanged;
 
+  /// 'Visible to others' → actually stop/start BLE advertising so the
+  /// radar visibility matches the toggle (server flags alone don't).
+  Future<void> setDiscoverableNearby(bool on) =>
+      _bitchatService.setDiscoverable(on);
+
   /// Triggers an immediate pending-contact resolution attempt — wired to
   /// ContactResolverService.resolveNow in main.dart. Screens call this right
   /// after saving a pending contact so it resolves without an app restart.

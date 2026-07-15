@@ -361,7 +361,12 @@ class _ChatsScreenState extends State<ChatsScreen> {
   Widget _buildRow(_DmItem item, bool isDark) {
     final contact = item.contact;
     final lastMsg = item.lastMessage;
-    final senderName = lastMsg?.senderName;
+    // Only trust senderName from INCOMING messages — on outgoing ones it's
+    // OUR name (bug: chats titled with your own name after you sent last).
+    // Priority stays: contact-saved name > peer's self-set name > #shortId.
+    final senderName = (lastMsg != null && lastMsg.senderPubkey == contact.pubkey)
+        ? lastMsg.senderName
+        : null;
     final label = contact.name?.isNotEmpty == true
         ? contact.name!
         : (senderName != null && senderName.isNotEmpty)
