@@ -382,7 +382,7 @@ class _WelcomeViewState extends State<_WelcomeView> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Had BitChat before? Restore with short ID + password',
+            'Used Reach before? Restore with short ID + password',
             textAlign: TextAlign.center,
             style: TextStyle(
                 fontSize: 11, color: AppColors.textMuted.withAlpha(120)),
