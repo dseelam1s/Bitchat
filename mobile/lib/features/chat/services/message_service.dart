@@ -641,6 +641,77 @@ class MessageService {
     return message.id;
   }
 
+  /// Record-and-send voice note. Online-only for v1 (BLE voice would be
+  /// minutes per clip at 180-byte chunks). Offline: stays pending.
+  Future<String?> sendVoiceMessage(
+      File audioFile, int seconds, String receiverPubkey) async {
+    if (_keyManager.publicKey == null) return null;
+    final messageId = _keyManager.generateMessageId();
+    final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+    final dir = await getApplicationDocumentsDirectory();
+    final stablePath = '${dir.path}/voice_out_$messageId.m4a';
+    await audioFile.copy(stablePath);
+
+    final optimistic = Message(
+      id: messageId,
+      senderPubkey: _keyManager.publicKey!,
+      receiverPubkey: receiverPubkey,
+      content: 'local:$stablePath',
+      type: 'voice_note',
+      timestamp: timestamp,
+      senderName: _keyManager.username,
+      status: 'pending',
+      replySnippet: seconds.toString(), // duration rides here (see voice_v2)
+    );
+    await _dbService.insertMessage(optimistic);
+    _messageController.add(optimistic);
+
+    if (!_hasInternet || !ServerService().isAuthenticated) return messageId;
+
+    try {
+      final url = await ServerService().uploadChatAudio(File(stablePath));
+      await _dbService.updateMessageContent(messageId, url);
+      _messageController.add(optimistic.copyWith(content: url));
+
+      final encrypted = await _nip44.encrypt(
+        _keyManager.privateKey!,
+        receiverPubkey,
+        jsonEncode({'__type': 'voice_v2', 'url': url, 'secs': seconds}),
+      );
+
+      bool sent = false;
+      if (_signalingService?.isConnected == true) {
+        sent = _signalingService!.send({
+          'type': 'dm',
+          'recipientPubkey': receiverPubkey,
+          'messageId': messageId,
+          'encryptedContent': encrypted,
+          'timestamp': timestamp,
+          'senderName': _keyManager.username ?? '',
+          'messageType': 'voice_note',
+        });
+      }
+      if (!sent) {
+        sent = await ServerService().sendOnlineMessage(
+          messageId: messageId,
+          receiverPubkey: receiverPubkey,
+          encryptedContent: encrypted,
+          timestamp: timestamp,
+          messageType: 'voice_note',
+          senderName: _keyManager.username ?? '',
+        );
+      }
+      final finalStatus = sent ? 'sent' : 'failed';
+      await _dbService.updateMessageStatus(messageId, finalStatus);
+      _messageController.add(
+          optimistic.copyWith(content: url, status: finalStatus));
+      return messageId;
+    } catch (_) {
+      return messageId; // stays pending; retry timer will pick it up
+    }
+  }
+
   /// React to a message with an emoji. Stored locally as a 'reaction' row
   /// pointing at the target via replyToId; sent as a wrapped payload.
   Future<void> sendReaction(

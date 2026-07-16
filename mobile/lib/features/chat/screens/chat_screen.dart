@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart' as ap;
+import 'package:path_provider/path_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -62,6 +65,12 @@ class _ChatScreenState extends State<ChatScreen>
   String? _localPicPath;
 
   Message? _replyingTo;
+
+  // Voice notes
+  final _recorder = AudioRecorder();
+  bool _isRecording = false;
+  int _recordSecs = 0;
+  Timer? _recordTimer;
 
   bool _contactIsTyping = false;
   Timer? _typingDismissTimer;
@@ -418,6 +427,33 @@ class _ChatScreenState extends State<ChatScreen>
     await widget.messageService.sendImageMessage(File(picked.path), widget.contactPubkey);
   }
 
+  Future<void> _startRecording() async {
+    if (!await _recorder.hasPermission()) return;
+    final dir = await getTemporaryDirectory();
+    final path =
+        '${dir.path}/rec_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: path);
+    _recordTimer?.cancel();
+    setState(() {
+      _isRecording = true;
+      _recordSecs = 0;
+    });
+    _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _recordSecs++);
+    });
+  }
+
+  Future<void> _stopRecording({required bool send}) async {
+    _recordTimer?.cancel();
+    final path = await _recorder.stop();
+    final secs = _recordSecs;
+    if (mounted) setState(() => _isRecording = false);
+    if (!send || path == null || secs < 1) return;
+    await widget.messageService
+        .sendVoiceMessage(File(path), secs, widget.contactPubkey);
+  }
+
   void _sendMessage() async {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
@@ -534,6 +570,8 @@ class _ChatScreenState extends State<ChatScreen>
     _scrollController.dispose();
     _rangeSub?.cancel();
     _sendPulse.dispose();
+    _recordTimer?.cancel();
+    _recorder.dispose();
     super.dispose();
   }
 
@@ -933,6 +971,43 @@ class _ChatScreenState extends State<ChatScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (_isRecording)
+                    Row(
+                      children: [
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: const BoxDecoration(
+                              color: AppColors.error, shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Recording  ${(_recordSecs ~/ 60).toString().padLeft(1, '0')}:${(_recordSecs % 60).toString().padLeft(2, '0')}',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 15),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline,
+                              color: AppColors.error, size: 26),
+                          onPressed: () => _stopRecording(send: false),
+                        ),
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: () => _stopRecording(send: true),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: const BoxDecoration(
+                                color: AppColors.coral, shape: BoxShape.circle),
+                            child: const Icon(Icons.send_rounded,
+                                color: Colors.white, size: 22),
+                          ),
+                        ),
+                      ],
+                    )
+                  else
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -995,6 +1070,15 @@ class _ChatScreenState extends State<ChatScreen>
                         ),
                       ),
                       const SizedBox(width: 10),
+
+                      // Mic — hold nothing, tap to record, tap send/cancel
+                      IconButton(
+                        icon: Icon(Icons.mic_none_rounded,
+                            size: 26,
+                            color:
+                                isDark ? AppColors.darkTextMuted : AppColors.textMuted),
+                        onPressed: _startRecording,
+                      ),
 
                       // Send button — coral with a ripple pulse when the
                       // message will travel through the air (no internet,
@@ -1283,7 +1367,17 @@ class _Bubble extends StatelessWidget {
       ],
     );
 
-    Widget bubbleContent = isImage ? _buildImageContent(context) : textBlock;
+    final isVoice = message.type == 'voice_note';
+    Widget bubbleContent = isImage
+        ? _buildImageContent(context)
+        : isVoice
+            ? _VoicePlayer(
+                source: message.content,
+                secsLabel: message.replySnippet ?? '',
+                light: isMe,
+                timeLabel: timeLabel,
+              )
+            : textBlock;
 
     // Air badge under content on BLE-sent messages
     if (isMe && viaAir) {
@@ -1715,4 +1809,127 @@ class _BeaconRingsPainter extends CustomPainter {
   @override
   bool shouldRepaint(_BeaconRingsPainter old) =>
       old.isDark != isDark || old.inRange != inRange;
+}
+
+/// Inline voice-note player: play/pause + progress + duration.
+class _VoicePlayer extends StatefulWidget {
+  final String source; // 'local:<path>' or https URL
+  final String secsLabel;
+  final bool light; // on cobalt (outgoing) → white controls
+  final String timeLabel;
+  const _VoicePlayer({
+    required this.source,
+    required this.secsLabel,
+    required this.light,
+    required this.timeLabel,
+  });
+
+  @override
+  State<_VoicePlayer> createState() => _VoicePlayerState();
+}
+
+class _VoicePlayerState extends State<_VoicePlayer> {
+  final _player = ap.AudioPlayer();
+  bool _playing = false;
+  Duration _pos = Duration.zero;
+  Duration _total = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _player.onPositionChanged.listen((d) {
+      if (mounted) setState(() => _pos = d);
+    });
+    _player.onDurationChanged.listen((d) {
+      if (mounted) setState(() => _total = d);
+    });
+    _player.onPlayerComplete.listen((_) {
+      if (mounted) {
+        setState(() {
+          _playing = false;
+          _pos = Duration.zero;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggle() async {
+    if (_playing) {
+      await _player.pause();
+      setState(() => _playing = false);
+      return;
+    }
+    final src = widget.source.startsWith('local:')
+        ? ap.DeviceFileSource(widget.source.substring(6))
+        : ap.UrlSource(widget.source);
+    await _player.play(src);
+    setState(() => _playing = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = widget.light ? Colors.white : AppColors.primary;
+    final track = widget.light
+        ? Colors.white.withAlpha(90)
+        : AppColors.primary.withAlpha(50);
+    final totalSecs = _total.inSeconds > 0
+        ? _total.inSeconds
+        : int.tryParse(widget.secsLabel) ?? 0;
+    final progress =
+        totalSecs > 0 ? (_pos.inSeconds / totalSecs).clamp(0.0, 1.0) : 0.0;
+    final label = _playing || _pos > Duration.zero
+        ? '${(_pos.inSeconds ~/ 60)}:${(_pos.inSeconds % 60).toString().padLeft(2, '0')}'
+        : '${(totalSecs ~/ 60)}:${(totalSecs % 60).toString().padLeft(2, '0')}';
+
+    return SizedBox(
+      width: 210,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: _toggle,
+            child: Icon(
+              _playing ? Icons.pause_circle_filled : Icons.play_circle_fill,
+              size: 38,
+              color: fg,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 5,
+                    backgroundColor: track,
+                    valueColor: AlwaysStoppedAnimation(fg),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '🎤 $label · ${widget.timeLabel}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: widget.light
+                        ? Colors.white.withAlpha(180)
+                        : AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

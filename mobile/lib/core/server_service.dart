@@ -509,6 +509,47 @@ class ServerService {
     }
   }
 
+  /// Upload a voice note; returns the public URL.
+  Future<String> uploadChatAudio(File audioFile) async {
+    final reachable = (await ping()) || (await wakeup());
+    if (!reachable) throw ServerUploadException('Server unreachable — check your connection');
+
+    await _loadTokens();
+    if (_accessToken == null) throw ServerUploadException('Not signed in to server');
+
+    try {
+      Future<http.Response> doUpload() async {
+        final uri = _uri('messages/audio/upload/');
+        final request = http.MultipartRequest('POST', uri)
+          ..headers['Authorization'] = 'Bearer $_accessToken'
+          ..files.add(await http.MultipartFile.fromPath(
+            'audio',
+            audioFile.path,
+            contentType: MediaType('audio', 'mp4'),
+          ));
+        final streamed = await request.send().timeout(const Duration(seconds: 45));
+        return http.Response.fromStream(streamed);
+      }
+
+      var response = await doUpload();
+      if (response.statusCode == 401 && _refreshToken != null) {
+        final refreshed = await _refreshAccessToken();
+        if (refreshed) response = await doUpload();
+      }
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final url = data['url'] as String?;
+        if (url == null || url.isEmpty) throw ServerUploadException('Server returned no URL');
+        return url;
+      }
+      throw ServerUploadException('Upload failed — please try again');
+    } on ServerUploadException {
+      rethrow;
+    } catch (_) {
+      throw ServerUploadException('Upload failed — please try again');
+    }
+  }
+
   /// Upload a chat image to Cloudinary via the server.
   ///
   /// Returns the public URL on success, or throws a [ServerUploadException] on failure.
