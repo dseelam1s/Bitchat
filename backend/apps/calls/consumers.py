@@ -9,7 +9,7 @@ from datetime import timedelta
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import AccessToken
 
-from bitchat.models import BitChatIdentity, Message, PendingCallOffer
+from bitchat.models import BitChatIdentity, Group, Message, PendingCallOffer, PendingMessage
 from apps.push.firebase_utils import send_push
 
 User = get_user_model()
@@ -76,6 +76,15 @@ class SignalingConsumer(AsyncWebsocketConsumer):
 
         msg_type      = data.get('type') or data.get('__type', '')
         recipient_pub = data.get('recipientPubkey', '')
+
+        # ── Group message fan-out ─────────────────────────────────────────────
+        # Content is encrypted with the group key (server can't read it).
+        # In blind groups (members_visible=False) the sender label is
+        # rewritten to 'Member N' for everyone except the admin, so members
+        # never learn each other's identities.
+        if msg_type == 'group_dm':
+            await self._fanout_group_message(data)
+            return
 
         # ── Real-time message routing ─────────────────────────────────────────
         if msg_type in _MESSAGE_TYPES:
@@ -145,6 +154,79 @@ class SignalingConsumer(AsyncWebsocketConsumer):
 
     async def signal_message(self, event):
         await self.send(text_data=json.dumps(event['payload']))
+
+    # ── Groups ────────────────────────────────────────────────────────────────
+
+    async def _fanout_group_message(self, data):
+        group_id = data.get('groupId', '')
+        message_id = data.get('messageId', '')
+        ct = data.get('encryptedContent', '')
+        ts = data.get('timestamp', 0)
+        sender_name = data.get('senderName', '')
+        if not group_id or not message_id or not ct:
+            return
+
+        info = await self._group_fanout_info(group_id, self.pubkey)
+        if info is None:
+            return  # not a member — drop
+        members, visible, admin_pub, sender_alias, group_name = info
+
+        for member_pub in members:
+            if member_pub == self.pubkey:
+                continue
+            # Blind group: only the admin sees the real sender.
+            reveal = visible or member_pub == admin_pub or self.pubkey == admin_pub
+            payload = {
+                'type': 'group_dm',
+                'groupId': group_id,
+                'groupName': group_name,
+                'messageId': message_id,
+                'encryptedContent': ct,
+                'timestamp': ts,
+                'senderPubkey': self.pubkey if reveal else '',
+                'senderLabel': sender_name if reveal else f'Member {sender_alias}',
+            }
+            await self.channel_layer.group_send(
+                f'user_{member_pub}',
+                {'type': 'signal.message', 'payload': payload},
+            )
+            # Store-and-forward for offline members: the plaintext wrapper
+            # carries only the label; the body stays group-key encrypted.
+            await self._store_group_pending(member_pub, group_id, message_id,
+                                            payload, member_pub == admin_pub or visible or self.pubkey == admin_pub)
+
+    @database_sync_to_async
+    def _group_fanout_info(self, group_id, sender_pub):
+        try:
+            group = Group.objects.get(group_id=group_id)
+        except Group.DoesNotExist:
+            return None
+        rows = list(group.members.values_list('pubkey', 'alias_n'))
+        members = [p for p, _ in rows]
+        if sender_pub not in members:
+            return None
+        alias = next((n for p, n in rows if p == sender_pub), 0)
+        return members, group.members_visible, group.admin_pubkey, alias, group.name
+
+    @database_sync_to_async
+    def _store_group_pending(self, member_pub, group_id, message_id, payload, reveal):
+        PendingMessage.objects.get_or_create(
+            message_id=f'{message_id}:{member_pub[:16]}',
+            defaults={
+                'sender_pubkey': group_id,
+                'receiver_pubkey': member_pub,
+                'encrypted_content': json.dumps({
+                    'groupId': group_id,
+                    'groupName': payload['groupName'],
+                    'messageId': message_id,
+                    'ct': payload['encryptedContent'],
+                    'senderPubkey': payload['senderPubkey'] if reveal else '',
+                    'senderLabel': payload['senderLabel'],
+                }),
+                'timestamp': payload['timestamp'],
+                'message_type': 'group_dm',
+            },
+        )
 
     # ── DB helpers ────────────────────────────────────────────────────────────
 

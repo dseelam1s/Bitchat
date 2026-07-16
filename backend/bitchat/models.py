@@ -231,3 +231,28 @@ class ConnectionRequest(models.Model):
 
     def __str__(self):
         return f'{self.from_pubkey[:8]}→{self.to_pubkey[:8]} [{self.status}]'
+
+
+class Group(models.Model):
+    """A group chat. members_visible=False → 'blind group': the server
+    rewrites sender labels to 'Member N' for non-admin recipients, so
+    members never learn each other's identities. Content stays E2E
+    (encrypted with a group key the server never sees)."""
+    group_id        = models.CharField(max_length=64, unique=True, db_index=True)
+    name            = models.CharField(max_length=100)
+    admin_pubkey    = models.CharField(max_length=128, db_index=True)
+    members_visible = models.BooleanField(default=True)
+    created_at      = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.name} ({self.group_id[:8]})'
+
+
+class GroupMember(models.Model):
+    group      = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='members')
+    pubkey     = models.CharField(max_length=128, db_index=True)
+    alias_n    = models.IntegerField()  # 'Member N' label for blind groups
+    added_at   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [('group', 'pubkey')]

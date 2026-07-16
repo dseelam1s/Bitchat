@@ -802,6 +802,25 @@ class ServerService {
 
   // ── Online Messaging (WhatsApp-style) ───────────────────────────────────
 
+  /// Create a group on the server. Returns {group_id, aliases} or null.
+  Future<Map<String, dynamic>?> createGroup({
+    required String groupId,
+    required String name,
+    required bool membersVisible,
+    required List<String> memberPubkeys,
+  }) async {
+    return _post('groups/create/', {
+      'group_id': groupId,
+      'name': name,
+      'members_visible': membersVisible,
+      'member_pubkeys': memberPubkeys,
+    }, authenticated: true);
+  }
+
+  Future<Map<String, dynamic>?> getGroupInfo(String groupId) async {
+    return _get('groups/$groupId/', authenticated: true);
+  }
+
   /// Send a message via server. Used when internet is available.
   /// Returns true on success.
   Future<bool> sendOnlineMessage({

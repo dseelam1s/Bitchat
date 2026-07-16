@@ -25,6 +25,7 @@ import 'package:bitchat_messenger/features/contacts/services/contacts_backup_ser
 import 'package:bitchat_messenger/features/mesh/services/foreground_service.dart';
 import 'package:bitchat_messenger/features/chat/screens/chat_screen.dart';
 import 'package:bitchat_messenger/app/home_screen.dart';
+import 'package:bitchat_messenger/features/groups/services/group_service.dart';
 import 'package:bitchat_messenger/features/auth/screens/onboarding_screen.dart';
 
 final themeNotifier = ThemeNotifier();
@@ -36,6 +37,7 @@ final navigatorKey = GlobalKey<NavigatorState>();
 // Globals set once services are ready — safe to read from notification handlers
 MessageService? _globalMessageService;
 DatabaseService? _globalDbService;
+GroupService? _globalGroupService;
 CallService? _globalCallService;
 SignalingService? _globalSignalingService;
 
@@ -276,6 +278,7 @@ class _AppInitializerState extends State<AppInitializer>
   DatabaseService? _dbService;
   MessageService? _messageService;
   CallService? _callService;
+  GroupService? _groupService;
   BitChatService? _bitchatService;
   ContactResolverService? _contactResolver;
   KeyManager? _pendingKeyManager;
@@ -435,6 +438,15 @@ class _AppInitializerState extends State<AppInitializer>
 
       // Wire SignalingService into MessageService for real-time send + receive
       messageService.setSignalingService(signalingService);
+
+      // Groups (incl. blind groups)
+      final groupService =
+          GroupService(db: dbService, keyManager: keyManager);
+      groupService.setSignaling(signalingService);
+      messageService.onGroupInviteData = groupService.handleInvite;
+      messageService.onGroupMessage = groupService.handleIncomingGroupMessage;
+      _globalGroupService = groupService;
+      _groupService = groupService;
 
       // Route messaging payloads (dm, receipts, ack) into MessageService
       signalingService.onMessageReceived = (payload) {
@@ -678,6 +690,7 @@ class _AppInitializerState extends State<AppInitializer>
       dbService: _dbService!,
       messageService: _messageService!,
       callService: _callService!,
+      groupService: _groupService!,
     );
   }
 }

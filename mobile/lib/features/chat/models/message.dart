@@ -12,6 +12,8 @@ class Message {
   final String? senderName; // display name of the sender
   final String? replyToId; // id of the quoted message (reply feature)
   final String? replySnippet; // short preview of the quoted message
+  final String? groupId; // set when this is a group message
+  final String? senderLabel; // 'Member N' in blind groups, else display name
 
   Message({
     required this.id,
@@ -27,6 +29,8 @@ class Message {
     this.senderName,
     this.replyToId,
     this.replySnippet,
+    this.groupId,
+    this.senderLabel,
   });
 
   Map<String, dynamic> toMap() {
@@ -44,6 +48,8 @@ class Message {
       'senderName': senderName,
       'replyToId': replyToId,
       'replySnippet': replySnippet,
+      'groupId': groupId,
+      'senderLabel': senderLabel,
     };
   }
 
@@ -62,6 +68,8 @@ class Message {
       senderName: map['senderName'],
       replyToId: map['replyToId'] as String?,
       replySnippet: map['replySnippet'] as String?,
+      groupId: map['groupId'] as String?,
+      senderLabel: map['senderLabel'] as String?,
     );
   }
 
@@ -87,6 +95,8 @@ class Message {
       senderName: senderName ?? this.senderName,
       replyToId: replyToId,
       replySnippet: replySnippet,
+      groupId: groupId,
+      senderLabel: senderLabel,
     );
   }
 }

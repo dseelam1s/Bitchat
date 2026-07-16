@@ -29,7 +29,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 16,
+      version: 17,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -51,7 +51,9 @@ class DatabaseService {
         senderName TEXT,
         duration INTEGER DEFAULT 0,
         replyToId TEXT,
-        replySnippet TEXT
+        replySnippet TEXT,
+        groupId TEXT,
+        senderLabel TEXT
       )
     ''');
 
@@ -90,6 +92,33 @@ class DatabaseService {
     await _createChannelTables(db);
     await _createCallLogsTable(db);
     await _createBleHistoryTable(db);
+    await _createGroupsTable(db, fresh: true);
+  }
+
+  /// [fresh] true on _createDB (messages table already has the group columns),
+  /// false on _upgradeDB (need to ALTER them in).
+  Future<void> _createGroupsTable(Database db, {bool fresh = false}) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS groups (
+        groupId TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        groupPrivkey TEXT,
+        groupPubkey TEXT,
+        adminPubkey TEXT NOT NULL,
+        membersVisible INTEGER DEFAULT 1,
+        isAdmin INTEGER DEFAULT 0,
+        memberCount INTEGER DEFAULT 0,
+        createdAt INTEGER NOT NULL
+      )
+    ''');
+    if (!fresh) {
+      try {
+        await db.execute('ALTER TABLE messages ADD COLUMN groupId TEXT');
+      } catch (_) {}
+      try {
+        await db.execute('ALTER TABLE messages ADD COLUMN senderLabel TEXT');
+      } catch (_) {}
+    }
   }
 
   Future<void> _createBleHistoryTable(Database db) async {
@@ -190,6 +219,9 @@ class DatabaseService {
       // message via replyToId, with the emoji as content).
       await db.execute('ALTER TABLE messages ADD COLUMN replyToId TEXT');
       await db.execute('ALTER TABLE messages ADD COLUMN replySnippet TEXT');
+    }
+    if (oldVersion < 17) {
+      await _createGroupsTable(db);
     }
   }
 
@@ -368,6 +400,37 @@ class DatabaseService {
     final db = await database;
     await db.update('contacts', {'isNearby': isNearby ? 1 : 0},
         where: 'pubkey = ?', whereArgs: [pubkey]);
+  }
+
+  // ── Groups ─────────────────────────────────────────────────────────────
+  Future<void> upsertGroup(Map<String, dynamic> row) async {
+    final db = await database;
+    await db.insert('groups', row,
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<Map<String, dynamic>>> getGroups() async {
+    final db = await database;
+    return db.query('groups', orderBy: 'createdAt DESC');
+  }
+
+  Future<Map<String, dynamic>?> getGroup(String groupId) async {
+    final db = await database;
+    final rows =
+        await db.query('groups', where: 'groupId = ?', whereArgs: [groupId], limit: 1);
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  Future<List<Message>> getGroupMessages(String groupId,
+      {int limit = 50, int offset = 0}) async {
+    final db = await database;
+    final maps = await db.query('messages',
+        where: 'groupId = ? AND type IN (?, ?, ?)',
+        whereArgs: [groupId, 'text', 'image', 'voice_note'],
+        orderBy: 'timestamp DESC',
+        limit: limit,
+        offset: offset);
+    return maps.reversed.map((m) => Message.fromMap(m)).toList();
   }
 
   Future<void> upsertBleHistory(String pubkey, String? displayName, int lastSeen) async {

@@ -69,11 +69,9 @@ class MessageService {
   /// after saving a pending contact so it resolves without an app restart.
   Future<void> Function()? resolvePendingContacts;
 
-  /// Called when a group invite DM is received.
-  void Function(String channelId, String channelName, String adminPubkey)? onGroupInvite;
-
-  /// Called when a group removal DM is received.
-  void Function(String channelId)? onGroupRemoval;
+  /// Called when a group invite DM (with the group key) is received —
+  /// wired to GroupService.handleInvite in main.dart.
+  void Function(Map<String, dynamic> invite)? onGroupInviteData;
 
   /// Call signal callbacks — wired to CallService in main.dart
   void Function(String callId, String callerPubkey, String? callerName, String sdp, String sdpType, bool isVideo)? onCallOffer;
@@ -149,8 +147,17 @@ class MessageService {
 
   /// Handle a real-time payload that arrived via WebSocket.
   /// Called from main.dart via signalingService.onMessageReceived.
+  /// Wired to GroupService.handleIncomingGroupMessage in main.dart.
+  Future<void> Function(Map<String, dynamic> payload)? onGroupMessage;
+
   Future<void> handleWebSocketPayload(Map<String, dynamic> payload) async {
     final type = payload['type'] as String? ?? '';
+
+    // ── Group message (blind-group-aware fan-out from server) ────────────────
+    if (type == 'group_dm') {
+      await onGroupMessage?.call(payload);
+      return;
+    }
 
     // ── Ack: server confirms message stored + forwarded ──────────────────────
     if (type == 'message_ack') {
@@ -980,15 +987,8 @@ class MessageService {
           return;
         }
         if (parsed['__type'] == 'group_invite') {
-          onGroupInvite?.call(
-            parsed['channelId'] as String? ?? '',
-            parsed['channelName'] as String? ?? '',
-            parsed['adminPubkey'] as String? ?? '',
-          );
-          return;
-        }
-        if (parsed['__type'] == 'group_removal') {
-          onGroupRemoval?.call(parsed['channelId'] as String? ?? '');
+          // New groups system: full invite payload with the group key.
+          onGroupInviteData?.call(Map<String, dynamic>.from(parsed));
           return;
         }
         // ── WebRTC call signals ──

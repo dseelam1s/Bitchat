@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from apps.groups import views as group_views
 
 app_name = 'bitchat'
 
@@ -34,6 +35,10 @@ urlpatterns = [
     path('connections/request/',            views.connection_request_send,      name='connection_request_send'),
     path('connections/<int:pk>/accept/',    views.connection_request_accept,    name='connection_request_accept'),
     path('connections/<int:pk>/decline/',   views.connection_request_decline,   name='connection_request_decline'),
+
+    # ── Groups (incl. blind groups: admin-controlled member visibility) ───
+    path('groups/create/',                  group_views.group_create,       name='group_create'),
+    path('groups/<str:group_id>/',          group_views.group_info,         name='group_info'),
 
     # ── Online messaging (WhatsApp-style) ─────────────────────────────────
     path('messages/send/',                  views.message_send,             name='message_send'),

@@ -13,6 +13,9 @@ import 'package:bitchat_messenger/features/profile/services/profile_sync_service
 import 'package:bitchat_messenger/features/chat/screens/chat_screen.dart';
 import 'package:bitchat_messenger/features/contacts/screens/contacts_screen.dart';
 import 'package:bitchat_messenger/features/profile/screens/profile_screen.dart';
+import 'package:bitchat_messenger/features/groups/services/group_service.dart';
+import 'package:bitchat_messenger/features/groups/screens/create_group_screen.dart';
+import 'package:bitchat_messenger/features/groups/screens/group_chat_screen.dart';
 import 'package:bitchat_messenger/features/profile/services/profile_picture_cache_service.dart';
 import 'package:bitchat_messenger/core/widgets/peer_avatar.dart';
 
@@ -54,12 +57,14 @@ class ChatsScreen extends StatefulWidget {
   final DatabaseService dbService;
   final MessageService messageService;
   final CallService? callService;
+  final GroupService? groupService;
 
   const ChatsScreen({
     super.key,
     required this.dbService,
     required this.messageService,
     this.callService,
+    this.groupService,
   });
 
   @override
@@ -74,12 +79,18 @@ class _ChatsScreenState extends State<ChatsScreen> {
   StreamSubscription? _messageSub;
   Timer? _reloadDebounce;
   String? _myPicPath;
+  List<Map<String, dynamic>> _groups = [];
+  StreamSubscription? _groupSub;
 
   @override
   void initState() {
     super.initState();
     _loadAll();
     _loadMyPicture();
+    _loadGroups();
+    _groupSub = widget.groupService?.groupUpdates.listen((_) {
+      if (mounted) _loadGroups();
+    });
     _batchSyncProfiles();
     _nearbySub = widget.messageService.nearbyChangedStream.listen((_) {
       if (mounted) setState(() {});
@@ -100,6 +111,41 @@ class _ChatsScreenState extends State<ChatsScreen> {
     if (path != null && mounted) setState(() => _myPicPath = path);
   }
 
+  Future<void> _loadGroups() async {
+    final groups = await widget.dbService.getGroups();
+    if (mounted) setState(() => _groups = groups);
+  }
+
+  void _openGroup(String groupId) {
+    if (widget.groupService == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GroupChatScreen(
+          groupId: groupId,
+          dbService: widget.dbService,
+          groupService: widget.groupService!,
+          myPubkey: widget.messageService.publicKey ?? '',
+        ),
+      ),
+    ).then((_) => _loadGroups());
+  }
+
+  void _newGroup() async {
+    if (widget.groupService == null) return;
+    final gid = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CreateGroupScreen(
+          dbService: widget.dbService,
+          groupService: widget.groupService!,
+        ),
+      ),
+    );
+    await _loadGroups();
+    if (gid != null) _openGroup(gid);
+  }
+
   void _batchSyncProfiles() {
     () async {
       await Future.delayed(const Duration(seconds: 2));
@@ -117,6 +163,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
     _reloadDebounce?.cancel();
     _nearbySub?.cancel();
     _messageSub?.cancel();
+    _groupSub?.cancel();
     super.dispose();
   }
 
@@ -226,6 +273,11 @@ class _ChatsScreenState extends State<ChatsScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.group_add_outlined, size: 23),
+            tooltip: 'New group',
+            onPressed: _newGroup,
+          ),
+          IconButton(
             icon: const Icon(Icons.call_outlined, size: 23),
             tooltip: 'Calls',
             onPressed: _openCalls,
@@ -236,8 +288,11 @@ class _ChatsScreenState extends State<ChatsScreen> {
       body: Column(
         children: [
           if (nearby.isNotEmpty) _buildNearbyStrip(nearby, isDark),
+          if (_groups.isNotEmpty) _buildGroupsStrip(isDark),
           Expanded(
-            child: items.isEmpty ? _buildEmpty() : _buildList2(items, isDark),
+            child: items.isEmpty && _groups.isEmpty
+                ? _buildEmpty()
+                : _buildList2(items, isDark),
           ),
         ],
       ),
@@ -264,6 +319,66 @@ class _ChatsScreenState extends State<ChatsScreen> {
         ),
       ),
     ).then((_) => _loadAll());
+  }
+
+  Widget _buildGroupsStrip(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final g in _groups)
+          InkWell(
+            onTap: () => _openGroup(g['groupId'] as String),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: const BoxDecoration(
+                        color: AppColors.primary, shape: BoxShape.circle),
+                    child: const Icon(Icons.groups, color: Colors.white, size: 26),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              g['name'] as String? ?? 'Group',
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w600),
+                            ),
+                            if ((g['membersVisible'] as int? ?? 1) == 0) ...[
+                              const SizedBox(width: 6),
+                              const Icon(Icons.visibility_off,
+                                  size: 13, color: AppColors.coral),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          (g['isAdmin'] as int? ?? 0) == 1
+                              ? 'You\'re the admin · ${g['memberCount'] ?? 0} members'
+                              : 'Group',
+                          style: TextStyle(
+                              fontSize: 13,
+                              color: isDark
+                                  ? AppColors.darkTextMuted
+                                  : AppColors.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        const Divider(height: 1, indent: 82),
+      ],
+    );
   }
 
   Widget _buildNearbyStrip(Set<String> nearby, bool isDark) {
