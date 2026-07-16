@@ -61,6 +61,8 @@ class _ChatScreenState extends State<ChatScreen>
   String? _displayName;
   String? _localPicPath;
 
+  Message? _replyingTo;
+
   bool _contactIsTyping = false;
   Timer? _typingDismissTimer;
   Timer? _myTypingThrottle;
@@ -212,6 +214,17 @@ class _ChatScreenState extends State<ChatScreen>
         ],
       ),
     );
+  }
+
+  /// Emoji reactions grouped by the message they point at.
+  Map<String, List<String>> get _reactionsByTarget {
+    final map = <String, List<String>>{};
+    for (final m in _messages) {
+      if (m.type == 'reaction' && m.replyToId != null) {
+        map.putIfAbsent(m.replyToId!, () => []).add(m.content);
+      }
+    }
+    return map;
   }
 
   /// Messages merged with live range events, chronologically — the
@@ -410,9 +423,23 @@ class _ChatScreenState extends State<ChatScreen>
     if (text.isEmpty) return;
     _textController.clear();
 
+    final reply = _replyingTo;
+    if (reply != null) setState(() => _replyingTo = null);
+
     bool anySent = false;
     try {
-      final messageId = await widget.messageService.sendMessage(widget.contactPubkey, text);
+      final messageId = await widget.messageService.sendMessage(
+        widget.contactPubkey,
+        text,
+        replyToId: reply?.id,
+        replySnippet: reply == null
+            ? null
+            : (reply.type == 'image'
+                ? '📷 Photo'
+                : reply.content.length > 80
+                    ? '${reply.content.substring(0, 80)}…'
+                    : reply.content),
+      );
       if (messageId != null) {
         final msgs = await widget.messageService.getChatMessages(widget.contactPubkey, limit: 10);
         final msg = msgs.where((m) => m.id == messageId).firstOrNull;
@@ -787,6 +814,7 @@ class _ChatScreenState extends State<ChatScreen>
                           final msg = item as Message;
                           if (msg.type == 'delivery_receipt' ||
                               msg.type == 'read_receipt' ||
+                              msg.type == 'reaction' ||
                               msg.type == 'status_update') {
                             return const SizedBox.shrink();
                           }
@@ -823,6 +851,24 @@ class _ChatScreenState extends State<ChatScreen>
                                 contactLocalPicPath: _localPicPath,
                                 contactPicUrl: widget.contactProfilePictureUrl,
                                 isLatestOutgoing: msg.id == _latestOutgoingMsgId,
+                                reactions:
+                                    _reactionsByTarget[msg.id] ?? const [],
+                                onReact: (emoji) => widget.messageService
+                                    .sendReaction(widget.contactPubkey,
+                                        msg.id, emoji),
+                                onReply: () =>
+                                    setState(() => _replyingTo = msg),
+                                onDeleteForMe: () async {
+                                  await widget.messageService
+                                      .deleteMessageForMe(msg.id);
+                                  _loadMessages();
+                                },
+                                onDeleteForEveryone: () async {
+                                  await widget.messageService
+                                      .deleteMessageForEveryone(
+                                          widget.contactPubkey, msg.id);
+                                  _loadMessages();
+                                },
                               ),
                             ],
                           );
@@ -831,6 +877,52 @@ class _ChatScreenState extends State<ChatScreen>
               ],
             ),
           ),
+
+          // ── Reply preview (composer) ─────────────────────────────────────
+          if (_replyingTo != null)
+            Container(
+              color: isDark ? AppColors.darkSurface : Colors.white,
+              padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+              child: Row(
+                children: [
+                  Container(width: 3, height: 34, color: AppColors.coral),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _replyingTo!.senderPubkey ==
+                                  widget.messageService.publicKey
+                              ? 'You'
+                              : (_displayName ?? displayName),
+                          style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.coral),
+                        ),
+                        Text(
+                          _replyingTo!.type == 'image'
+                              ? '📷 Photo'
+                              : _replyingTo!.content,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              color: isDark
+                                  ? AppColors.darkTextMuted
+                                  : AppColors.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: () => setState(() => _replyingTo = null),
+                  ),
+                ],
+              ),
+            ),
 
           // ── Input bar ───────────────────────────────────────────────────
           Container(
@@ -1062,6 +1154,11 @@ class _Bubble extends StatelessWidget {
   final String? contactLocalPicPath;
   final String? contactPicUrl;
   final bool isLatestOutgoing;
+  final List<String> reactions;
+  final void Function(String emoji)? onReact;
+  final VoidCallback? onReply;
+  final VoidCallback? onDeleteForMe;
+  final VoidCallback? onDeleteForEveryone;
 
   const _Bubble({
     required this.message,
@@ -1072,6 +1169,11 @@ class _Bubble extends StatelessWidget {
     this.contactLocalPicPath,
     this.contactPicUrl,
     this.isLatestOutgoing = false,
+    this.reactions = const [],
+    this.onReact,
+    this.onReply,
+    this.onDeleteForMe,
+    this.onDeleteForEveryone,
   });
 
   @override
@@ -1136,21 +1238,52 @@ class _Bubble extends StatelessWidget {
         ? Colors.white.withAlpha(165)
         : (isDark ? AppColors.darkTextMuted : AppColors.textMuted);
 
-    Widget bubbleContent = isImage
-        ? _buildImageContent(context)
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                message.content,
-                style: TextStyle(color: textColor, fontSize: 15, height: 1.4),
+    final Widget textBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Quoted message (reply)
+        if (message.replyToId != null && message.replySnippet != null)
+          Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: isMe
+                  ? Colors.white.withAlpha(40)
+                  : (isDark ? AppColors.darkCardHover : AppColors.card),
+              borderRadius: BorderRadius.circular(10),
+              border: Border(
+                left: BorderSide(
+                  color: isMe ? Colors.white : AppColors.coral,
+                  width: 3,
+                ),
               ),
-              const SizedBox(height: 2),
-              Text(timeLabel,
-                  style: TextStyle(fontSize: 10, color: timeColor)),
-            ],
-          );
+            ),
+            child: Text(
+              message.replySnippet!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontStyle: FontStyle.italic,
+                color: isMe
+                    ? Colors.white.withAlpha(210)
+                    : (isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.textSecondary),
+              ),
+            ),
+          ),
+        Text(
+          message.content,
+          style: TextStyle(color: textColor, fontSize: 15, height: 1.4),
+        ),
+        const SizedBox(height: 2),
+        Text(timeLabel, style: TextStyle(fontSize: 10, color: timeColor)),
+      ],
+    );
+
+    Widget bubbleContent = isImage ? _buildImageContent(context) : textBlock;
 
     // Air badge under content on BLE-sent messages
     if (isMe && viaAir) {
@@ -1214,6 +1347,7 @@ class _Bubble extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               bubble,
+              if (reactions.isNotEmpty) _reactionChips(isDark),
               if (statusIcon != null) ...[
                 const SizedBox(height: 2),
                 statusIcon!,
@@ -1237,7 +1371,16 @@ class _Bubble extends StatelessWidget {
             children: [
               // No per-message avatar in 1:1 chats — the header already says
               // who you're talking to; repeating it is visual noise.
-              Flexible(child: bubble),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    bubble,
+                    if (reactions.isNotEmpty) _reactionChips(isDark),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -1382,6 +1525,27 @@ class _Bubble extends StatelessWidget {
     );
   }
 
+  Widget _reactionChips(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 3),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: AppColors.coral.withAlpha(120),
+            width: 1,
+          ),
+        ),
+        child: Text(
+          reactions.join(' '),
+          style: const TextStyle(fontSize: 13),
+        ),
+      ),
+    );
+  }
+
   void _showMessageMenu(BuildContext context) {
     final hasText = message.content.isNotEmpty;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1391,23 +1555,75 @@ class _Bubble extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => SafeArea(
+      builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Quick reactions
+            if (onReact != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 14, 12, 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    for (final e in const ['❤️', '😂', '👍', '✨', '👋'])
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          onReact!(e);
+                        },
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isDark
+                                ? AppColors.darkCardHover
+                                : AppColors.card,
+                          ),
+                          child: Text(e, style: const TextStyle(fontSize: 24)),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            if (onReply != null)
+              ListTile(
+                leading: const Icon(Icons.reply_outlined),
+                title: const Text('Reply'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onReply!();
+                },
+              ),
             if (hasText)
               ListTile(
                 leading: const Icon(Icons.copy_outlined),
                 title: const Text('Copy'),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(ctx);
                   Clipboard.setData(ClipboardData(text: message.content));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Copied'),
-                      duration: Duration(seconds: 1),
-                    ),
-                  );
+                },
+              ),
+            if (onDeleteForMe != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Delete for me'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onDeleteForMe!();
+                },
+              ),
+            if (isMe && onDeleteForEveryone != null)
+              ListTile(
+                leading: const Icon(Icons.delete_forever_outlined,
+                    color: AppColors.error),
+                title: const Text('Delete for everyone',
+                    style: TextStyle(color: AppColors.error)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onDeleteForEveryone!();
                 },
               ),
             const SizedBox(height: 8),

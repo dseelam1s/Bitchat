@@ -577,7 +577,8 @@ class MessageService {
     }
   }
 
-  Future<String?> sendMessage(String receiverPubkey, String content) async {
+  Future<String?> sendMessage(String receiverPubkey, String content,
+      {String? replyToId, String? replySnippet}) async {
     if (_keyManager.publicKey == null) return null;
     final message = Message(
       id: _keyManager.generateMessageId(),
@@ -587,11 +588,25 @@ class MessageService {
       timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
       ttl: _ttl,
       senderName: _keyManager.username,
+      replyToId: replyToId,
+      replySnippet: replySnippet,
     );
 
-    // Save to local DB first
+    // Save to local DB first (plain body; reply metadata in columns)
     await _dbService.insertMessage(message);
     _messageController.add(message);
+
+    // On the wire, reply metadata travels INSIDE the encrypted payload.
+    final wire = replyToId == null
+        ? message
+        : message.copyWith(
+            content: jsonEncode({
+              '__type': 'text_v2',
+              'body': content,
+              'replyToId': replyToId,
+              if (replySnippet != null) 'replySnippet': replySnippet,
+            }),
+          );
 
     // Try both transports independently — if sender has internet AND receiver is
     // nearby without internet, BLE must still fire even though server succeeded.
@@ -600,10 +615,10 @@ class MessageService {
     bool sent = false;
 
     if (_shouldUseOnline()) {
-      if (await _trySendServer(message)) sent = true;
+      if (await _trySendServer(wire)) sent = true;
     }
     if (_shouldUseOffline()) {
-      if (await _trySendBitChat(message)) sent = true;
+      if (await _trySendBitChat(wire)) sent = true;
     }
 
     if (sent) {
@@ -624,6 +639,62 @@ class MessageService {
     // to 'failed' after 2 minutes if connectivity is available but send keeps failing.
 
     return message.id;
+  }
+
+  /// React to a message with an emoji. Stored locally as a 'reaction' row
+  /// pointing at the target via replyToId; sent as a wrapped payload.
+  Future<void> sendReaction(
+      String receiverPubkey, String targetId, String emoji) async {
+    if (_keyManager.publicKey == null) return;
+    final row = Message(
+      id: _keyManager.generateMessageId(),
+      senderPubkey: _keyManager.publicKey!,
+      receiverPubkey: receiverPubkey,
+      content: emoji,
+      type: 'reaction',
+      timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      status: 'read',
+      replyToId: targetId,
+    );
+    await _dbService.insertMessage(row);
+    _messageController.add(row);
+
+    final wire = row.copyWith(
+      content: jsonEncode(
+          {'__type': 'reaction', 'targetId': targetId, 'emoji': emoji}),
+    );
+    if (_shouldUseOnline()) await _trySendServer(wire);
+    if (_shouldUseOffline()) await _trySendBitChat(wire);
+  }
+
+  /// Delete for everyone: tombstone locally and tell the peer to do the same.
+  Future<void> deleteMessageForEveryone(
+      String receiverPubkey, String targetId) async {
+    if (_keyManager.publicKey == null) return;
+    await _dbService.updateMessageContent(targetId, '🚫 Message deleted');
+    _messageController.add(Message(
+      id: targetId,
+      senderPubkey: '',
+      receiverPubkey: '',
+      content: '',
+      type: 'status_update',
+      timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      status: 'read',
+    ));
+    final wire = Message(
+      id: _keyManager.generateMessageId(),
+      senderPubkey: _keyManager.publicKey!,
+      receiverPubkey: receiverPubkey,
+      content: jsonEncode({'__type': 'delete', 'targetId': targetId}),
+      timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    );
+    if (_shouldUseOnline()) await _trySendServer(wire);
+    if (_shouldUseOffline()) await _trySendBitChat(wire);
+  }
+
+  /// Delete just from this device.
+  Future<void> deleteMessageForMe(String messageId) async {
+    await _dbService.deleteMessage(messageId);
   }
 
   bool _shouldUseOnline() {
@@ -890,17 +961,90 @@ class MessageService {
       // Not JSON — regular text/voice/image message, continue to storage
     }
 
+    // ── Step 5b: v2 wrapped payloads (reply metadata, reactions, deletes) ────
+    var toStore = decrypted;
+    try {
+      final parsed = jsonDecode(decrypted.content);
+      if (parsed is Map) {
+        switch (parsed['__type']) {
+          case 'text_v2':
+            toStore = Message(
+              id: decrypted.id,
+              senderPubkey: decrypted.senderPubkey,
+              receiverPubkey: decrypted.receiverPubkey,
+              content: parsed['body'] as String? ?? '',
+              type: 'text',
+              timestamp: decrypted.timestamp,
+              status: decrypted.status,
+              transport: decrypted.transport,
+              senderName: decrypted.senderName,
+              replyToId: parsed['replyToId'] as String?,
+              replySnippet: parsed['replySnippet'] as String?,
+            );
+          case 'voice_v2':
+            toStore = Message(
+              id: decrypted.id,
+              senderPubkey: decrypted.senderPubkey,
+              receiverPubkey: decrypted.receiverPubkey,
+              content: parsed['url'] as String? ?? '',
+              type: 'voice_note',
+              timestamp: decrypted.timestamp,
+              status: decrypted.status,
+              transport: decrypted.transport,
+              senderName: decrypted.senderName,
+              // duration in seconds rides in replySnippet — not worth a
+              // dedicated column/migration for one integer.
+              replySnippet: (parsed['secs'] as num?)?.toString(),
+            );
+          case 'reaction':
+            final targetId = parsed['targetId'] as String? ?? '';
+            final emoji = parsed['emoji'] as String? ?? '';
+            if (targetId.isEmpty || emoji.isEmpty) return;
+            if (await _dbService.hasSeenMessage(decrypted.id)) return;
+            final reactionRow = Message(
+              id: decrypted.id,
+              senderPubkey: decrypted.senderPubkey,
+              receiverPubkey: decrypted.receiverPubkey,
+              content: emoji,
+              type: 'reaction',
+              timestamp: decrypted.timestamp,
+              status: 'read',
+              transport: decrypted.transport,
+              replyToId: targetId,
+            );
+            await _dbService.insertMessage(reactionRow);
+            _messageController.add(reactionRow);
+            return;
+          case 'delete':
+            final targetId = parsed['targetId'] as String? ?? '';
+            if (targetId.isEmpty) return;
+            await _dbService.updateMessageContent(targetId, '🚫 Message deleted');
+            _messageController.add(Message(
+              id: targetId,
+              senderPubkey: decrypted.senderPubkey,
+              receiverPubkey: '',
+              content: '',
+              type: 'status_update',
+              timestamp: decrypted.timestamp,
+              status: 'read',
+            ));
+            return;
+        }
+      }
+    } catch (_) {}
+    final storedMessage = toStore;
+
     // ── Step 6: Regular text / image (URL) / voice_note messages ────────────
     // In-memory guard prevents duplicate emit when Nostr + BLE deliver
     // the same message concurrently before either DB write commits.
-    if (_processingIds.contains(decrypted.id)) return;
-    _processingIds.add(decrypted.id);
+    if (_processingIds.contains(storedMessage.id)) return;
+    _processingIds.add(storedMessage.id);
 
-    final seen = await _dbService.hasSeenMessage(decrypted.id);
+    final seen = await _dbService.hasSeenMessage(storedMessage.id);
     if (seen) return;
 
-    await _dbService.insertMessage(decrypted);
-    _messageController.add(decrypted);
+    await _dbService.insertMessage(storedMessage);
+    _messageController.add(storedMessage);
 
     // If this message carries the sender's display name and our DB entry for them
     // has no name yet, persist it now so the chats list and chat header show it

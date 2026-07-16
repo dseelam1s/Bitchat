@@ -10,6 +10,8 @@ class Message {
   final String transport; // server, bitchat
   final bool meshEncrypted; // true if content is NIP-04 encrypted for mesh
   final String? senderName; // display name of the sender
+  final String? replyToId; // id of the quoted message (reply feature)
+  final String? replySnippet; // short preview of the quoted message
 
   Message({
     required this.id,
@@ -23,6 +25,8 @@ class Message {
     this.transport = 'server',
     this.meshEncrypted = false,
     this.senderName,
+    this.replyToId,
+    this.replySnippet,
   });
 
   Map<String, dynamic> toMap() {
@@ -38,6 +42,8 @@ class Message {
       'transport': transport,
       'meshEncrypted': meshEncrypted ? 1 : 0,
       'senderName': senderName,
+      'replyToId': replyToId,
+      'replySnippet': replySnippet,
     };
   }
 
@@ -54,6 +60,8 @@ class Message {
       transport: map['transport'] ?? 'server',
       meshEncrypted: map['meshEncrypted'] == 1 || map['meshEncrypted'] == true,
       senderName: map['senderName'],
+      replyToId: map['replyToId'] as String?,
+      replySnippet: map['replySnippet'] as String?,
     );
   }
 
@@ -77,6 +85,8 @@ class Message {
       transport: transport ?? this.transport,
       meshEncrypted: meshEncrypted ?? this.meshEncrypted,
       senderName: senderName ?? this.senderName,
+      replyToId: replyToId,
+      replySnippet: replySnippet,
     );
   }
 }

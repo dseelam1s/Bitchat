@@ -29,7 +29,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 15,
+      version: 16,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -49,7 +49,9 @@ class DatabaseService {
         transport TEXT DEFAULT 'nostr',
         meshEncrypted INTEGER DEFAULT 0,
         senderName TEXT,
-        duration INTEGER DEFAULT 0
+        duration INTEGER DEFAULT 0,
+        replyToId TEXT,
+        replySnippet TEXT
       )
     ''');
 
@@ -182,6 +184,12 @@ class DatabaseService {
     }
     if (oldVersion < 15) {
       await _createBleHistoryTable(db);
+    }
+    if (oldVersion < 16) {
+      // Reply-quoting + reactions (reaction rows point at the original
+      // message via replyToId, with the emoji as content).
+      await db.execute('ALTER TABLE messages ADD COLUMN replyToId TEXT');
+      await db.execute('ALTER TABLE messages ADD COLUMN replySnippet TEXT');
     }
   }
 
