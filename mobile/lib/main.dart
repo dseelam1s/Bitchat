@@ -580,15 +580,15 @@ class _AppInitializerState extends State<AppInitializer>
               privateKey: keyManager.privateKey!,
               publicKey: keyManager.publicKey!,
             );
-            MessageBackupService()
-                .restore(
-                  dbService: dbService,
-                  privateKey: keyManager.privateKey!,
-                  publicKey: keyManager.publicKey!,
-                )
-                .then((n) {
-              if (n > 0) messageService.notifyMessagesChanged();
-            });
+            // Awaited: backupIfDue below always fires on a fresh install
+            // (no last-backup timestamp), and running it mid-restore would
+            // overwrite the full server blob with a partial history.
+            final n = await MessageBackupService().restore(
+              dbService: dbService,
+              privateKey: keyManager.privateKey!,
+              publicKey: keyManager.publicKey!,
+            );
+            if (n > 0) messageService.notifyMessagesChanged();
           }
 
           // Daily encrypted message-history backup (no-op if <24h since last)
