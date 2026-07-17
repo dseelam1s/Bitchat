@@ -82,6 +82,19 @@ class MessageService {
   void Function(String callId)? onCallBusy;
 
   Stream<Message> get messageStream => _messageController.stream;
+
+  /// Poke stream listeners to reload from the DB without a real message —
+  /// used after a bulk change like a message-history restore.
+  void notifyMessagesChanged() {
+    _messageController.add(Message(
+      id: 'refresh_${DateTime.now().millisecondsSinceEpoch}',
+      senderPubkey: '',
+      receiverPubkey: '',
+      content: '',
+      type: 'refresh',
+      timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    ));
+  }
   /// Emits the senderPubkey whenever a typing indicator arrives for us.
   Stream<Map<String, dynamic>> get typingStream => _bitchatService.typingStream;
   String get mode => _mode;

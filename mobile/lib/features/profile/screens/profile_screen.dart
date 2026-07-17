@@ -12,6 +12,7 @@ import 'package:bitchat_messenger/core/theme.dart';
 import 'package:bitchat_messenger/main.dart' show themeNotifier;
 import 'package:bitchat_messenger/features/chat/services/message_service.dart';
 import 'package:bitchat_messenger/features/profile/services/backup_service.dart';
+import 'package:bitchat_messenger/features/chat/services/message_backup_service.dart';
 import 'package:bitchat_messenger/core/server_service.dart';
 import 'package:bitchat_messenger/features/profile/services/profile_picture_cache_service.dart';
 import 'package:bitchat_messenger/features/contacts/models/contact.dart';
@@ -719,6 +720,29 @@ class _SettingsScreenState extends State<_SettingsScreen> {
     );
   }
 
+  Future<void> _backupMessagesNow() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final privateKey = widget.messageService.privateKey;
+    final publicKey = widget.messageService.publicKey;
+    if (privateKey == null || publicKey == null) return;
+    messenger.showSnackBar(const SnackBar(
+      content: Text('Backing up messages…'),
+      duration: Duration(seconds: 8),
+    ));
+    final ok = await MessageBackupService().backupNow(
+      dbService: widget.messageService.dbService,
+      privateKey: privateKey,
+      publicKey: publicKey,
+    );
+    if (!mounted) return;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      content: Text(ok
+          ? 'Messages backed up — encrypted, only you can read them'
+          : 'Backup failed — check your connection and try again'),
+    ));
+  }
+
   Future<void> _testConnection() async {
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(const SnackBar(
@@ -775,6 +799,9 @@ class _SettingsScreenState extends State<_SettingsScreen> {
           // Relay range (mesh TTL) slider removed — an engineer's knob users
           // can't reason about; the default in AppConstants applies.
           _sectionLabel('MESSAGING'),
+          _tile(Icons.cloud_upload_outlined, 'Back Up Messages Now',
+              onTap: _backupMessagesNow),
+          const Divider(height: 1, indent: 20),
           _tile(Icons.network_check_outlined, 'Test Connection', onTap: _testConnection),
 
           if (kDebugMode) ...[

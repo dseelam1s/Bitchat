@@ -22,6 +22,7 @@ import 'package:bitchat_messenger/core/signaling_service.dart';
 import 'package:bitchat_messenger/features/calls/services/call_service.dart';
 import 'package:bitchat_messenger/features/contacts/services/contact_resolver_service.dart';
 import 'package:bitchat_messenger/features/contacts/services/contacts_backup_service.dart';
+import 'package:bitchat_messenger/features/chat/services/message_backup_service.dart';
 import 'package:bitchat_messenger/features/mesh/services/foreground_service.dart';
 import 'package:bitchat_messenger/features/chat/screens/chat_screen.dart';
 import 'package:bitchat_messenger/app/home_screen.dart';
@@ -572,7 +573,8 @@ class _AppInitializerState extends State<AppInitializer>
             nearbyPubkeys: messageService.nearbyUsers,
           );
 
-          // Restore contacts on first launch (needs auth to decrypt backup)
+          // Restore contacts + message history on first launch
+          // (needs auth to decrypt backups)
           final existing = await dbService.getAllContacts();
           if (existing.isEmpty) {
             ContactsBackupService().restore(
@@ -580,7 +582,23 @@ class _AppInitializerState extends State<AppInitializer>
               privateKey: keyManager.privateKey!,
               publicKey: keyManager.publicKey!,
             );
+            MessageBackupService()
+                .restore(
+                  dbService: dbService,
+                  privateKey: keyManager.privateKey!,
+                  publicKey: keyManager.publicKey!,
+                )
+                .then((n) {
+              if (n > 0) messageService.notifyMessagesChanged();
+            });
           }
+
+          // Daily encrypted message-history backup (no-op if <24h since last)
+          MessageBackupService().backupIfDue(
+            dbService: dbService,
+            privateKey: keyManager.privateKey!,
+            publicKey: keyManager.publicKey!,
+          );
         });
       }
 

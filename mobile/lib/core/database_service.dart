@@ -288,6 +288,27 @@ class DatabaseService {
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  /// Insert only if the message id is not already present — used by restore
+  /// so a backup can never overwrite newer local state.
+  Future<void> insertMessageIfAbsent(Message message) async {
+    final db = await database;
+    await db.insert('messages', message.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.ignore);
+  }
+
+  /// Most recent messages across all conversations, newest first — the
+  /// message-history backup payload.
+  Future<List<Message>> getRecentMessagesForBackup({int limit = 2000}) async {
+    final db = await database;
+    final maps = await db.query(
+      'messages',
+      where: "type != 'read_receipt'",
+      orderBy: 'timestamp DESC',
+      limit: limit,
+    );
+    return maps.map((m) => Message.fromMap(m)).toList();
+  }
+
   Future<List<Message>> getUnreadMessagesFrom(String senderPubkey, String myPubkey) async {
     final db = await database;
     final maps = await db.rawQuery(

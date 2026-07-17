@@ -720,6 +720,48 @@ class ServerService {
     return result?['contacts_backup'] as String?;
   }
 
+  // ── Messages Backup ──────────────────────────────────────────────────────
+
+  /// Upload encrypted message history. Client encrypts (to self) first.
+  Future<bool> saveMessagesBackup(String encryptedBlob) async {
+    final result = await _post(
+      'messages/backup/',
+      {'messages_backup': encryptedBlob},
+      authenticated: true,
+    );
+    return result != null;
+  }
+
+  /// Fetch encrypted message history backup. Decrypted on-device.
+  Future<String?> fetchMessagesBackup() async {
+    final result = await _get('messages/backup/fetch/', authenticated: true);
+    return result?['messages_backup'] as String?;
+  }
+
+  // ── Status-lite ──────────────────────────────────────────────────────────
+
+  /// Set (or clear, with both fields empty) my 24h status.
+  Future<bool> setStatus({required String emoji, required String text}) async {
+    final result = await _post(
+      'status/set/',
+      {'emoji': emoji, 'text': text},
+      authenticated: true,
+    );
+    return result != null;
+  }
+
+  /// Fetch fresh (<24h) statuses for the given contact pubkeys.
+  Future<List<Map<String, dynamic>>> fetchStatuses(List<String> pubkeys) async {
+    if (pubkeys.isEmpty) return [];
+    final result = await _post(
+      'status/batch/',
+      {'pubkeys': pubkeys},
+      authenticated: true,
+    );
+    final list = result?['statuses'] as List<dynamic>?;
+    return list?.cast<Map<String, dynamic>>() ?? [];
+  }
+
   // ── Session ──────────────────────────────────────────────────────────────
 
   bool get isAuthenticated => _accessToken != null;
