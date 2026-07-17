@@ -349,7 +349,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
         .toList();
 
     return SizedBox(
-      height: 92,
+      height: 96,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -436,8 +436,11 @@ class _ChatsScreenState extends State<ChatsScreen> {
             ),
             const SizedBox(height: 4),
             Text(name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                     fontSize: 11,
+                    height: 1.2,
                     color: isDark
                         ? AppColors.darkTextMuted
                         : AppColors.textMuted)),
@@ -464,7 +467,10 @@ class _ChatsScreenState extends State<ChatsScreen> {
               left: 20,
               right: 20,
               top: 20,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
+              // viewPadding keeps Clear/Share above the system nav bar
+              bottom: MediaQuery.of(ctx).viewInsets.bottom +
+                  MediaQuery.of(ctx).viewPadding.bottom +
+                  20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -556,7 +562,8 @@ class _ChatsScreenState extends State<ChatsScreen> {
     showModalBottomSheet(
       context: context,
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.fromLTRB(
+            24, 24, 24, 24 + MediaQuery.of(ctx).viewPadding.bottom),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
