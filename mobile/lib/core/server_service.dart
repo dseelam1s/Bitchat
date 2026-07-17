@@ -943,6 +943,16 @@ class ServerService {
     });
   }
 
+  /// Confirm pending messages were persisted locally — the server only
+  /// marks rows delivered on this ack (crash-safe re-delivery otherwise).
+  Future<void> ackPendingMessages(List<String> messageIds) async {
+    await _post(
+      'messages/pending/ack/',
+      {'message_ids': messageIds},
+      authenticated: true,
+    );
+  }
+
   /// Fetch pending mesh-relayed messages from the server.
   /// Called on app open and when internet reconnects.
   /// Returns raw maps with NIP-44 encrypted_content — decrypted on-device.

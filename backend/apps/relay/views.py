@@ -80,5 +80,23 @@ def pending_messages(request):
         for m in msgs
     ]
 
-    msgs.update(delivered=True)
+    # NOT marked delivered on fetch — the client acks each row it actually
+    # persisted via messages/pending/ack/. A crash mid-processing therefore
+    # re-delivers instead of silently losing the message.
     return Response({'messages': result})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def pending_ack(request):
+    """Client confirms it persisted these pending messages. Body: {message_ids: []}"""
+    ids = request.data.get('message_ids', [])
+    if not isinstance(ids, list) or len(ids) > 500 \
+            or not all(isinstance(i, str) for i in ids):
+        return Response({'detail': 'Invalid payload.'}, status=400)
+    if ids:
+        PendingMessage.objects.filter(
+            receiver_pubkey=request.user.username,
+            message_id__in=ids,
+        ).update(delivered=True)
+    return Response({'ok': True})

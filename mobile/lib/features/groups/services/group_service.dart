@@ -149,25 +149,28 @@ class GroupService {
 
   /// Incoming group message from the WS (or pending-fetch). The wrapper is
   /// plaintext (label only); the body is group-key encrypted.
-  Future<void> handleIncomingGroupMessage(Map<String, dynamic> payload) async {
+  /// Returns true if consumed (stored or known duplicate) — false means
+  /// "can't process yet" (e.g. invite not received), so the pending row
+  /// must NOT be acked and will be retried on a later fetch.
+  Future<bool> handleIncomingGroupMessage(Map<String, dynamic> payload) async {
     final groupId = payload['groupId'] as String?;
     final messageId = payload['messageId'] as String?;
     final ct = payload['encryptedContent'] as String? ?? payload['ct'] as String?;
-    if (groupId == null || messageId == null || ct == null) return;
+    if (groupId == null || messageId == null || ct == null) return true;
 
     final group = await _db.getGroup(groupId);
-    if (group == null) return; // not a member locally
-    if (await _db.hasSeenMessage(messageId)) return;
+    if (group == null) return false; // not a member (yet) — retry later
+    if (await _db.hasSeenMessage(messageId)) return true;
 
     final groupPriv = group['groupPrivkey'] as String?;
     final groupPub = group['groupPubkey'] as String?;
-    if (groupPriv == null || groupPub == null) return;
+    if (groupPriv == null || groupPub == null) return false;
 
     String body;
     try {
       body = await _nip44.decrypt(groupPriv, groupPub, ct);
     } catch (_) {
-      return;
+      return false;
     }
 
     final senderPubkey = payload['senderPubkey'] as String? ?? '';
@@ -186,6 +189,7 @@ class GroupService {
       groupId: groupId,
     ));
     _controller.add(groupId);
+    return true;
   }
 
   void _sendDm(String recipientPubkey, String encryptedContent) {

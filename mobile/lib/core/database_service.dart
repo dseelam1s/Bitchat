@@ -615,6 +615,7 @@ class DatabaseService {
           MAX(timestamp) AS maxTs
         FROM messages
         WHERE type IN ('text', 'image', 'voice_note') AND (senderPubkey = ? OR receiverPubkey = ?)
+          AND groupId IS NULL
         GROUP BY contactPubkey
       ) latest
       ON (
@@ -623,6 +624,7 @@ class DatabaseService {
       )
       AND m.timestamp = latest.maxTs
       AND m.type IN ('text', 'image', 'voice_note')
+      AND m.groupId IS NULL
       ORDER BY m.timestamp DESC, m.rowid DESC
     ''', [myPubkey, myPubkey, myPubkey, myPubkey, myPubkey]);
 
@@ -649,6 +651,7 @@ class DatabaseService {
       FROM messages
       WHERE receiverPubkey = ? AND status != 'read'
         AND type IN ('text', 'image', 'voice_note')
+        AND groupId IS NULL
       GROUP BY senderPubkey
     ''', [myPubkey]);
 

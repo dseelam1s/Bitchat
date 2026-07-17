@@ -452,6 +452,13 @@ class _AppInitializerState extends State<AppInitializer>
         messageService.handleWebSocketPayload(payload);
       };
 
+      // After every (re)connect, pull whatever the server stored while the
+      // socket was down — a silently-dead socket can miss live fan-outs.
+      signalingService.onConnected = () {
+        messageService.fetchMissedServerMessages();
+        messageService.retryPendingMessages();
+      };
+
       // Route call signals arriving from the WebSocket server into CallService
       signalingService.onSignalReceived = (payload) {
         final type = payload['__type'] as String? ?? payload['type'] as String? ?? '';

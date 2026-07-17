@@ -519,6 +519,9 @@ class _ChatsScreenState extends State<ChatsScreen> {
                     TextButton(
                       onPressed: () async {
                         Navigator.pop(ctx);
+                        if (mounted) {
+                          setState(() => _statusByPubkey.remove(myPub));
+                        }
                         await ServerService().setStatus(emoji: '', text: '');
                         _loadStatuses(_contacts);
                       },
@@ -537,6 +540,20 @@ class _ChatsScreenState extends State<ChatsScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                             content:
                                 Text('Could not share status — try again')));
+                      }
+                      // Optimistic: show my chip immediately — the server
+                      // write can land after the refetch below and leave
+                      // the chip stale until the next _loadAll otherwise.
+                      if (ok && mounted) {
+                        setState(() {
+                          _statusByPubkey[myPub] = {
+                            'pubkey': myPub,
+                            'emoji': selectedEmoji,
+                            'text': text,
+                            'updated_at':
+                                DateTime.now().millisecondsSinceEpoch ~/ 1000,
+                          };
+                        });
                       }
                       _loadStatuses(_contacts);
                     },

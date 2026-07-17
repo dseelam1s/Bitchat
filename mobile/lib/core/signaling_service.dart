@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 
+import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'package:bitchat_messenger/core/constants.dart';
@@ -21,6 +23,13 @@ class SignalingService {
   String? _token;
   Timer? _reconnectTimer;
 
+  // Messages (not call signals) that couldn't be sent because the socket was
+  // down. Flushed in order on the next successful connect so group messages
+  // and invites survive a dead socket instead of being silently dropped.
+  final Queue<Map<String, dynamic>> _outbox = Queue();
+  static const _outboxLimit = 200;
+  static const _queueableTypes = {'dm', 'group_dm'};
+
   /// Called when a call signal arrives (offer/answer/ICE/ended/declined/busy).
   /// Callback receives the full decoded payload map.
   void Function(Map<String, dynamic> payload)? onSignalReceived;
@@ -28,6 +37,11 @@ class SignalingService {
   /// Called when a messaging payload arrives (dm, delivery_receipt,
   /// read_receipt, typing, message_ack). Routed separately from call signals.
   void Function(Map<String, dynamic> payload)? onMessageReceived;
+
+  /// Called after every successful (re)connect. Wired to a missed-message
+  /// fetch so anything the server stored while the socket was down (silent
+  /// half-open drops included) is pulled in without waiting for an app restart.
+  void Function()? onConnected;
 
   bool get isConnected => _isConnected;
 
@@ -52,7 +66,15 @@ class SignalingService {
 
     try {
       final uri = Uri.parse('${AppConstants.signalingUrl}?token=$_token');
-      _channel = WebSocketChannel.connect(uri);
+      // pingInterval is the half-open-connection killer: NAT timeouts and
+      // proxy idle drops leave a socket that looks alive but delivers
+      // nothing (observed on-device: fan-out silently missed after ~20 min).
+      // Protocol pings force such sockets to error out → onDone → reconnect.
+      _channel = IOWebSocketChannel.connect(
+        uri,
+        pingInterval: const Duration(seconds: 20),
+        connectTimeout: const Duration(seconds: 15),
+      );
 
       // Wait for the handshake to complete (throws if server rejects)
       await _channel!.ready;
@@ -65,6 +87,9 @@ class SignalingService {
         onError: (_) => _scheduleReconnect(),
         onDone: _scheduleReconnect,
       );
+
+      _flushOutbox();
+      onConnected?.call();
     } catch (_) {
       _isConnected = false;
       _scheduleReconnect();
@@ -74,6 +99,7 @@ class SignalingService {
   // Message types routed to onMessageReceived (not call signals)
   static const _msgTypes = {
     'dm', 'delivery_receipt', 'read_receipt', 'typing', 'message_ack', 'image',
+    'group_dm',
   };
 
   void _onMessage(dynamic raw) {
@@ -89,16 +115,41 @@ class SignalingService {
   }
 
   /// Send a signal to a recipient.
-  /// Returns true if sent via WebSocket, false if not connected (caller should fallback).
+  /// Returns true if sent via WebSocket (or queued for delivery on reconnect —
+  /// dm/group_dm only), false if not connected (caller should fallback).
+  /// Call signals are never queued: a stale SDP/ICE payload is useless.
   bool send(Map<String, dynamic> payload) {
-    if (!_isConnected || _channel == null) return false;
+    if (!_isConnected || _channel == null) {
+      return _enqueue(payload);
+    }
     try {
       _channel!.sink.add(jsonEncode(payload));
       return true;
     } catch (_) {
       _isConnected = false;
       _scheduleReconnect();
-      return false;
+      return _enqueue(payload);
+    }
+  }
+
+  bool _enqueue(Map<String, dynamic> payload) {
+    if (!_queueableTypes.contains(payload['type'])) return false;
+    if (_outbox.length >= _outboxLimit) _outbox.removeFirst();
+    _outbox.add(payload);
+    return true;
+  }
+
+  void _flushOutbox() {
+    while (_outbox.isNotEmpty && _isConnected && _channel != null) {
+      final payload = _outbox.removeFirst();
+      try {
+        _channel!.sink.add(jsonEncode(payload));
+      } catch (_) {
+        _outbox.addFirst(payload);
+        _isConnected = false;
+        _scheduleReconnect();
+        return;
+      }
     }
   }
 

@@ -88,8 +88,11 @@ def message_fetch(request):
         for m in msgs
     ]
 
-    msgs.update(status=Message.STATUS_DELIVERED, delivered_at=timezone.now())
-
+    # Deliberately NOT marked delivered here. Marking on fetch loses messages
+    # when the client crashes between fetch and DB insert — rows are marked
+    # delivered only when the client acks via messages/receipt/ after a
+    # successful local insert. Un-acked rows are simply re-sent next fetch
+    # (client dedupes by message_id).
     return Response({'messages': result})
 
 
@@ -116,6 +119,11 @@ def message_receipt(request):
         msg.status  = Message.STATUS_READ
         msg.read_at = timezone.now()
         msg.save(update_fields=['status', 'read_at'])
+    elif new_status == 'delivered' and msg.status == Message.STATUS_SENT:
+        # The client's post-insert ack — this (not the fetch) marks delivery.
+        msg.status       = Message.STATUS_DELIVERED
+        msg.delivered_at = timezone.now()
+        msg.save(update_fields=['status', 'delivered_at'])
 
     return Response({'ok': True})
 

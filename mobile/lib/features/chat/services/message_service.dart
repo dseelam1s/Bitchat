@@ -161,7 +161,8 @@ class MessageService {
   /// Handle a real-time payload that arrived via WebSocket.
   /// Called from main.dart via signalingService.onMessageReceived.
   /// Wired to GroupService.handleIncomingGroupMessage in main.dart.
-  Future<void> Function(Map<String, dynamic> payload)? onGroupMessage;
+  /// Returns true if the payload was consumed (used to ack pending rows).
+  Future<bool> Function(Map<String, dynamic> payload)? onGroupMessage;
 
   Future<void> handleWebSocketPayload(Map<String, dynamic> payload) async {
     final type = payload['type'] as String? ?? '';
@@ -340,14 +341,19 @@ class MessageService {
   Future<void> _fetchPendingFromServer() async {
     try {
       final pending = await ServerService().fetchPendingMessages();
+      // The server keeps rows until we ack them (post-insert), so a crash
+      // mid-loop re-delivers instead of losing messages. Only rows that were
+      // actually processed get acked; the rest are retried next fetch.
+      final processedIds = <String>[];
       for (final raw in pending) {
         try {
+          final id = raw['message_id'] as String;
           if ((raw['message_type'] as String?) == 'group_dm') {
-            await _routePendingGroupRow(raw);
+            if (await _routePendingGroupRow(raw)) processedIds.add(id);
             continue;
           }
           final msg = Message(
-            id: raw['message_id'] as String,
+            id: id,
             senderPubkey: raw['sender_pubkey'] as String,
             receiverPubkey: raw['receiver_pubkey'] as String,
             content: raw['encrypted_content'] as String,
@@ -357,7 +363,11 @@ class MessageService {
             transport: 'server',
           );
           await _onMessageReceived(msg);
+          processedIds.add(id);
         } catch (_) {}
+      }
+      if (processedIds.isNotEmpty) {
+        ServerService().ackPendingMessages(processedIds);
       }
     } catch (_) {}
   }
@@ -843,11 +853,15 @@ class MessageService {
   /// A stored group message row: encrypted_content is a plaintext JSON
   /// wrapper (label metadata only) whose 'ct' field is the group-key
   /// encrypted body. Forward it to GroupService instead of the DM path.
-  Future<void> _routePendingGroupRow(Map<String, dynamic> raw) async {
+  /// Returns true only if GroupService actually consumed the row (member of
+  /// the group, decrypt OK, or a known duplicate) — the caller acks on true.
+  /// False (e.g. the invite carrying the group key hasn't arrived yet) leaves
+  /// the row on the server for a later retry.
+  Future<bool> _routePendingGroupRow(Map<String, dynamic> raw) async {
     final wrapper =
         jsonDecode(raw['encrypted_content'] as String) as Map<String, dynamic>;
     wrapper['timestamp'] ??= raw['timestamp'];
-    await onGroupMessage?.call(wrapper);
+    return await onGroupMessage?.call(wrapper) ?? false;
   }
 
   /// Fetch messages delivered via server while we were offline or in background.

@@ -32,6 +32,7 @@ urlpatterns = [
     path('notify/',                         views.notify,                   name='notify'),
     path('relay/',                          views.relay_message,            name='relay_message'),
     path('messages/pending/',               views.pending_messages,         name='pending_messages'),
+    path('messages/pending/ack/',           views.pending_ack,              name='pending_ack'),
 
     # ── Connections (mutual follow / people discovery) ────────────────────
     path('connections/',                    views.connections_list,             name='connections_list'),
