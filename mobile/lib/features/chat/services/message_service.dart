@@ -171,6 +171,32 @@ class MessageService {
   /// BLE only, never stored. Wired to CampfireService in main.dart.
   void Function(Message message)? onFireSignal;
 
+  /// Chunk a large payload over BLE to every connected peer — used for
+  /// campfire photos ('fire_photo'). Receivers reassemble and route it to
+  /// CampfireService; nothing is persisted.
+  Future<bool> sendBleMediaBroadcast({
+    required String id,
+    required String mediaType,
+    required String data,
+  }) async {
+    final myPub = _keyManager.publicKey;
+    if (myPub == null) return false;
+    return _bitchatService.sendMediaChunked(
+      message: Message(
+        id: id,
+        senderPubkey: myPub,
+        receiverPubkey: '*',
+        content: '',
+        timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        ttl: 1,
+        status: 'sent',
+        transport: 'bitchat',
+      ),
+      mediaType: mediaType,
+      base64Data: data,
+    );
+  }
+
   /// Send a small plaintext signal over BLE to specific nearby peers
   /// (ttl 1 — delivered only, never relayed, never persisted).
   /// Used by Clink and Campfire. [toPubkeys] defaults to everyone in range.

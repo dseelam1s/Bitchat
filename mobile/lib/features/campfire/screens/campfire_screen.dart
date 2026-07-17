@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:bitchat_messenger/core/theme.dart';
 import 'package:bitchat_messenger/features/campfire/services/campfire_service.dart';
 import 'package:bitchat_messenger/features/chat/services/message_service.dart';
@@ -29,6 +31,7 @@ class _CampfireScreenState extends State<CampfireScreen> {
   StreamSubscription? _roomSub;
   StreamSubscription? _burnSub;
   bool _burnOnly = false;
+  bool _sendingPhoto = false;
   BurnedFire? _burned;
   FireMoment? _pickedEmber;
   bool _emberKept = false;
@@ -74,6 +77,30 @@ class _CampfireScreenState extends State<CampfireScreen> {
     fire.sendMoment(text, burnOnly: _burnOnly);
     _textController.clear();
     setState(() => _burnOnly = false);
+  }
+
+  Future<void> _sendPhoto() async {
+    // Aggressive compression: this travels over Bluetooth in chunks.
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50,
+      maxWidth: 800,
+      maxHeight: 800,
+    );
+    if (picked == null || !mounted) return;
+    final wasBurnOnly = _burnOnly;
+    setState(() {
+      _sendingPhoto = true;
+      _burnOnly = false;
+    });
+    final ok = await fire.sendPhoto(File(picked.path), burnOnly: wasBurnOnly);
+    if (!mounted) return;
+    setState(() => _sendingPhoto = false);
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content:
+              Text('Couldn\'t share the photo — is anyone still in range?')));
+    }
   }
 
   @override
@@ -177,12 +204,24 @@ class _CampfireScreenState extends State<CampfireScreen> {
                       fontSize: 10.5,
                       fontWeight: FontWeight.w800,
                       color: AppColors.coral)),
-            Text(m.body,
-                style: TextStyle(
-                    fontSize: 14,
-                    color: mine
-                        ? Colors.white
-                        : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary))),
+            if (m.kind == 'photo' && m.photoBytes != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.memory(m.photoBytes!,
+                      width: 210, fit: BoxFit.cover, gaplessPlayback: true),
+                ),
+              )
+            else
+              Text(m.body,
+                  style: TextStyle(
+                      fontSize: 14,
+                      color: mine
+                          ? Colors.white
+                          : (isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.textPrimary))),
             if (m.burnOnly)
               Padding(
                 padding: const EdgeInsets.only(top: 3),
@@ -218,6 +257,18 @@ class _CampfireScreenState extends State<CampfireScreen> {
                       color: AppColors.coral)),
             ),
           Row(children: [
+            IconButton(
+              onPressed: _sendingPhoto ? null : _sendPhoto,
+              tooltip: 'Share a photo to the fire',
+              icon: _sendingPhoto
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : Icon(Icons.add_photo_alternate_outlined,
+                      color:
+                          isDark ? AppColors.darkTextMuted : AppColors.textMuted),
+            ),
             IconButton(
               onPressed: () => setState(() => _burnOnly = !_burnOnly),
               tooltip: 'Burns with the fire (can\'t be kept)',
@@ -338,13 +389,20 @@ class _CampfireScreenState extends State<CampfireScreen> {
                                   color: Color(0xFFFF8A6E))),
                           const SizedBox(height: 4),
                           Expanded(
-                            child: Text(m.body,
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    fontSize: 12.5,
-                                    height: 1.4,
-                                    color: Colors.white)),
+                            child: (m.kind == 'photo' && m.photoBytes != null)
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.memory(m.photoBytes!,
+                                        width: double.infinity,
+                                        fit: BoxFit.cover),
+                                  )
+                                : Text(m.body,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontSize: 12.5,
+                                        height: 1.4,
+                                        color: Colors.white)),
                           ),
                         ],
                       ),

@@ -1,8 +1,14 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 import 'package:bitchat_messenger/core/theme.dart';
 import 'package:bitchat_messenger/core/database_service.dart';
+import 'package:bitchat_messenger/core/widgets/voice_player.dart';
 import 'package:bitchat_messenger/features/chat/models/message.dart';
 import 'package:bitchat_messenger/features/groups/services/group_service.dart';
 
@@ -30,9 +36,14 @@ class GroupChatScreen extends StatefulWidget {
 class _GroupChatScreenState extends State<GroupChatScreen> {
   final _textController = TextEditingController();
   final _scrollController = ScrollController();
+  final _recorder = AudioRecorder();
   Map<String, dynamic>? _group;
   List<Message> _messages = [];
   StreamSubscription? _sub;
+  bool _isRecording = false;
+  int _recordSecs = 0;
+  Timer? _recordTimer;
+  bool _sendingMedia = false;
 
   // Stable colour per senderLabel so 'Member 3' keeps one colour.
   static const _palette = [
@@ -53,9 +64,65 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   @override
   void dispose() {
     _sub?.cancel();
+    _recordTimer?.cancel();
+    _recorder.dispose();
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAndSendImage() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+      maxWidth: 1280,
+      maxHeight: 1280,
+    );
+    debugPrint('[group-media] picker returned: ${picked?.path}');
+    if (picked == null || !mounted) return;
+    setState(() => _sendingMedia = true);
+    final ok = await widget.groupService
+        .sendGroupImage(widget.groupId, File(picked.path));
+    if (!mounted) return;
+    setState(() => _sendingMedia = false);
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Couldn\'t send the photo — check your connection')));
+    }
+  }
+
+  Future<void> _startRecording() async {
+    if (!await _recorder.hasPermission()) return;
+    final dir = await getTemporaryDirectory();
+    final path =
+        '${dir.path}/grec_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: path);
+    _recordTimer?.cancel();
+    setState(() {
+      _isRecording = true;
+      _recordSecs = 0;
+    });
+    _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _recordSecs++);
+    });
+  }
+
+  Future<void> _stopRecording({required bool send}) async {
+    _recordTimer?.cancel();
+    final path = await _recorder.stop();
+    final secs = _recordSecs;
+    if (mounted) setState(() => _isRecording = false);
+    if (!send || path == null || secs < 1) return;
+    setState(() => _sendingMedia = true);
+    final ok = await widget.groupService
+        .sendGroupVoice(widget.groupId, File(path), secs);
+    if (!mounted) return;
+    setState(() => _sendingMedia = false);
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Couldn\'t send the voice note — check your connection')));
+    }
   }
 
   Future<void> _load() async {
@@ -189,41 +256,98 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
               child: SafeArea(
                 top: false,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.darkInputBg : AppColors.inputBg,
-                          borderRadius: BorderRadius.circular(24),
+                child: _isRecording
+                    ? Row(children: [
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                              color: AppColors.coral, shape: BoxShape.circle),
                         ),
-                        child: TextField(
-                          controller: _textController,
-                          minLines: 1,
-                          maxLines: 5,
-                          decoration: const InputDecoration(
-                            hintText: 'Message',
-                            border: InputBorder.none,
-                            contentPadding:
-                                EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Recording  ${_recordSecs ~/ 60}:${(_recordSecs % 60).toString().padLeft(2, '0')}',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline,
+                              color: AppColors.coral),
+                          onPressed: () => _stopRecording(send: false),
+                        ),
+                        GestureDetector(
+                          onTap: () => _stopRecording(send: true),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle),
+                            child: const Icon(Icons.send_rounded,
+                                color: Colors.white, size: 22),
                           ),
-                          onSubmitted: (_) => _send(),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: _send,
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: const BoxDecoration(
-                            color: AppColors.primary, shape: BoxShape.circle),
-                        child: const Icon(Icons.send_rounded,
-                            color: Colors.white, size: 22),
-                      ),
-                    ),
-                  ],
+                      ])
+                    : Row(
+                        children: [
+                          IconButton(
+                            onPressed: _sendingMedia ? null : _pickAndSendImage,
+                            tooltip: 'Send a photo',
+                            icon: _sendingMedia
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                                : Icon(Icons.add_photo_alternate_outlined,
+                                    color: isDark
+                                        ? AppColors.darkTextMuted
+                                        : AppColors.textMuted),
+                          ),
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? AppColors.darkInputBg
+                                    : AppColors.inputBg,
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              child: TextField(
+                                controller: _textController,
+                                minLines: 1,
+                                maxLines: 5,
+                                decoration: const InputDecoration(
+                                  hintText: 'Message',
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 11),
+                                ),
+                                onSubmitted: (_) => _send(),
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: _startRecording,
+                            tooltip: 'Record a voice note',
+                            icon: Icon(Icons.mic_none,
+                                color: isDark
+                                    ? AppColors.darkTextMuted
+                                    : AppColors.textMuted),
+                          ),
+                          GestureDetector(
+                            onTap: _send,
+                            child: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle),
+                              child: const Icon(Icons.send_rounded,
+                                  color: Colors.white, size: 22),
+                            ),
+                          ),
+                        ],
                 ),
               ),
             ),
@@ -278,22 +402,56 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           fontWeight: FontWeight.w700,
                           color: labelColor)),
                 if (!isMe) const SizedBox(height: 2),
-                Text(m.content,
-                    style: TextStyle(
-                        fontSize: 15,
-                        height: 1.35,
-                        color: isMe
-                            ? Colors.white
-                            : (isDark
-                                ? AppColors.darkTextPrimary
-                                : AppColors.textPrimary))),
-                const SizedBox(height: 2),
-                Text(time,
-                    style: TextStyle(
-                        fontSize: 10,
-                        color: isMe
-                            ? Colors.white.withAlpha(165)
-                            : AppColors.textMuted)),
+                if (m.type == 'image')
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: CachedNetworkImage(
+                      imageUrl: m.content,
+                      width: 210,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => Container(
+                        width: 210,
+                        height: 140,
+                        color: isDark ? AppColors.darkInputBg : AppColors.inputBg,
+                        child: const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2)),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        width: 210,
+                        height: 100,
+                        alignment: Alignment.center,
+                        color: isDark ? AppColors.darkInputBg : AppColors.inputBg,
+                        child: const Text('📷 Photo unavailable',
+                            style: TextStyle(fontSize: 12)),
+                      ),
+                    ),
+                  )
+                else if (m.type == 'voice_note')
+                  VoicePlayer(
+                    source: m.content,
+                    secsLabel: m.replySnippet ?? '0',
+                    light: isMe,
+                    timeLabel: time,
+                  )
+                else
+                  Text(m.content,
+                      style: TextStyle(
+                          fontSize: 15,
+                          height: 1.35,
+                          color: isMe
+                              ? Colors.white
+                              : (isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.textPrimary))),
+                if (m.type != 'voice_note') ...[
+                  const SizedBox(height: 2),
+                  Text(time,
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: isMe
+                              ? Colors.white.withAlpha(165)
+                              : AppColors.textMuted)),
+                ],
               ],
             ),
           ),

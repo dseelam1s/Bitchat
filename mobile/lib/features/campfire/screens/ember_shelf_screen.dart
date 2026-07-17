@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:bitchat_messenger/core/database_service.dart';
 import 'package:bitchat_messenger/core/theme.dart';
@@ -105,16 +107,28 @@ class _EmberShelfScreenState extends State<EmberShelfScreen> {
                     ]),
                     const SizedBox(height: 8),
                     Expanded(
-                      child: Text('“${e['body']}”',
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 13,
-                              height: 1.4,
-                              fontWeight: FontWeight.w600,
-                              color: isDark
-                                  ? AppColors.darkTextPrimary
-                                  : AppColors.textPrimary)),
+                      child: (e['body'] as String).startsWith('img:')
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(
+                                File((e['body'] as String).substring(4)),
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Center(
+                                    child: Text('📷',
+                                        style: TextStyle(fontSize: 24))),
+                              ),
+                            )
+                          : Text('“${e['body']}”',
+                              maxLines: 4,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  height: 1.4,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark
+                                      ? AppColors.darkTextPrimary
+                                      : AppColors.textPrimary)),
                     ),
                     Text('— ${e['senderName'] ?? ''}',
                         style: TextStyle(

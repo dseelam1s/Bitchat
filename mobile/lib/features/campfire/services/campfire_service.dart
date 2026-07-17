@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
+import 'package:path_provider/path_provider.dart';
 import 'package:nostr_tools/nostr_tools.dart' show KeyApi;
 import 'package:bitchat_messenger/core/database_service.dart';
 import 'package:bitchat_messenger/core/key_manager.dart';
@@ -17,6 +20,8 @@ class FireMoment {
   final String senderPubkey;
   final String senderName;
   final String body;
+  final String kind; // 'text' | 'photo'
+  final Uint8List? photoBytes; // memory only — never touches disk unless kept
   final bool burnOnly; // sharer marked it "burns with the fire" — never keepable
   final bool system; // "X walked in" lines
   final int tsMs;
@@ -25,6 +30,8 @@ class FireMoment {
     required this.senderPubkey,
     required this.senderName,
     required this.body,
+    this.kind = 'text',
+    this.photoBytes,
     this.burnOnly = false,
     this.system = false,
     required this.tsMs,
@@ -258,6 +265,36 @@ class CampfireService {
         'fire_msg', jsonEncode({'fireId': _fireId, 'ct': ct}));
   }
 
+  /// Share a photo to the fire. Travels over BLE in chunks (slow but fully
+  /// offline) and lives in everyone's MEMORY only — it burns like the rest.
+  Future<bool> sendPhoto(File file, {bool burnOnly = false}) async {
+    if (!inFire) return false;
+    final bytes = await file.readAsBytes();
+    final id = keyManager.generateMessageId();
+
+    _moments.add(FireMoment(
+      id: id,
+      senderPubkey: keyManager.publicKey ?? '',
+      senderName: _myName,
+      body: '',
+      kind: 'photo',
+      photoBytes: bytes,
+      burnOnly: burnOnly,
+      tsMs: DateTime.now().millisecondsSinceEpoch,
+    ));
+    _seenMomentIds.add(id);
+    _roomController.add(null);
+
+    final envelope = jsonEncode({
+      'f': _fireId,
+      'n': _myName,
+      'bo': burnOnly,
+      'd': base64Encode(bytes),
+    });
+    return messageService.sendBleMediaBroadcast(
+        id: id, mediaType: 'fire_photo', data: envelope);
+  }
+
   // ── Incoming BLE signals (wired from MessageService.onFireSignal) ────────
 
   Future<void> handleSignal(Message msg) async {
@@ -279,7 +316,36 @@ class CampfireService {
         _onEnter(msg.senderPubkey, payload);
       case 'fire_msg':
         await _onFireMsg(msg.senderPubkey, payload);
+      case 'fire_photo':
+        _onFirePhoto(msg.senderPubkey, msg.id, payload);
     }
+  }
+
+  void _onFirePhoto(String from, String momentId, Map<String, dynamic> p) {
+    if (!inFire || p['f'] != _fireId) return;
+    if (_seenMomentIds.contains(momentId)) return;
+    final b64 = p['d'] as String?;
+    if (b64 == null || b64.isEmpty) return;
+    Uint8List bytes;
+    try {
+      bytes = base64Decode(b64);
+    } catch (_) {
+      return;
+    }
+    _seenMomentIds.add(momentId);
+    final name = p['n'] as String? ?? 'Someone';
+    _touch(from, name);
+    _moments.add(FireMoment(
+      id: momentId,
+      senderPubkey: from,
+      senderName: name,
+      body: '',
+      kind: 'photo',
+      photoBytes: bytes,
+      burnOnly: p['bo'] == true,
+      tsMs: DateTime.now().millisecondsSinceEpoch,
+    ));
+    _roomController.add(null);
   }
 
   Future<void> _onBeacon(String from, Map<String, dynamic> p) async {
@@ -497,10 +563,19 @@ class CampfireService {
   // ── Embers ────────────────────────────────────────────────────────────────
 
   /// Keep exactly one moment from a burned fire. Everything else stays ash.
+  /// A kept photo is written to disk only at this moment — the sole copy
+  /// that survives the burn.
   Future<void> keepEmber(BurnedFire fire, FireMoment m) async {
+    var body = m.body;
+    if (m.kind == 'photo' && m.photoBytes != null) {
+      final dir = await getApplicationDocumentsDirectory();
+      final path = '${dir.path}/ember_${m.id}.jpg';
+      await File(path).writeAsBytes(m.photoBytes!, flush: true);
+      body = 'img:$path';
+    }
     await dbService.insertEmber({
       'id': m.id,
-      'body': m.body,
+      'body': body,
       'senderName': m.senderName,
       'litBy': fire.litBy,
       'headcount': fire.peakCount,

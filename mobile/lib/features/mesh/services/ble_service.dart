@@ -464,13 +464,19 @@ class BleService {
 
     // Emit as a synthetic message. Images carry their base64 in content with a
     // 'base64img:' prefix so MessageService can decode → save → display.
+    // Campfire photos ('fire_photo') carry their JSON envelope verbatim —
+    // routed to CampfireService and never persisted.
     // Voice notes keep empty content for now (handled separately in a future phase).
     final mediaType = meta['mediaType'] as String;
     final syntheticMap = {
       'id': cid,
       'senderPubkey': meta['senderPubkey'],
       'receiverPubkey': meta['receiverPubkey'],
-      'content': mediaType == 'image' ? 'base64img:$fullBase64' : '',
+      'content': mediaType == 'image'
+          ? 'base64img:$fullBase64'
+          : mediaType == 'fire_photo'
+              ? fullBase64
+              : '',
       'type': mediaType,
       'timestamp': meta['timestamp'],
       'ttl': 1,

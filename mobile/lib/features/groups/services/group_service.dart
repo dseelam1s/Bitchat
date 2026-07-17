@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import 'package:nostr_tools/nostr_tools.dart' show KeyApi;
 import 'package:bitchat_messenger/core/database_service.dart';
@@ -115,7 +118,52 @@ class GroupService {
   }
 
   /// Send a text message to a group (encrypted with the group key).
-  Future<void> sendGroupMessage(String groupId, String body) async {
+  Future<void> sendGroupMessage(String groupId, String body) =>
+      _sendGroupWire(groupId,
+          wireBody: body, localType: 'text', localContent: body);
+
+  /// Send a photo: uploads to the media store, then shares the URL inside
+  /// the group-key-encrypted wrapper (same pattern as DM images).
+  Future<bool> sendGroupImage(String groupId, File image) async {
+    try {
+      final url = await ServerService().uploadChatImage(image);
+      await _sendGroupWire(
+        groupId,
+        wireBody: jsonEncode({'__k': 'img', 'u': url}),
+        localType: 'image',
+        localContent: url,
+      );
+      return true;
+    } catch (e) {
+      debugPrint('[group-media] image send failed: $e');
+      return false;
+    }
+  }
+
+  /// Send a voice note (uploaded, URL shared encrypted; secs ride along).
+  Future<bool> sendGroupVoice(String groupId, File audio, int secs) async {
+    try {
+      final url = await ServerService().uploadChatAudio(audio);
+      await _sendGroupWire(
+        groupId,
+        wireBody: jsonEncode({'__k': 'voice', 'u': url, 's': secs}),
+        localType: 'voice_note',
+        localContent: url,
+        localSnippet: secs.toString(),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _sendGroupWire(
+    String groupId, {
+    required String wireBody,
+    required String localType,
+    required String localContent,
+    String? localSnippet,
+  }) async {
     final group = await _db.getGroup(groupId);
     final myPub = _keyManager.publicKey;
     if (group == null || myPub == null) return;
@@ -134,18 +182,19 @@ class GroupService {
       id: messageId,
       senderPubkey: myPub,
       receiverPubkey: groupId,
-      content: body,
-      type: 'text',
+      content: localContent,
+      type: localType,
       timestamp: ts,
       status: 'sent',
       senderName: _keyManager.username,
       senderLabel: 'You',
+      replySnippet: localSnippet,
       groupId: groupId,
     ));
     _controller.add(groupId);
 
-    // Encrypt body with the GROUP key (self-encrypt: priv+own pub).
-    final ct = await _nip44.encrypt(groupPriv, groupPub, body);
+    // Encrypt the wire body with the GROUP key (self-encrypt: priv+own pub).
+    final ct = await _nip44.encrypt(groupPriv, groupPub, wireBody);
     _signaling?.send({
       'type': 'group_dm',
       'groupId': groupId,
@@ -185,16 +234,36 @@ class GroupService {
     final senderPubkey = payload['senderPubkey'] as String? ?? '';
     final senderLabel = payload['senderLabel'] as String? ?? 'Member';
 
+    // Media wrapper: {'__k':'img'|'voice','u':url,'s':secs}. Plain text
+    // bodies (incl. old builds) fall through unchanged.
+    var type = 'text';
+    var content = body;
+    String? snippet;
+    try {
+      final k = jsonDecode(body);
+      if (k is Map && k['__k'] != null) {
+        if (k['__k'] == 'img') {
+          type = 'image';
+          content = k['u'] as String? ?? '';
+        } else if (k['__k'] == 'voice') {
+          type = 'voice_note';
+          content = k['u'] as String? ?? '';
+          snippet = ((k['s'] as num?)?.toInt() ?? 0).toString();
+        }
+      }
+    } catch (_) {}
+
     await _db.insertMessage(Message(
       id: messageId,
       senderPubkey: senderPubkey.isEmpty ? groupId : senderPubkey,
       receiverPubkey: groupId,
-      content: body,
-      type: 'text',
+      content: content,
+      type: type,
       timestamp: payload['timestamp'] as int? ??
           DateTime.now().millisecondsSinceEpoch ~/ 1000,
       status: 'delivered',
       senderLabel: senderLabel,
+      replySnippet: snippet,
       groupId: groupId,
     ));
     _controller.add(groupId);
