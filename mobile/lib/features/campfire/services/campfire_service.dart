@@ -107,14 +107,13 @@ class CampfireService {
   static const _beaconEvery = Duration(seconds: 10);
   static const _flameExpiry = Duration(seconds: 35);
 
-  /// How long a fire keeps burning with nobody else heard from — covers
-  /// short BLE blips and the chai run. (Kept short-ish for field testing;
-  /// production candidate is 3–5 min.)
-  static const grace = Duration(seconds: 90);
+  /// How long an ACTIVE fire keeps burning with nobody else heard from —
+  /// covers BLE blips, bathroom breaks and the chai run.
+  static const grace = Duration(minutes: 3);
 
-  /// A freshly lit fire won't burn out before this — gives people time to
-  /// see the flame and walk in.
-  static const _warmup = Duration(seconds: 120);
+  /// A fire NOBODY has joined yet waits this long for someone to walk in,
+  /// then goes out silently — no burn ceremony for a fire no one came to.
+  static const kindling = Duration(minutes: 10);
 
   final _roomController = StreamController<void>.broadcast();
   final _radarController = StreamController<void>.broadcast();
@@ -441,13 +440,35 @@ class CampfireService {
 
     if (!inFire) return;
 
-    // Warmup: a fresh fire waits for joiners.
-    if (now.millisecondsSinceEpoch - _litAtMs < _warmup.inMilliseconds) return;
+    // Never joined: kindling window, then a silent death — being stood up
+    // doesn't deserve a ceremony.
+    if (_peakCount <= 1) {
+      if (now.millisecondsSinceEpoch - _litAtMs >= kindling.inMilliseconds) {
+        _dieSilently();
+      }
+      return;
+    }
 
-    // Alone (or everyone I knew has gone silent past the grace) → burn.
+    // Active fire: everyone I knew has gone silent past the grace → burn.
     final othersAlive = _participants.values
         .any((pt) => now.difference(pt.lastSeen) <= grace);
     if (!othersAlive) _burn();
+  }
+
+  /// A fire that never had joiners goes out without a burn screen or
+  /// ember picker — there was no night to keep.
+  void _dieSilently() {
+    _beaconTimer?.cancel();
+    _beaconTimer = null;
+    _fireId = null;
+    _firePriv = null;
+    _firePub = null;
+    _participants.clear();
+    _moments.clear();
+    _seenMomentIds.clear();
+    _pendingBurn = null;
+    _roomController.add(null);
+    _radarController.add(null);
   }
 
   void _burn() {

@@ -80,10 +80,12 @@ class _CampfireScreenState extends State<CampfireScreen> {
   Widget build(BuildContext context) {
     if (_burned != null) return _burnView(context);
     if (!fire.inFire) {
-      // Fire gone and nothing pending (e.g. reopened stale screen)
+      // Fire gone and nothing pending — burned or went out unjoined.
       return Scaffold(
         appBar: AppBar(title: const Text('Campfire')),
-        body: const Center(child: Text('This fire has burned out')),
+        body: const Center(
+            child: Text('The fire went out 🌙',
+                style: TextStyle(fontSize: 15))),
       );
     }
     return _roomView(context);
