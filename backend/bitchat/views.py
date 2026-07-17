@@ -15,6 +15,10 @@ from apps.identity.views import (
     restore,
     contacts_backup_save,
     contacts_backup_fetch,
+    messages_backup_save,
+    messages_backup_fetch,
+    status_set,
+    status_batch,
 )
 from apps.push.views import push_token, notify
 from apps.profile.views import profile_get, profile_me, profile_update, profile_picture_upload, profile_search
