@@ -8,6 +8,7 @@ import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:bitchat_messenger/features/calls/screens/incoming_call_screen.dart';
 import 'package:bitchat_messenger/features/calls/screens/in_call_screen.dart';
 import 'package:bitchat_messenger/features/chat/screens/chats_screen.dart';
+import 'package:bitchat_messenger/features/campfire/services/campfire_service.dart';
 import 'package:bitchat_messenger/features/groups/services/group_service.dart';
 import 'package:bitchat_messenger/features/radar/radar_screen.dart';
 
@@ -16,6 +17,7 @@ class HomeScreen extends StatefulWidget {
   final MessageService messageService;
   final CallService callService;
   final GroupService groupService;
+  final CampfireService? campfireService;
 
   const HomeScreen({
     super.key,
@@ -23,6 +25,7 @@ class HomeScreen extends StatefulWidget {
     required this.messageService,
     required this.callService,
     required this.groupService,
+    this.campfireService,
   });
 
   @override
@@ -80,6 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
       RadarScreen(
         messageService: widget.messageService,
         callService: widget.callService,
+        campfireService: widget.campfireService,
       ),
     ];
   }

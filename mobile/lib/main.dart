@@ -26,6 +26,7 @@ import 'package:bitchat_messenger/features/chat/services/message_backup_service.
 import 'package:bitchat_messenger/features/mesh/services/foreground_service.dart';
 import 'package:bitchat_messenger/features/chat/screens/chat_screen.dart';
 import 'package:bitchat_messenger/app/home_screen.dart';
+import 'package:bitchat_messenger/features/campfire/services/campfire_service.dart';
 import 'package:bitchat_messenger/features/groups/services/group_service.dart';
 import 'package:bitchat_messenger/features/auth/screens/onboarding_screen.dart';
 
@@ -279,6 +280,7 @@ class _AppInitializerState extends State<AppInitializer>
   MessageService? _messageService;
   CallService? _callService;
   GroupService? _groupService;
+  CampfireService? _campfireService;
   BitChatService? _bitchatService;
   ContactResolverService? _contactResolver;
   KeyManager? _pendingKeyManager;
@@ -446,6 +448,15 @@ class _AppInitializerState extends State<AppInitializer>
       messageService.onGroupInviteData = groupService.handleInvite;
       messageService.onGroupMessage = groupService.handleIncomingGroupMessage;
       _groupService = groupService;
+
+      // Campfires — ephemeral BLE-only rooms (fire_* packets, never stored)
+      final campfireService = CampfireService(
+        messageService: messageService,
+        dbService: dbService,
+        keyManager: keyManager,
+      );
+      messageService.onFireSignal = campfireService.handleSignal;
+      _campfireService = campfireService;
 
       // Route messaging payloads (dm, receipts, ack) into MessageService
       signalingService.onMessageReceived = (payload) {
@@ -714,6 +725,7 @@ class _AppInitializerState extends State<AppInitializer>
       messageService: _messageService!,
       callService: _callService!,
       groupService: _groupService!,
+      campfireService: _campfireService,
     );
   }
 }

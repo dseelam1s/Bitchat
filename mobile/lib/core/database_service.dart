@@ -29,7 +29,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 18,
+      version: 19,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -93,6 +93,7 @@ class DatabaseService {
     await _createCallLogsTable(db);
     await _createBleHistoryTable(db);
     await _createGroupsTable(db, fresh: true);
+    await _createEmbersTable(db);
   }
 
   /// [fresh] true on _createDB (messages table already has the group columns),
@@ -231,6 +232,35 @@ class DatabaseService {
             'ALTER TABLE groups ADD COLUMN membersCanMessage INTEGER DEFAULT 1');
       } catch (_) {}
     }
+    if (oldVersion < 19) {
+      await _createEmbersTable(db);
+    }
+  }
+
+  /// Embers: the ONE moment a user keeps from each burned campfire.
+  /// Campfire content itself is never stored — only these.
+  Future<void> _createEmbersTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS embers (
+        id TEXT PRIMARY KEY,
+        body TEXT NOT NULL,
+        senderName TEXT,
+        litBy TEXT,
+        headcount INTEGER DEFAULT 0,
+        litAt INTEGER NOT NULL,
+        burnedAt INTEGER NOT NULL
+      )
+    ''');
+  }
+
+  Future<void> insertEmber(Map<String, dynamic> ember) async {
+    final db = await database;
+    await db.insert('embers', ember, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<Map<String, dynamic>>> getEmbers() async {
+    final db = await database;
+    return db.query('embers', orderBy: 'burnedAt DESC');
   }
 
   Future<void> _createRelayStore(Database db) async {

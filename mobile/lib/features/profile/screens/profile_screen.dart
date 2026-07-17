@@ -16,6 +16,7 @@ import 'package:bitchat_messenger/features/chat/services/message_backup_service.
 import 'package:bitchat_messenger/core/server_service.dart';
 import 'package:bitchat_messenger/features/profile/services/profile_picture_cache_service.dart';
 import 'package:bitchat_messenger/features/contacts/models/contact.dart';
+import 'package:bitchat_messenger/features/campfire/screens/ember_shelf_screen.dart';
 
 // ── Profile Screen (Tab: Me) ──────────────────────────────────────────────────
 
@@ -422,6 +423,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (_) => _SettingsScreen(messageService: widget.messageService),
+                        ),
+                      ),
+                    ),
+                    _cardDivider(),
+                    _navRow(
+                      icon: Icons.local_fire_department_outlined,
+                      label: 'Embers',
+                      isDark: isDark,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => EmberShelfScreen(
+                              dbService: widget.messageService.dbService),
                         ),
                       ),
                     ),

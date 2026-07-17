@@ -9,6 +9,9 @@ import 'package:bitchat_messenger/features/chat/services/message_service.dart';
 import 'package:bitchat_messenger/features/calls/services/call_service.dart';
 import 'package:bitchat_messenger/features/chat/screens/chat_screen.dart';
 import 'package:bitchat_messenger/core/widgets/peer_avatar.dart';
+import 'package:bitchat_messenger/features/campfire/screens/campfire_screen.dart';
+import 'package:bitchat_messenger/features/campfire/services/campfire_service.dart';
+import 'package:bitchat_messenger/features/contacts/screens/clink_screen.dart';
 import 'package:share_plus/share_plus.dart';
 
 /// The Radar — BitChat's signature screen.
@@ -20,11 +23,13 @@ import 'package:share_plus/share_plus.dart';
 class RadarScreen extends StatefulWidget {
   final MessageService messageService;
   final CallService? callService;
+  final CampfireService? campfireService;
 
   const RadarScreen({
     super.key,
     required this.messageService,
     this.callService,
+    this.campfireService,
   });
 
   @override
@@ -45,6 +50,8 @@ class _RadarScreenState extends State<RadarScreen>
   List<Map<String, dynamic>> _history = [];
   Map<String, Contact> _contacts = {};
   StreamSubscription? _nearbySub;
+  StreamSubscription? _fireRadarSub;
+  StreamSubscription? _burnSub;
   late final AnimationController _pulse;
 
   @override
@@ -58,6 +65,21 @@ class _RadarScreenState extends State<RadarScreen>
       setState(() => _nearby = Set.of(set));
       _loadHistory();
     });
+    _fireRadarSub = widget.campfireService?.radarUpdates.listen((_) {
+      if (mounted) setState(() {});
+    });
+    _burnSub = widget.campfireService?.burns.listen((_) {
+      if (!mounted) return;
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Your campfire burned out 🔥'),
+        action: SnackBarAction(
+          label: 'Pick your ember',
+          onPressed: _openFireRoom,
+        ),
+        duration: const Duration(seconds: 8),
+      ));
+    });
     _loadHistory();
     _loadContacts();
   }
@@ -66,7 +88,154 @@ class _RadarScreenState extends State<RadarScreen>
   void dispose() {
     _pulse.dispose();
     _nearbySub?.cancel();
+    _fireRadarSub?.cancel();
+    _burnSub?.cancel();
     super.dispose();
+  }
+
+  // ── Campfire ─────────────────────────────────────────────────────────────
+
+  void _openFireRoom() {
+    final fs = widget.campfireService;
+    if (fs == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CampfireScreen(
+          campfireService: fs,
+          messageService: widget.messageService,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onFirePressed() async {
+    final fs = widget.campfireService;
+    if (fs == null) return;
+    if (fs.inFire || fs.pendingBurn != null) {
+      _openFireRoom();
+      return;
+    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: isDark ? AppColors.darkCard : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            24, 24, 24, 24 + MediaQuery.of(ctx).viewPadding.bottom),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('🔥', style: TextStyle(fontSize: 40)),
+          const SizedBox(height: 10),
+          const Text('Light a campfire?',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text(
+            'A room that exists while people are together — anyone in range '
+            'sees the flame and can walk in. It burns when everyone leaves; '
+            'nothing is saved.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontSize: 12.5,
+                height: 1.5,
+                color: isDark ? AppColors.darkTextMuted : AppColors.textMuted),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.coral),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Light it 🔥',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+            ),
+          ),
+        ]),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final err = await fs.light();
+    if (!mounted) return;
+    if (err != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(err)));
+      return;
+    }
+    _openFireRoom();
+  }
+
+  void _showFlameSheet(NearbyFire flame) {
+    final fs = widget.campfireService;
+    if (fs == null) return;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? AppColors.darkCard : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            24, 24, 24, 24 + MediaQuery.of(ctx).viewPadding.bottom),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('🔥', style: TextStyle(fontSize: 40)),
+          const SizedBox(height: 10),
+          const Text('Campfire',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text('lit by ${flame.litBy} · ${flame.count} around it',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? AppColors.darkTextMuted : AppColors.textMuted)),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.coral.withAlpha(22),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Text('You\'re close enough to join',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.coral)),
+          ),
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Not now'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: AppColors.coral),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  final ok = await fs.join(flame.fireId);
+                  if (!mounted) return;
+                  if (ok) {
+                    _openFireRoom();
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text(
+                            'Couldn\'t reach the fire — walk a little closer and try again')));
+                  }
+                },
+                child: const Text('Walk in',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ]),
+        ]),
+      ),
+    );
   }
 
   Future<void> _loadHistory() async {
@@ -290,6 +459,35 @@ class _RadarScreenState extends State<RadarScreen>
         title: const Text('Radar',
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 22, letterSpacing: -0.5)),
         actions: [
+          if (widget.campfireService != null)
+            IconButton(
+              icon: Icon(
+                (widget.campfireService!.inFire ||
+                        widget.campfireService!.pendingBurn != null)
+                    ? Icons.local_fire_department
+                    : Icons.local_fire_department_outlined,
+                size: 24,
+                color: (widget.campfireService!.inFire ||
+                        widget.campfireService!.pendingBurn != null)
+                    ? AppColors.coral
+                    : null,
+              ),
+              tooltip: widget.campfireService!.inFire
+                  ? 'Back to your campfire'
+                  : 'Light a campfire',
+              onPressed: _onFirePressed,
+            ),
+          IconButton(
+            icon: const Icon(Icons.smartphone, size: 22),
+            tooltip: 'Clink — tap phones to swap contacts',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    ClinkScreen(messageService: widget.messageService),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.search, size: 24),
             tooltip: 'Find someone by name or ID',
@@ -452,6 +650,53 @@ class _RadarScreenState extends State<RadarScreen>
                         ));
                       }
                       return dots;
+                    }(),
+
+                    // Campfire flames heard from people in range
+                    ...() {
+                      final fires =
+                          widget.campfireService?.nearbyFires ?? const <NearbyFire>[];
+                      final flames = <Widget>[];
+                      for (var i = 0; i < fires.length && i < 2; i++) {
+                        final f = fires[i];
+                        final pos = _positionFor(
+                            f.fireId, i, fires.length, center, bandLive * 0.62);
+                        flames.add(Positioned(
+                          left: pos.dx - 34,
+                          top: pos.dy - 34,
+                          width: 68,
+                          child: GestureDetector(
+                            onTap: () => _showFlameSheet(f),
+                            child: Column(mainAxisSize: MainAxisSize.min, children: [
+                              Container(
+                                width: 46,
+                                height: 46,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.coral.withAlpha(30),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.coral.withAlpha(70),
+                                      blurRadius: 16,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
+                                ),
+                                child: const Text('🔥',
+                                    style: TextStyle(fontSize: 22)),
+                              ),
+                              const SizedBox(height: 2),
+                              Text('Campfire · ${f.count}',
+                                  style: const TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.coral)),
+                            ]),
+                          ),
+                        ));
+                      }
+                      return flames;
                     }(),
 
                     // Empty state: give the screen a job — invite people.

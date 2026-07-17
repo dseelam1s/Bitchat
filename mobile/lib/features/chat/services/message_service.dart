@@ -164,6 +164,36 @@ class MessageService {
   /// Returns true if the payload was consumed (used to ack pending rows).
   Future<bool> Function(Map<String, dynamic> payload)? onGroupMessage;
 
+  /// Clink handshake packets (tap-phones contact swap) — BLE only, never stored.
+  void Function(Message message)? onClinkSignal;
+
+  /// Campfire packets (fire_beacon / fire_join / fire_key / fire_msg) —
+  /// BLE only, never stored. Wired to CampfireService in main.dart.
+  void Function(Message message)? onFireSignal;
+
+  /// Send a small plaintext signal over BLE to specific nearby peers
+  /// (ttl 1 — delivered only, never relayed, never persisted).
+  /// Used by Clink and Campfire. [toPubkeys] defaults to everyone in range.
+  Future<void> sendBleSignal(String type, String content,
+      {List<String>? toPubkeys}) async {
+    final myPub = _keyManager.publicKey;
+    if (myPub == null) return;
+    final targets = toPubkeys ?? nearbyUsers.toList();
+    for (final peer in targets) {
+      await _bitchatService.sendMessage(Message(
+        id: _keyManager.generateMessageId(),
+        senderPubkey: myPub,
+        receiverPubkey: peer,
+        content: content,
+        type: type,
+        timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        ttl: 1,
+        status: 'sent',
+        transport: 'bitchat',
+      ));
+    }
+  }
+
   Future<void> handleWebSocketPayload(Map<String, dynamic> payload) async {
     final type = payload['type'] as String? ?? '';
 
@@ -993,6 +1023,16 @@ class MessageService {
     // Typing indicators are handled by BitChatService via typingStream.
     // If one leaks through here (e.g. old BLE path), drop it silently.
     if (message.type == AppConstants.typeTypingIndicator) return;
+
+    // ── Clink / Campfire BLE signals — routed to their services, never stored
+    if (message.type == 'clink') {
+      onClinkSignal?.call(message);
+      return;
+    }
+    if (message.type.startsWith('fire_')) {
+      onFireSignal?.call(message);
+      return;
+    }
 
     // ── Step 2: Delivery receipts — never encrypted, handle immediately ───────
     // BLE delivery receipts are unreliable (sender may no longer be in range),
