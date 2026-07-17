@@ -329,6 +329,10 @@ class MessageService {
       final pending = await ServerService().fetchPendingMessages();
       for (final raw in pending) {
         try {
+          if ((raw['message_type'] as String?) == 'group_dm') {
+            await _routePendingGroupRow(raw);
+            continue;
+          }
           final msg = Message(
             id: raw['message_id'] as String,
             senderPubkey: raw['sender_pubkey'] as String,
@@ -823,12 +827,27 @@ class MessageService {
     }
   }
 
+  /// A stored group message row: encrypted_content is a plaintext JSON
+  /// wrapper (label metadata only) whose 'ct' field is the group-key
+  /// encrypted body. Forward it to GroupService instead of the DM path.
+  Future<void> _routePendingGroupRow(Map<String, dynamic> raw) async {
+    final wrapper =
+        jsonDecode(raw['encrypted_content'] as String) as Map<String, dynamic>;
+    wrapper['timestamp'] ??= raw['timestamp'];
+    await onGroupMessage?.call(wrapper);
+  }
+
   /// Fetch messages delivered via server while we were offline or in background.
   Future<void> _fetchOnlineMessages() async {
     try {
       final messages = await ServerService().fetchOnlineMessages();
       for (final raw in messages) {
         try {
+          if ((raw['message_type'] as String?) == 'group_dm') {
+            await _routePendingGroupRow(raw);
+            ServerService().sendReceipt(raw['message_id'] as String, 'delivered');
+            continue;
+          }
           final msg = Message(
             id:             raw['message_id'] as String,
             senderPubkey:   raw['sender_pubkey'] as String,
