@@ -8,6 +8,7 @@ import 'package:bitchat_messenger/features/contacts/models/contact.dart';
 import 'package:bitchat_messenger/features/chat/models/message.dart';
 import 'package:bitchat_messenger/features/calls/services/call_service.dart';
 import 'package:bitchat_messenger/core/database_service.dart';
+import 'package:bitchat_messenger/core/server_service.dart';
 import 'package:bitchat_messenger/features/chat/services/message_service.dart';
 import 'package:bitchat_messenger/features/profile/services/profile_sync_service.dart';
 import 'package:bitchat_messenger/features/chat/screens/chat_screen.dart';
@@ -81,6 +82,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
   String? _myPicPath;
   List<Map<String, dynamic>> _groups = [];
   StreamSubscription? _groupSub;
+  Map<String, Map<String, dynamic>> _statusByPubkey = {};
 
   @override
   void initState() {
@@ -176,6 +178,21 @@ class _ChatsScreenState extends State<ChatsScreen> {
       _contacts = contacts;
       _lastMessages = lastMessages;
       _unreadCounts = unreadCounts;
+    });
+    _loadStatuses(contacts);
+  }
+
+  Future<void> _loadStatuses(List<Contact> contacts) async {
+    final myPub = widget.messageService.publicKey;
+    final pubkeys = [
+      if (myPub != null) myPub,
+      ...contacts.where((c) => !c.isPending).map((c) => c.pubkey),
+    ];
+    if (pubkeys.isEmpty) return;
+    final rows = await ServerService().fetchStatuses(pubkeys);
+    if (!mounted) return;
+    setState(() {
+      _statusByPubkey = {for (final r in rows) r['pubkey'] as String: r};
     });
   }
 
@@ -287,6 +304,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
       ),
       body: Column(
         children: [
+          _buildTodayStrip(isDark),
           if (nearby.isNotEmpty) _buildNearbyStrip(nearby, isDark),
           if (_groups.isNotEmpty) _buildGroupsStrip(isDark),
           Expanded(
@@ -319,6 +337,265 @@ class _ChatsScreenState extends State<ChatsScreen> {
         ),
       ),
     ).then((_) => _loadAll());
+  }
+
+  // ── Today strip (status-lite) ─────────────────────────────────────────────
+
+  Widget _buildTodayStrip(bool isDark) {
+    final myPub = widget.messageService.publicKey ?? '';
+    final myStatus = _statusByPubkey[myPub];
+    final withStatus = _contacts
+        .where((c) => c.pubkey != myPub && _statusByPubkey.containsKey(c.pubkey))
+        .toList();
+
+    return SizedBox(
+      height: 92,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        children: [
+          _statusChip(
+            name: 'Your status',
+            avatar: PeerAvatar(
+              name: widget.messageService.username ?? '•',
+              localPath: _myPicPath,
+              picUrl: widget.messageService.profilePictureUrl,
+              size: 52,
+              bgColor: AppColors.primary,
+            ),
+            emoji: myStatus?['emoji'] as String? ?? '',
+            isAdd: myStatus == null,
+            onTap: _showSetStatusSheet,
+            isDark: isDark,
+          ),
+          for (final c in withStatus)
+            _statusChip(
+              name: (c.name ?? '#${c.shortId}').split(' ').first,
+              avatar: PeerAvatar(
+                name: c.name ?? '#${c.shortId}',
+                localPath: c.profilePictureLocalPath,
+                picUrl: c.profilePictureUrl,
+                size: 52,
+                bgColor: _avatarColor(c.pubkey),
+              ),
+              emoji: _statusByPubkey[c.pubkey]?['emoji'] as String? ?? '',
+              isAdd: false,
+              onTap: () => _showContactStatusSheet(c),
+              isDark: isDark,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusChip({
+    required String name,
+    required Widget avatar,
+    required String emoji,
+    required bool isAdd,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Column(
+          children: [
+            SizedBox(
+              width: 58,
+              height: 58,
+              child: Stack(
+                children: [
+                  Positioned(top: 0, left: 0, child: avatar),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 22,
+                      height: 22,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: isAdd
+                            ? AppColors.primary
+                            : (isDark ? AppColors.darkSurface : Colors.white),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color:
+                                isDark ? AppColors.darkSurface : Colors.white,
+                            width: 1.5),
+                      ),
+                      child: isAdd
+                          ? const Icon(Icons.add, size: 14, color: Colors.white)
+                          : Text(emoji.isEmpty ? '💬' : emoji,
+                              style: const TextStyle(fontSize: 12)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(name,
+                style: TextStyle(
+                    fontSize: 11,
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.textMuted)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSetStatusSheet() {
+    final myPub = widget.messageService.publicKey ?? '';
+    final existing = _statusByPubkey[myPub];
+    final textController =
+        TextEditingController(text: existing?['text'] as String? ?? '');
+    String selectedEmoji = existing?['emoji'] as String? ?? '';
+    const moods = ['😊', '🔥', '😴', '☕', '🎧', '💼', '🎉', '😌'];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => Padding(
+          padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Today's status",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              const Text('Visible to your contacts for 24 hours',
+                  style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final m in moods)
+                    GestureDetector(
+                      onTap: () => setLocal(
+                          () => selectedEmoji = selectedEmoji == m ? '' : m),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: selectedEmoji == m
+                              ? AppColors.primary.withAlpha(40)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                          border: selectedEmoji == m
+                              ? Border.all(color: AppColors.primary)
+                              : Border.all(color: Colors.transparent),
+                        ),
+                        child: Text(m, style: const TextStyle(fontSize: 22)),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: textController,
+                maxLength: 140,
+                decoration: const InputDecoration(
+                  hintText: "What's up today?",
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  if (existing != null)
+                    TextButton(
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await ServerService().setStatus(emoji: '', text: '');
+                        _loadStatuses(_contacts);
+                      },
+                      child: const Text('Clear',
+                          style: TextStyle(color: AppColors.coral)),
+                    ),
+                  const Spacer(),
+                  FilledButton(
+                    onPressed: () async {
+                      final text = textController.text.trim();
+                      if (selectedEmoji.isEmpty && text.isEmpty) return;
+                      Navigator.pop(ctx);
+                      final ok = await ServerService()
+                          .setStatus(emoji: selectedEmoji, text: text);
+                      if (!ok && mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                            content:
+                                Text('Could not share status — try again')));
+                      }
+                      _loadStatuses(_contacts);
+                    },
+                    child: const Text('Share'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showContactStatusSheet(Contact c) {
+    final s = _statusByPubkey[c.pubkey];
+    if (s == null) return;
+    final updatedAt = s['updated_at'] as int? ?? 0;
+    final age = DateTime.now()
+        .difference(DateTime.fromMillisecondsSinceEpoch(updatedAt * 1000));
+    final ago = age.inHours > 0 ? '${age.inHours}h ago' : '${age.inMinutes}m ago';
+
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            PeerAvatar(
+              name: c.name ?? '#${c.shortId}',
+              localPath: c.profilePictureLocalPath,
+              picUrl: c.profilePictureUrl,
+              size: 56,
+              bgColor: _avatarColor(c.pubkey),
+            ),
+            const SizedBox(height: 10),
+            Text(c.name ?? '#${c.shortId}',
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(ago,
+                style:
+                    const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+            const SizedBox(height: 16),
+            if ((s['emoji'] as String? ?? '').isNotEmpty)
+              Text(s['emoji'] as String, style: const TextStyle(fontSize: 40)),
+            if ((s['text'] as String? ?? '').isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(s['text'] as String,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 16, height: 1.4)),
+            ],
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _openDm(c);
+              },
+              icon: const Icon(Icons.chat_bubble_outline, size: 18),
+              label: const Text('Reply in chat'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildGroupsStrip(bool isDark) {

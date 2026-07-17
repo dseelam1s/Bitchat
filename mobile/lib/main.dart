@@ -38,7 +38,6 @@ final navigatorKey = GlobalKey<NavigatorState>();
 // Globals set once services are ready — safe to read from notification handlers
 MessageService? _globalMessageService;
 DatabaseService? _globalDbService;
-GroupService? _globalGroupService;
 CallService? _globalCallService;
 SignalingService? _globalSignalingService;
 
@@ -446,7 +445,6 @@ class _AppInitializerState extends State<AppInitializer>
       groupService.setSignaling(signalingService);
       messageService.onGroupInviteData = groupService.handleInvite;
       messageService.onGroupMessage = groupService.handleIncomingGroupMessage;
-      _globalGroupService = groupService;
       _groupService = groupService;
 
       // Route messaging payloads (dm, receipts, ack) into MessageService
