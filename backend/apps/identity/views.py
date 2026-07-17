@@ -7,7 +7,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from bitchat.models import AuthChallenge, BitChatIdentity, RestoreAttempt
+from datetime import timedelta
+
+from bitchat.models import AuthChallenge, BitChatIdentity, RestoreAttempt, UserStatus
 from apps.common import identity_or_404, make_tokens, picture_url
 from .crypto import verify_nostr_event
 from .serializers import (
@@ -230,3 +232,75 @@ def contacts_backup_fetch(request):
     if err:
         return err
     return Response({'contacts_backup': identity.contacts_backup or ''})
+
+
+# ── Messages Backup ───────────────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def messages_backup_save(request):
+    """Save encrypted message history (client encrypts to self before sending)."""
+    identity, err = identity_or_404(request.user.username)
+    if err:
+        return err
+
+    blob = request.data.get('messages_backup', '')
+    if not isinstance(blob, str) or len(blob) > 3_000_000:
+        return Response({'detail': 'Invalid payload.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    identity.messages_backup = blob
+    identity.save(update_fields=['messages_backup', 'updated_at'])
+    return Response({'detail': 'Messages backed up.'})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def messages_backup_fetch(request):
+    """Retrieve encrypted message history backup."""
+    identity, err = identity_or_404(request.user.username)
+    if err:
+        return err
+    return Response({'messages_backup': identity.messages_backup or ''})
+
+
+# ── Status-lite ───────────────────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def status_set(request):
+    """Set (or clear, with empty fields) the caller's 24h status."""
+    emoji = request.data.get('emoji', '')
+    text = request.data.get('text', '')
+    if not isinstance(emoji, str) or not isinstance(text, str)             or len(emoji) > 16 or len(text) > 140:
+        return Response({'detail': 'Invalid payload.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not emoji and not text:
+        UserStatus.objects.filter(pubkey=request.user.username).delete()
+        return Response({'detail': 'Status cleared.'})
+
+    UserStatus.objects.update_or_create(
+        pubkey=request.user.username,
+        defaults={'emoji': emoji, 'text': text},
+    )
+    return Response({'detail': 'Status set.'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def status_batch(request):
+    """Fetch fresh (<24h) statuses for a list of pubkeys (the caller's contacts)."""
+    pubkeys = request.data.get('pubkeys', [])
+    if not isinstance(pubkeys, list) or len(pubkeys) > 500             or not all(isinstance(p, str) for p in pubkeys):
+        return Response({'detail': 'Invalid payload.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    cutoff = timezone.now() - timedelta(hours=24)
+    rows = UserStatus.objects.filter(pubkey__in=pubkeys, updated_at__gte=cutoff)
+    return Response({'statuses': [
+        {
+            'pubkey': r.pubkey,
+            'emoji': r.emoji,
+            'text': r.text,
+            'updated_at': int(r.updated_at.timestamp()),
+        }
+        for r in rows
+    ]})

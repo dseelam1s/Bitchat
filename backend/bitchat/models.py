@@ -47,6 +47,10 @@ class BitChatIdentity(models.Model):
     # Format (before encryption): [{"pubkey": "...", "name": "..."}, ...]
     contacts_backup = models.TextField(blank=True)
 
+    # Message history backup — NIP-44 encrypted (to self) JSON blob of recent
+    # messages. Server stores ciphertext only.
+    messages_backup = models.TextField(blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -256,3 +260,22 @@ class GroupMember(models.Model):
 
     class Meta:
         unique_together = [('group', 'pubkey')]
+
+
+class UserStatus(models.Model):
+    """
+    Status-lite: a short emoji + text mood a user broadcasts to their contacts.
+    Considered expired 24h after updated_at. Plaintext by design (like a
+    WhatsApp 'About') — it is broadcast, not a private message.
+    """
+    pubkey     = models.CharField(max_length=128, unique=True, db_index=True)
+    emoji      = models.CharField(max_length=16, blank=True)
+    text       = models.CharField(max_length=140, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'{self.pubkey[:8]}... {self.emoji} {self.text[:20]}'
+
+    class Meta:
+        verbose_name = 'User Status'
+        verbose_name_plural = 'User Statuses'
