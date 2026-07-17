@@ -16,6 +16,7 @@ def group_create(request):
     group_id = (request.data.get('group_id') or '').strip()
     name = (request.data.get('name') or '').strip()
     members_visible = bool(request.data.get('members_visible', True))
+    members_can_message = bool(request.data.get('members_can_message', True))
     member_pubkeys = request.data.get('member_pubkeys') or []
 
     if not group_id or not name:
@@ -29,6 +30,7 @@ def group_create(request):
     group = Group.objects.create(
         group_id=group_id, name=name,
         admin_pubkey=admin_pubkey, members_visible=members_visible,
+        members_can_message=members_can_message,
     )
     GroupMember.objects.create(group=group, pubkey=admin_pubkey, alias_n=0)
     aliases = {}
@@ -58,6 +60,7 @@ def group_info(request, group_id):
         'group_id': group.group_id,
         'name': group.name,
         'members_visible': group.members_visible,
+        'members_can_message': group.members_can_message,
         'is_admin': me == group.admin_pubkey,
         'member_count': group.members.count(),
     }

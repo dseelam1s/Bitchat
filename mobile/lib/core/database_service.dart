@@ -29,7 +29,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 17,
+      version: 18,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -106,6 +106,7 @@ class DatabaseService {
         groupPubkey TEXT,
         adminPubkey TEXT NOT NULL,
         membersVisible INTEGER DEFAULT 1,
+        membersCanMessage INTEGER DEFAULT 1,
         isAdmin INTEGER DEFAULT 0,
         memberCount INTEGER DEFAULT 0,
         createdAt INTEGER NOT NULL
@@ -222,6 +223,13 @@ class DatabaseService {
     }
     if (oldVersion < 17) {
       await _createGroupsTable(db);
+    }
+    if (oldVersion < 18) {
+      // Announcement mode: 0 → only the admin can send in this group.
+      try {
+        await db.execute(
+            'ALTER TABLE groups ADD COLUMN membersCanMessage INTEGER DEFAULT 1');
+      } catch (_) {}
     }
   }
 

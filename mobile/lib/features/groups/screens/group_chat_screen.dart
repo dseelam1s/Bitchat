@@ -95,6 +95,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final count = _group?['memberCount'] as int? ?? 0;
     final blind = (_group?['membersVisible'] as int? ?? 1) == 0;
     final isAdmin = (_group?['isAdmin'] as int? ?? 0) == 1;
+    final announcementOnly =
+        (_group?['membersCanMessage'] as int? ?? 1) == 0 && !isAdmin;
 
     return Scaffold(
       appBar: AppBar(
@@ -166,49 +168,65 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     itemBuilder: (_, i) => _bubble(_messages[i], isDark),
                   ),
           ),
-          Container(
-            color: isDark ? AppColors.darkSurface : Colors.white,
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            child: SafeArea(
-              top: false,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkInputBg : AppColors.inputBg,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: TextField(
-                        controller: _textController,
-                        minLines: 1,
-                        maxLines: 5,
-                        decoration: const InputDecoration(
-                          hintText: 'Message',
-                          border: InputBorder.none,
-                          contentPadding:
-                              EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          if (announcementOnly)
+            // Announcement group: members read but can't reply.
+            Container(
+              width: double.infinity,
+              color: isDark ? AppColors.darkSurface : Colors.white,
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              child: SafeArea(
+                top: false,
+                child: Text(
+                  '📣 Only the admin can send messages in this group',
+                  style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          else
+            Container(
+              color: isDark ? AppColors.darkSurface : Colors.white,
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              child: SafeArea(
+                top: false,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.darkInputBg : AppColors.inputBg,
+                          borderRadius: BorderRadius.circular(24),
                         ),
-                        onSubmitted: (_) => _send(),
+                        child: TextField(
+                          controller: _textController,
+                          minLines: 1,
+                          maxLines: 5,
+                          decoration: const InputDecoration(
+                            hintText: 'Message',
+                            border: InputBorder.none,
+                            contentPadding:
+                                EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                          ),
+                          onSubmitted: (_) => _send(),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: _send,
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: const BoxDecoration(
-                          color: AppColors.primary, shape: BoxShape.circle),
-                      child: const Icon(Icons.send_rounded,
-                          color: Colors.white, size: 22),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: _send,
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: const BoxDecoration(
+                            color: AppColors.primary, shape: BoxShape.circle),
+                        child: const Icon(Icons.send_rounded,
+                            color: Colors.white, size: 22),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );

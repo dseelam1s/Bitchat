@@ -23,6 +23,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   List<Contact> _contacts = [];
   final Set<String> _selected = {};
   bool _membersVisible = true;
+  bool _membersCanMessage = true;
   bool _creating = false;
 
   @override
@@ -48,6 +49,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     final groupId = await widget.groupService.createGroup(
       name: name,
       membersVisible: _membersVisible,
+      membersCanMessage: _membersCanMessage,
       members: _selected.toList(),
     );
     if (!mounted) return;
@@ -113,6 +115,22 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
             secondary: Icon(
               _membersVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
               color: _membersVisible ? AppColors.primary : AppColors.coral,
+            ),
+          ),
+          SwitchListTile(
+            value: _membersCanMessage,
+            onChanged: (v) => setState(() => _membersCanMessage = v),
+            title: const Text('Members can send messages'),
+            subtitle: Text(
+              _membersCanMessage
+                  ? 'Everyone in the group can chat'
+                  : 'Announcement group — only you (admin) can send; '
+                      'members can read but not reply',
+              style: const TextStyle(fontSize: 12),
+            ),
+            secondary: Icon(
+              _membersCanMessage ? Icons.forum_outlined : Icons.campaign_outlined,
+              color: _membersCanMessage ? AppColors.primary : AppColors.coral,
             ),
           ),
           const Divider(height: 1),

@@ -246,6 +246,9 @@ class Group(models.Model):
     name            = models.CharField(max_length=100)
     admin_pubkey    = models.CharField(max_length=128, db_index=True)
     members_visible = models.BooleanField(default=True)
+    # False → announcement mode: only the admin can send; the fan-out
+    # silently drops member messages server-side.
+    members_can_message = models.BooleanField(default=True)
     created_at      = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

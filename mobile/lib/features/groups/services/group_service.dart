@@ -40,6 +40,7 @@ class GroupService {
   Future<String?> createGroup({
     required String name,
     required bool membersVisible,
+    bool membersCanMessage = true,
     required List<String> members,
   }) async {
     final myPriv = _keyManager.privateKey;
@@ -54,6 +55,7 @@ class GroupService {
       groupId: groupId,
       name: name,
       membersVisible: membersVisible,
+      membersCanMessage: membersCanMessage,
       memberPubkeys: members,
     );
     if (result == null) return null;
@@ -65,6 +67,7 @@ class GroupService {
       'groupPubkey': groupPub,
       'adminPubkey': myPub,
       'membersVisible': membersVisible ? 1 : 0,
+      'membersCanMessage': membersCanMessage ? 1 : 0,
       'isAdmin': 1,
       'memberCount': members.length + 1,
       'createdAt': DateTime.now().millisecondsSinceEpoch ~/ 1000,
@@ -80,6 +83,7 @@ class GroupService {
         'groupPubkey': groupPub,
         'adminPubkey': myPub,
         'membersVisible': membersVisible,
+        'membersCanMessage': membersCanMessage,
       });
       try {
         final ct = await _nip44.encrypt(myPriv, memberPub, invite);
@@ -101,6 +105,8 @@ class GroupService {
       'groupPubkey': invite['groupPubkey'] as String?,
       'adminPubkey': invite['adminPubkey'] as String? ?? '',
       'membersVisible': (invite['membersVisible'] == true) ? 1 : 0,
+      // Missing key (invites from older builds) defaults to true.
+      'membersCanMessage': (invite['membersCanMessage'] == false) ? 0 : 1,
       'isAdmin': 0,
       'memberCount': 0,
       'createdAt': DateTime.now().millisecondsSinceEpoch ~/ 1000,
@@ -113,6 +119,9 @@ class GroupService {
     final group = await _db.getGroup(groupId);
     final myPub = _keyManager.publicKey;
     if (group == null || myPub == null) return;
+    // Announcement mode: composer is hidden for members, but guard anyway —
+    // the server drops non-admin messages in these groups.
+    if (group['membersCanMessage'] == 0 && group['isAdmin'] != 1) return;
     final groupPriv = group['groupPrivkey'] as String?;
     final groupPub = group['groupPubkey'] as String?;
     if (groupPriv == null || groupPub == null) return;

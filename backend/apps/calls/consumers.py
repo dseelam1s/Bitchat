@@ -169,7 +169,11 @@ class SignalingConsumer(AsyncWebsocketConsumer):
         info = await self._group_fanout_info(group_id, self.pubkey)
         if info is None:
             return  # not a member — drop
-        members, visible, admin_pub, sender_alias, group_name = info
+        members, visible, admin_pub, sender_alias, group_name, members_can_message = info
+
+        # Announcement mode: only the admin may post — drop member messages.
+        if not members_can_message and self.pubkey != admin_pub:
+            return
 
         for member_pub in members:
             if member_pub == self.pubkey:
@@ -206,7 +210,8 @@ class SignalingConsumer(AsyncWebsocketConsumer):
         if sender_pub not in members:
             return None
         alias = next((n for p, n in rows if p == sender_pub), 0)
-        return members, group.members_visible, group.admin_pubkey, alias, group.name
+        return (members, group.members_visible, group.admin_pubkey, alias,
+                group.name, group.members_can_message)
 
     @database_sync_to_async
     def _store_group_pending(self, member_pub, group_id, message_id, payload, reveal):

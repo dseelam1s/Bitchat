@@ -849,12 +849,14 @@ class ServerService {
     required String groupId,
     required String name,
     required bool membersVisible,
+    bool membersCanMessage = true,
     required List<String> memberPubkeys,
   }) async {
     return _post('groups/create/', {
       'group_id': groupId,
       'name': name,
       'members_visible': membersVisible,
+      'members_can_message': membersCanMessage,
       'member_pubkeys': memberPubkeys,
     }, authenticated: true);
   }
