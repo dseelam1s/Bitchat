@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:bitchat_messenger/core/theme.dart';
 import 'package:bitchat_messenger/features/contacts/models/contact.dart';
 import 'package:bitchat_messenger/features/chat/models/message.dart';
@@ -370,10 +371,10 @@ class _ChatsScreenState extends State<ChatsScreen> {
         .toList();
 
     return SizedBox(
-      height: 96,
+      height: 88,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         children: [
           _statusChip(
             name: 'Your status',
@@ -381,7 +382,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
               name: widget.messageService.username ?? '•',
               localPath: _myPicPath,
               picUrl: widget.messageService.profilePictureUrl,
-              size: 52,
+              size: 48,
               bgColor: AppColors.primary,
             ),
             emoji: myStatus?['emoji'] as String? ?? '',
@@ -424,8 +425,8 @@ class _ChatsScreenState extends State<ChatsScreen> {
         child: Column(
           children: [
             SizedBox(
-              width: 58,
-              height: 58,
+              width: 54,
+              height: 54,
               child: Stack(
                 children: [
                   Positioned(top: 0, left: 0, child: avatar),
@@ -433,8 +434,8 @@ class _ChatsScreenState extends State<ChatsScreen> {
                     right: 0,
                     bottom: 0,
                     child: Container(
-                      width: 22,
-                      height: 22,
+                      width: 21,
+                      height: 21,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: isAdd
@@ -671,18 +672,30 @@ class _ChatsScreenState extends State<ChatsScreen> {
               onTap: () => _openGroup(gid),
               child: Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
                 child: Row(
                   children: [
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: const BoxDecoration(
-                          color: AppColors.primary, shape: BoxShape.circle),
-                      child: const Icon(Icons.groups,
-                          color: Colors.white, size: 26),
-                    ),
-                    const SizedBox(width: 12),
+                    Builder(builder: (_) {
+                      // Per-group hue so a stack of groups doesn't read as
+                      // four identical blue dots.
+                      final seed = _avatarColor(gid);
+                      return Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [_AvatarPalette.lighten(seed, 0.18), seed],
+                          ),
+                          boxShadow: AppDepth.soft(seed, opacity: 0.16),
+                        ),
+                        child: const Icon(Icons.groups_rounded,
+                            color: Colors.white, size: 26),
+                      );
+                    }),
+                    const SizedBox(width: 13),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -763,7 +776,15 @@ class _ChatsScreenState extends State<ChatsScreen> {
               ),
             );
           }),
-        const Divider(height: 1, indent: 82),
+        // Hairline separating groups from DMs — barely-there, not a rule.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 6, 20, 2),
+          child: Divider(
+              height: 1,
+              thickness: 1,
+              color: (isDark ? AppColors.darkDivider : AppColors.divider)
+                  .withValues(alpha: 0.6)),
+        ),
       ],
     );
   }
@@ -847,16 +868,18 @@ class _ChatsScreenState extends State<ChatsScreen> {
   }
 
   Widget _buildList2(List<_DmItem> items, bool isDark) {
-    return ListView.separated(
-      padding: const EdgeInsets.only(top: 8, bottom: 100),
+    // No dividers: modern messaging lists separate with rhythm, not rules.
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 4, bottom: 100),
       itemCount: items.length,
-      separatorBuilder: (_, i) => Divider(
-        height: 1,
-        indent: 82, // aligns with text start, after avatar + gap
-        endIndent: 0,
-        color: isDark ? AppColors.darkDivider : AppColors.divider,
-      ),
-      itemBuilder: (_, i) => _buildRow(items[i], isDark),
+      itemBuilder: (_, i) => _buildRow(items[i], isDark)
+          .animate()
+          .fadeIn(
+            duration: 260.ms,
+            // Stagger caps at 6 so a long list never feels sluggish.
+            delay: (i.clamp(0, 6) * 32).ms,
+          )
+          .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
     );
   }
 
@@ -889,91 +912,119 @@ class _ChatsScreenState extends State<ChatsScreen> {
       preview = isMe ? 'You: ${_previewText(lastMsg)}' : _previewText(lastMsg);
     }
 
-    return InkWell(
-      onTap: () => _openDm(contact, resolvedName: label),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Row(
-          children: [
-            // ── Avatar ──────────────────────────────────────────────────────
-            _Avatar(
-              name: label,
-              pubkey: contact.pubkey,
-              localPath: contact.profilePictureLocalPath,
-              picUrl: contact.profilePictureUrl,
-              isOnline: item.isNearby,
-              size: 52,
-              bgColor: _avatarColor(contact.pubkey),
-            ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      child: Material(
+        color: hasUnread
+            ? (isDark ? AppColors.darkSurface : AppColors.surface)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => _openDm(contact, resolvedName: label),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+            child: Row(
+              children: [
+                // ── Avatar ──────────────────────────────────────────────────
+                _Avatar(
+                  name: label,
+                  pubkey: contact.pubkey,
+                  localPath: contact.profilePictureLocalPath,
+                  picUrl: contact.profilePictureUrl,
+                  isOnline: item.isNearby,
+                  size: 54,
+                  bgColor: _avatarColor(contact.pubkey),
+                ),
 
-            const SizedBox(width: 12),
+                const SizedBox(width: 13),
 
-            // ── Content ──────────────────────────────────────────────────────
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Name + timestamp row
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
+                // ── Content ────────────────────────────────────────────────
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          label,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w500,
-                            color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                      // Name + timestamp row
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              label,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: hasUnread
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
+                                letterSpacing: -0.3,
+                                color: isDark
+                                    ? AppColors.darkTextPrimary
+                                    : AppColors.textPrimary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                          const SizedBox(width: 8),
+                          Text(
+                            lastMsg == null
+                                ? ''
+                                : _formatTime(lastMsg.timestamp),
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              letterSpacing: -0.1,
+                              color: hasUnread
+                                  ? AppColors.primary
+                                  : (isDark
+                                      ? AppColors.darkTextMuted
+                                      : AppColors.textMuted),
+                              fontWeight:
+                                  hasUnread ? FontWeight.w700 : FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        lastMsg == null ? '' : _formatTime(lastMsg.timestamp),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: hasUnread
-                              ? AppColors.online
-                              : (isDark ? AppColors.darkTextMuted : AppColors.textMuted),
-                          fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
-                        ),
+
+                      const SizedBox(height: 4),
+
+                      // Preview + unread badge row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              preview,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                height: 1.3,
+                                color: lastMsg == null && item.isNearby
+                                    ? AppColors.coral
+                                    : hasUnread
+                                        ? (isDark
+                                            ? AppColors.darkTextSecondary
+                                            : AppColors.textSecondary)
+                                        : (isDark
+                                            ? AppColors.darkTextMuted
+                                            : AppColors.textMuted),
+                                fontWeight: hasUnread
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (hasUnread) ...[
+                            const SizedBox(width: 8),
+                            _UnreadBadge(count: item.unread),
+                          ],
+                        ],
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 3),
-
-                  // Preview + unread badge row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          preview,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: lastMsg == null && item.isNearby
-                                ? AppColors.coral
-                                : hasUnread
-                                    ? (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)
-                                    : (isDark ? AppColors.darkTextMuted : AppColors.textMuted),
-                            fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (hasUnread) ...[
-                        const SizedBox(width: 8),
-                        _UnreadBadge(count: item.unread),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -1086,7 +1137,17 @@ class _Avatar extends StatelessWidget {
         Container(
           width: size,
           height: size,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: bgColor),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            // Two-stop gradient from the seed colour — flat circles are the
+            // single biggest "default app" tell in a chat list.
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [_lighten(bgColor, 0.18), bgColor],
+            ),
+            boxShadow: AppDepth.soft(bgColor, opacity: 0.16),
+          ),
           clipBehavior: Clip.antiAlias,
           child: localPath != null
               ? Image.file(File(localPath!), fit: BoxFit.cover,
@@ -1117,16 +1178,34 @@ class _Avatar extends StatelessWidget {
     );
   }
 
+  static Color _lighten(Color c, double amount) {
+    final hsl = HSLColor.fromColor(c);
+    return hsl
+        .withLightness((hsl.lightness + amount).clamp(0.0, 1.0))
+        .toColor();
+  }
+
   Widget _initials() => Center(
     child: Text(
       _initial,
       style: TextStyle(
-        fontSize: size * 0.4,
-        fontWeight: FontWeight.w700,
+        fontSize: size * 0.38,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.5,
         color: Colors.white,
       ),
     ),
   );
+}
+
+/// Shared avatar colour helpers.
+class _AvatarPalette {
+  static Color lighten(Color c, double amount) {
+    final hsl = HSLColor.fromColor(c);
+    return hsl
+        .withLightness((hsl.lightness + amount).clamp(0.0, 1.0))
+        .toColor();
+  }
 }
 
 // ── Unread badge ──────────────────────────────────────────────────────────────
@@ -1139,16 +1218,26 @@ class _UnreadBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = count > 99 ? '99+' : '$count';
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: const BoxDecoration(
-        color: AppColors.online,
-        borderRadius: BorderRadius.all(Radius.circular(10)),
+      constraints: const BoxConstraints(minWidth: 22),
+      height: 22,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 7),
+      decoration: BoxDecoration(
+        gradient: AppDepth.cobalt,
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: AppDepth.lift(AppColors.primary),
       ),
       child: Text(
         label,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+        style: const TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.2,
+          color: Colors.white,
+        ),
       ),
-    );
+    ).animate().scale(
+        duration: 220.ms, curve: Curves.easeOutBack, begin: const Offset(0.7, 0.7));
   }
 }
 

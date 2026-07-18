@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:bitchat_messenger/core/database_service.dart';
 import 'package:bitchat_messenger/features/chat/models/message.dart';
@@ -29,7 +30,7 @@ class ClinkService {
   final MessageService messageService;
   final DatabaseService dbService;
 
-  StreamSubscription<UserAccelerometerEvent>? _accelSub;
+  StreamSubscription<AccelerometerEvent>? _accelSub;
   DateTime? _lastJoltAt;
   DateTime? _lastMatchAt;
   bool _armed = false;
@@ -37,7 +38,7 @@ class ClinkService {
   /// m/s² of gravity-removed acceleration that counts as a tap.
   /// Tuned on real hardware — a firm phone-to-phone tap spikes well past
   /// this; walking/handling stays below it.
-  static const joltThreshold = 6.0;
+  static const joltThreshold = 3.2;
   static const _window = Duration(milliseconds: 900);
   static const _matchCooldown = Duration(seconds: 4);
   static const _joltDebounce = Duration(milliseconds: 700);
@@ -51,10 +52,18 @@ class ClinkService {
   void arm() {
     if (_armed) return;
     _armed = true;
+    debugPrint('[clink] armed');
     messageService.onClinkSignal = _onSignal;
-    _accelSub = userAccelerometerEventStream(
+    // RAW accelerometer, not the user (gravity-removed) one: that virtual
+    // sensor needs a gyroscope and simply doesn't exist on budget phones
+    // (Realme: PlatformException NO_SENSOR). The tap shows up as a sharp
+    // deviation of |acceleration| from gravity. 50Hz (gameInterval) —
+    // fastestInterval registered no OS-level sensor listener at all on
+    // the test devices.
+    _accelSub = accelerometerEventStream(
       samplingPeriod: SensorInterval.gameInterval,
-    ).listen(_onAccel, onError: (_) {});
+    ).listen(_onAccel,
+        onError: (e) => debugPrint('[clink] accel error: $e'));
   }
 
   /// Stop everything. Call when the screen closes.
@@ -70,9 +79,28 @@ class ClinkService {
   /// Testing/accessibility hook — behaves exactly like a physical tap.
   void simulateJolt() => _jolt();
 
-  void _onAccel(UserAccelerometerEvent e) {
-    final mag = sqrt(e.x * e.x + e.y * e.y + e.z * e.z);
-    if (mag >= joltThreshold) _jolt();
+  int _evtCount = 0;
+  double _maxDev = 0;
+  DateTime _lastHeartbeat = DateTime.now();
+
+  void _onAccel(AccelerometerEvent e) {
+    // Deviation from resting gravity (9.81) — a tap is a sharp spike.
+    final dev =
+        (sqrt(e.x * e.x + e.y * e.y + e.z * e.z) - 9.81).abs();
+    _evtCount++;
+    if (dev > _maxDev) _maxDev = dev;
+    final now = DateTime.now();
+    if (now.difference(_lastHeartbeat).inSeconds >= 3) {
+      debugPrint(
+          '[clink] hb events=$_evtCount maxDev=${_maxDev.toStringAsFixed(2)}');
+      _evtCount = 0;
+      _maxDev = 0;
+      _lastHeartbeat = now;
+    }
+    if (dev >= joltThreshold) {
+      debugPrint('[clink] JOLT dev=${dev.toStringAsFixed(2)}');
+      _jolt();
+    }
   }
 
   void _jolt() {

@@ -641,14 +641,10 @@ class _ChatScreenState extends State<ChatScreen>
                         ? const Border.fromBorderSide(
                             BorderSide(color: AppColors.coral, width: 2))
                         : null,
+                    // Ring alone carries "in range" — the old halo plus ring
+                    // plus dot read as noise at 42px.
                     boxShadow: isNearby
-                        ? [
-                            BoxShadow(
-                              color: AppColors.coral.withAlpha(110),
-                              blurRadius: 10,
-                              spreadRadius: 1,
-                            ),
-                          ]
+                        ? AppDepth.soft(AppColors.coral, opacity: 0.22)
                         : null,
                   ),
                   child: Padding(
@@ -1029,10 +1025,17 @@ class _ChatScreenState extends State<ChatScreen>
                       // Text field pill with emoji icon inside
                       Expanded(
                         child: Container(
-                          constraints: const BoxConstraints(minHeight: 44, maxHeight: 120),
+                          constraints:
+                              const BoxConstraints(minHeight: 46, maxHeight: 120),
                           decoration: BoxDecoration(
                             color: isDark ? AppColors.darkInputBg : AppColors.inputBg,
-                            borderRadius: BorderRadius.circular(24),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: isDark
+                                  ? AppColors.darkDivider
+                                  : AppColors.divider,
+                              width: 1,
+                            ),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
@@ -1121,11 +1124,18 @@ class _ChatScreenState extends State<ChatScreen>
                                         },
                                       ),
                                     Container(
-                                      width: 44,
-                                      height: 44,
+                                      width: 46,
+                                      height: 46,
                                       decoration: BoxDecoration(
-                                        color: airPath ? AppColors.coral : _kAccent,
+                                        gradient: airPath
+                                            ? AppDepth.ember
+                                            : AppDepth.cobalt,
                                         shape: BoxShape.circle,
+                                        boxShadow: hasText
+                                            ? AppDepth.lift(airPath
+                                                ? AppColors.coral
+                                                : AppColors.primary)
+                                            : null,
                                       ),
                                       child: const Icon(
                                         Icons.send_rounded,
@@ -1399,33 +1409,50 @@ class _Bubble extends StatelessWidget {
       );
     }
 
-    // Asymmetric "speaking corner": sharp corner points at the speaker.
+    // Asymmetric "speaking corner": the tucked corner points at the speaker.
     final radius = isMe
         ? const BorderRadius.only(
-            topLeft: Radius.circular(18),
-            topRight: Radius.circular(4),
-            bottomLeft: Radius.circular(18),
-            bottomRight: Radius.circular(18),
+            topLeft: Radius.circular(22),
+            topRight: Radius.circular(6),
+            bottomLeft: Radius.circular(22),
+            bottomRight: Radius.circular(22),
           )
         : const BorderRadius.only(
-            topLeft: Radius.circular(4),
-            topRight: Radius.circular(18),
-            bottomLeft: Radius.circular(18),
-            bottomRight: Radius.circular(18),
+            topLeft: Radius.circular(6),
+            topRight: Radius.circular(22),
+            bottomLeft: Radius.circular(22),
+            bottomRight: Radius.circular(22),
           );
 
     final bubble = Container(
       padding: isImage
           ? const EdgeInsets.all(4)
-          : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          : const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
       constraints: BoxConstraints(
           minWidth: 72,
           maxWidth:
-              isImage ? 260 : MediaQuery.of(context).size.width * 0.65),
+              isImage ? 260 : MediaQuery.of(context).size.width * 0.68),
       decoration: BoxDecoration(
-        color: bubbleBg,
+        // Outgoing bubbles get a subtle gradient + coloured lift; incoming
+        // stay airy outlines. Flat fills are what read as "amateur".
+        color: isMe ? null : bubbleBg,
+        gradient: isMe
+            ? (viaAir
+                ? AppDepth.ember
+                : LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDark
+                        ? [const Color(0xFF6D82FF), AppColors.primaryDark]
+                        : const [Color(0xFF4B63FF), AppColors.primary],
+                  ))
+            : null,
         border: bubbleBorder,
         borderRadius: radius,
+        boxShadow: isMe
+            ? AppDepth.soft(viaAir ? AppColors.coral : AppColors.primary,
+                opacity: isDark ? 0.30 : 0.22)
+            : null,
       ),
       child: bubbleContent,
     );

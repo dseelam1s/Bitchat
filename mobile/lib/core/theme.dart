@@ -62,6 +62,50 @@ class AppColors {
   static const Color signalSoft = coralSoft;
 }
 
+/// Depth, gradients and motion — the tokens that separate a designed app
+/// from a themed one. Flat Material surfaces read as unfinished; these give
+/// elevation without the muddy grey drop-shadows of stock Material.
+class AppDepth {
+  /// Coloured ambient shadow for cards/avatars on light grounds.
+  static List<BoxShadow> soft(Color tint, {double opacity = 0.13}) => [
+        BoxShadow(
+          color: tint.withValues(alpha: opacity),
+          blurRadius: 22,
+          offset: const Offset(0, 8),
+          spreadRadius: -4,
+        ),
+      ];
+
+  /// Pressed/raised state for primary actions — tighter, stronger.
+  static List<BoxShadow> lift(Color tint) => [
+        BoxShadow(
+          color: tint.withValues(alpha: 0.32),
+          blurRadius: 18,
+          offset: const Offset(0, 6),
+          spreadRadius: -2,
+        ),
+      ];
+
+  /// Hero gradient for the brand mark / primary surfaces.
+  static const LinearGradient cobalt = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF4B63FF), AppColors.primary],
+  );
+
+  /// Presence gradient — the warm one, for anything "near you".
+  static const LinearGradient ember = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [AppColors.coralSoft, AppColors.coral],
+  );
+
+  /// Shared motion language: everything eases the same way.
+  static const Duration fast = Duration(milliseconds: 180);
+  static const Duration base = Duration(milliseconds: 320);
+  static const Curve curve = Curves.easeOutCubic;
+}
+
 class AppTheme {
   static ThemeData get lightTheme => _build(
         brightness: Brightness.light,
@@ -103,22 +147,25 @@ class AppTheme {
   }) {
     final isDark = brightness == Brightness.dark;
 
-    final baseTextTheme = GoogleFonts.interTextTheme().copyWith(
-      displayLarge:   TextStyle(color: textPrimary, fontWeight: FontWeight.w700),
-      displayMedium:  TextStyle(color: textPrimary, fontWeight: FontWeight.w700),
-      displaySmall:   TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
-      headlineLarge:  TextStyle(color: textPrimary, fontWeight: FontWeight.w700),
-      headlineMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
-      headlineSmall:  TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
-      titleLarge:     TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
-      titleMedium:    TextStyle(color: textPrimary, fontWeight: FontWeight.w500),
-      titleSmall:     TextStyle(color: textSecondary, fontWeight: FontWeight.w500),
-      bodyLarge:      TextStyle(color: textPrimary),
-      bodyMedium:     TextStyle(color: textPrimary),
-      bodySmall:      TextStyle(color: textSecondary),
-      labelLarge:     TextStyle(color: textSecondary),
-      labelMedium:    TextStyle(color: textSecondary),
-      labelSmall:     TextStyle(color: textMuted),
+    // Plus Jakarta Sans: geometric-humanist, tight display tracking —
+    // the "designed, not defaulted" face. One family everywhere.
+    final baseTextTheme =
+        GoogleFonts.plusJakartaSansTextTheme().copyWith(
+      displayLarge:   TextStyle(color: textPrimary, fontWeight: FontWeight.w800, letterSpacing: -1.0),
+      displayMedium:  TextStyle(color: textPrimary, fontWeight: FontWeight.w800, letterSpacing: -0.8),
+      displaySmall:   TextStyle(color: textPrimary, fontWeight: FontWeight.w700, letterSpacing: -0.6),
+      headlineLarge:  TextStyle(color: textPrimary, fontWeight: FontWeight.w800, letterSpacing: -0.7),
+      headlineMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.w700, letterSpacing: -0.5),
+      headlineSmall:  TextStyle(color: textPrimary, fontWeight: FontWeight.w700, letterSpacing: -0.4),
+      titleLarge:     TextStyle(color: textPrimary, fontWeight: FontWeight.w700, letterSpacing: -0.3),
+      titleMedium:    TextStyle(color: textPrimary, fontWeight: FontWeight.w600, letterSpacing: -0.2),
+      titleSmall:     TextStyle(color: textSecondary, fontWeight: FontWeight.w600),
+      bodyLarge:      TextStyle(color: textPrimary, height: 1.45),
+      bodyMedium:     TextStyle(color: textPrimary, height: 1.45),
+      bodySmall:      TextStyle(color: textSecondary, height: 1.4),
+      labelLarge:     TextStyle(color: textSecondary, fontWeight: FontWeight.w600),
+      labelMedium:    TextStyle(color: textSecondary, fontWeight: FontWeight.w600),
+      labelSmall:     TextStyle(color: textMuted, fontWeight: FontWeight.w600, letterSpacing: 0.3),
     );
 
     return ThemeData(
@@ -143,20 +190,25 @@ class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        titleTextStyle: GoogleFonts.inter(
+        titleTextStyle: GoogleFonts.plusJakartaSans(
           color: textPrimary,
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.5,
+          fontSize: 21,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.7,
         ),
-        iconTheme: IconThemeData(color: textPrimary),
+        iconTheme: IconThemeData(color: textPrimary, size: 23),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: bg,
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
-        indicatorColor: Colors.transparent,
-        height: 56,
+        // A soft tinted pill behind the active tab — the single detail that
+        // separates a designed nav bar from the Material default.
+        indicatorColor: primaryColor.withAlpha(isDark ? 46 : 26),
+        indicatorShape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        height: 64,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return IconThemeData(color: primaryColor, size: 24);
@@ -165,10 +217,48 @@ class AppTheme {
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return GoogleFonts.inter(color: primaryColor, fontSize: 10, fontWeight: FontWeight.w600);
+            return GoogleFonts.plusJakartaSans(
+                color: primaryColor, fontSize: 11, fontWeight: FontWeight.w700);
           }
-          return GoogleFonts.inter(color: textMuted, fontSize: 10);
+          return GoogleFonts.plusJakartaSans(
+              color: textMuted, fontSize: 11, fontWeight: FontWeight.w600);
         }),
+      ),
+      // ── Buttons: tall, pill-shaped, confident type ───────────────────────
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+          minimumSize: const Size(0, 52),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+          textStyle: GoogleFonts.plusJakartaSans(
+              fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -0.2),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          minimumSize: const Size(0, 52),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+          textStyle: GoogleFonts.plusJakartaSans(
+              fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -0.2),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: textPrimary,
+          minimumSize: const Size(0, 52),
+          side: BorderSide(color: divider, width: 1.5),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+          textStyle: GoogleFonts.plusJakartaSans(
+              fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -0.2),
+        ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: primaryColor,
@@ -179,39 +269,55 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: card,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: isDark ? AppColors.darkCard : Colors.white,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        titleTextStyle: GoogleFonts.inter(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        titleTextStyle: GoogleFonts.plusJakartaSans(
           color: textPrimary,
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
+          fontSize: 19,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.4,
         ),
+      ),
+      // Bottom sheets carry a lot of this app's UI — give them real radius.
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: isDark ? AppColors.darkCard : Colors.white,
+        surfaceTintColor: Colors.transparent,
+        modalBackgroundColor: isDark ? AppColors.darkCard : Colors.white,
+        elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        showDragHandle: true,
+        dragHandleColor: divider,
+        dragHandleSize: const Size(40, 4),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: inputBg,
-        hintStyle: TextStyle(color: textMuted, fontSize: 15),
+        hintStyle: GoogleFonts.plusJakartaSans(
+            color: textMuted, fontSize: 15, fontWeight: FontWeight.w500),
         labelStyle: TextStyle(color: textSecondary),
         prefixIconColor: textMuted,
         suffixIconColor: textMuted,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: primaryColor, width: 1.5),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: primaryColor, width: 1.8),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
       ),
       sliderTheme: SliderThemeData(
         activeTrackColor: primaryColor,
@@ -222,17 +328,44 @@ class AppTheme {
         valueIndicatorTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: isDark ? AppColors.darkCard : AppColors.textPrimary,
-        contentTextStyle: TextStyle(
+        backgroundColor: isDark ? AppColors.darkCardHover : AppColors.textPrimary,
+        contentTextStyle: GoogleFonts.plusJakartaSans(
           color: isDark ? AppColors.darkTextPrimary : Colors.white,
-          fontSize: 13,
+          fontSize: 13.5,
+          fontWeight: FontWeight.w600,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        actionTextColor: AppColors.coralSoft,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         behavior: SnackBarBehavior.floating,
+        insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: primaryColor),
+        style: TextButton.styleFrom(
+          foregroundColor: primaryColor,
+          textStyle: GoogleFonts.plusJakartaSans(
+              fontSize: 14.5, fontWeight: FontWeight.w700),
+        ),
       ),
+      chipTheme: ChipThemeData(
+        backgroundColor: card,
+        side: BorderSide.none,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+        labelStyle: GoogleFonts.plusJakartaSans(
+            fontSize: 12.5, fontWeight: FontWeight.w600, color: textSecondary),
+      ),
+      listTileTheme: ListTileThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        titleTextStyle: GoogleFonts.plusJakartaSans(
+            fontSize: 15.5, fontWeight: FontWeight.w600, color: textPrimary),
+        subtitleTextStyle: GoogleFonts.plusJakartaSans(
+            fontSize: 13, fontWeight: FontWeight.w500, color: textMuted),
+      ),
+      // Smooth, modern page transitions instead of the dated Android slide.
+      pageTransitionsTheme: const PageTransitionsTheme(builders: {
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      }),
       dividerTheme: DividerThemeData(
         color: divider,
         thickness: 0.5,

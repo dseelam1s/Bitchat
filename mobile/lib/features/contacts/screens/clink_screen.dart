@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:bitchat_messenger/core/theme.dart';
 import 'package:bitchat_messenger/core/widgets/peer_avatar.dart';
 import 'package:bitchat_messenger/features/chat/services/message_service.dart';
@@ -41,10 +42,14 @@ class _ClinkScreenState extends State<ClinkScreen>
       ..repeat();
     _matchSub = _clink.matches.listen(_onMatch);
     _clink.arm();
+    // The screen must stay awake — people fumble phones into position and
+    // a sleeping display kills the sensors mid-clink.
+    WakelockPlus.enable();
   }
 
   @override
   void dispose() {
+    WakelockPlus.disable();
     _undoTimer?.cancel();
     _matchSub?.cancel();
     _clink.dispose();
