@@ -136,11 +136,18 @@ class _ClinkScreenState extends State<ClinkScreen>
             // Long-press = simulated tap (accessibility / broken sensor fallback)
             GestureDetector(
               onLongPress: _clink.simulateJolt,
-              child: PeerAvatar(
-                name: myName,
-                picUrl: widget.messageService.profilePictureUrl,
-                size: 96,
-                bgColor: AppColors.primary,
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppDepth.cobalt,
+                  boxShadow: AppDepth.lift(AppColors.primary),
+                ),
+                child: PeerAvatar(
+                  name: myName,
+                  picUrl: widget.messageService.profilePictureUrl,
+                  size: 96,
+                  bgColor: Colors.transparent,
+                ),
               ),
             ),
           ]),
@@ -148,7 +155,8 @@ class _ClinkScreenState extends State<ClinkScreen>
       ),
       const SizedBox(height: 28),
       const Text('Tap phones to swap',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          style: TextStyle(
+              fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.6)),
       const SizedBox(height: 8),
       Text(
         'Hold them back to back and give a gentle tap —\nlike clinking glasses. Both of you get saved.',
@@ -178,13 +186,14 @@ class _ClinkScreenState extends State<ClinkScreen>
 
   Widget _rippleRing(double t) {
     return Container(
-      width: 100 + 130 * t,
-      height: 100 + 130 * t,
+      width: 100 + 140 * t,
+      height: 100 + 140 * t,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: AppColors.primary.withAlpha(((1 - t) * 80).round()),
-          width: 1.5,
+          color: Color.lerp(AppColors.primary, AppColors.coral, t)!
+              .withValues(alpha: (1 - t) * 0.45),
+          width: 2,
         ),
       ),
     );
@@ -194,7 +203,15 @@ class _ClinkScreenState extends State<ClinkScreen>
     final m = _match!;
     return Column(children: [
       const Spacer(flex: 2),
-      PeerAvatar(name: m.name, size: 92, bgColor: AppColors.amber),
+      Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: AppDepth.ember,
+          boxShadow: AppDepth.lift(AppColors.coral),
+        ),
+        child: PeerAvatar(
+            name: m.name, size: 92, bgColor: Colors.transparent),
+      ),
       const SizedBox(height: 14),
       Text(m.name,
           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),

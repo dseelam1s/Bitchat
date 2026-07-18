@@ -466,12 +466,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _sectionHeader(String title) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+    padding: const EdgeInsets.fromLTRB(22, 4, 16, 10),
     child: Text(
-      title,
-      style: TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
+      title.toUpperCase(),
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.4,
         color: AppColors.textMuted,
       ),
     ),
@@ -482,15 +483,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     child: Container(
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : AppColors.card,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: isDark
+            ? null
+            : AppDepth.soft(AppColors.primary, opacity: 0.05),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(children: children),
     ),
   );
 
   Widget _cardDivider() => const Padding(
-    padding: EdgeInsets.only(left: 52),
-    child: Divider(height: 1, color: AppColors.divider),
+    padding: EdgeInsets.only(left: 61),
+    child: Divider(height: 1, thickness: 0.5, color: AppColors.divider),
   );
 
   Widget _switchRow({
@@ -536,15 +541,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: AppColors.textMuted),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+              // Tinted icon chip — bare grey glyphs are the settings-screen
+              // equivalent of a flat avatar.
+              Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: isDark ? 0.20 : 0.10),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(icon, size: 18, color: AppColors.primary),
               ),
-              Icon(Icons.chevron_right, size: 18, color: AppColors.textMuted),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Text(label,
+                    style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.2)),
+              ),
+              Icon(Icons.chevron_right_rounded,
+                  size: 20, color: AppColors.textMuted),
             ],
           ),
         ),

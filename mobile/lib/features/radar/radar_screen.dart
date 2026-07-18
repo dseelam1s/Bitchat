@@ -45,7 +45,7 @@ class _RadarPeer {
 }
 
 class _RadarScreenState extends State<RadarScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   Set<String> _nearby = {};
   List<Map<String, dynamic>> _history = [];
   Map<String, Contact> _contacts = {};
@@ -53,12 +53,17 @@ class _RadarScreenState extends State<RadarScreen>
   StreamSubscription? _fireRadarSub;
   StreamSubscription? _burnSub;
   late final AnimationController _pulse;
+  late final AnimationController _sweep;
 
   @override
   void initState() {
     super.initState();
     _pulse = AnimationController(vsync: this, duration: const Duration(seconds: 2))
       ..repeat();
+    // Slow sweep — an instrument scanning, not a spinner.
+    _sweep =
+        AnimationController(vsync: this, duration: const Duration(seconds: 6))
+          ..repeat();
     _nearby = Set.of(widget.messageService.nearbyUsers);
     _nearbySub = widget.messageService.nearbyChangedStream.listen((set) {
       if (!mounted) return;
@@ -87,6 +92,7 @@ class _RadarScreenState extends State<RadarScreen>
   @override
   void dispose() {
     _pulse.dispose();
+    _sweep.dispose();
     _nearbySub?.cancel();
     _fireRadarSub?.cancel();
     _burnSub?.cancel();
@@ -527,13 +533,17 @@ class _RadarScreenState extends State<RadarScreen>
                 return Stack(
                   clipBehavior: Clip.hardEdge,
                   children: [
-                    // Rings
+                    // Rings + live sweep
                     Positioned.fill(
-                      child: CustomPaint(
-                        painter: _RingsPainter(
-                          center: center,
-                          radii: [bandLive, bandHistory],
-                          isDark: isDark,
+                      child: AnimatedBuilder(
+                        animation: _sweep,
+                        builder: (_, __) => CustomPaint(
+                          painter: _RingsPainter(
+                            center: center,
+                            radii: [bandLive, bandHistory],
+                            isDark: isDark,
+                            sweep: _sweep.value,
+                          ),
                         ),
                       ),
                     ),
@@ -832,27 +842,93 @@ class _RingsPainter extends CustomPainter {
   final Offset center;
   final List<double> radii;
   final bool isDark;
-  _RingsPainter({required this.center, required this.radii, required this.isDark});
+
+  /// 0→1 rotation phase driving the sweep arm.
+  final double sweep;
+
+  _RingsPainter({
+    required this.center,
+    required this.radii,
+    required this.isDark,
+    this.sweep = 0,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final base = isDark ? AppColors.primaryDark : AppColors.primary;
-    final inner = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
-      ..color = base.withAlpha(isDark ? 55 : 40);
-    final outer = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
-      ..color = base.withAlpha(isDark ? 32 : 22);
+    final live = radii[0];
+    final hist = radii[1];
 
-    canvas.drawCircle(center, radii[0], inner);
-    canvas.drawCircle(center, radii[1], outer);
+    // ── Ambient glow under the beacon ────────────────────────────────────
+    canvas.drawCircle(
+      center,
+      live * 1.05,
+      Paint()
+        ..shader = RadialGradient(colors: [
+          AppColors.coral.withValues(alpha: isDark ? 0.16 : 0.10),
+          AppColors.coral.withValues(alpha: 0.0),
+        ]).createShader(Rect.fromCircle(center: center, radius: live * 1.05)),
+    );
+
+    // ── Rings: solid inner, softer mid, dashed outer ─────────────────────
+    canvas.drawCircle(
+      center,
+      live,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = base.withValues(alpha: isDark ? 0.26 : 0.20),
+    );
+    canvas.drawCircle(
+      center,
+      (live + hist) / 2,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = base.withValues(alpha: isDark ? 0.14 : 0.10),
+    );
+    _dashedCircle(canvas, hist,
+        base.withValues(alpha: isDark ? 0.16 : 0.12));
+
+    // ── Sweep arm: the detail that makes it read as a live instrument ────
+    final angle = sweep * 2 * math.pi;
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: hist),
+      angle,
+      math.pi / 3,
+      true,
+      Paint()
+        ..shader = SweepGradient(
+          startAngle: angle,
+          endAngle: angle + math.pi / 3,
+          colors: [
+            AppColors.coral.withValues(alpha: 0.0),
+            AppColors.coral.withValues(alpha: isDark ? 0.20 : 0.13),
+          ],
+        ).createShader(Rect.fromCircle(center: center, radius: hist)),
+    );
+  }
+
+  void _dashedCircle(Canvas canvas, double r, Color color) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..strokeCap = StrokeCap.round
+      ..color = color;
+    const dashes = 72;
+    const arc = (2 * math.pi) / dashes;
+    for (var i = 0; i < dashes; i += 2) {
+      canvas.drawArc(Rect.fromCircle(center: center, radius: r), i * arc,
+          arc * 0.55, false, paint);
+    }
   }
 
   @override
   bool shouldRepaint(_RingsPainter old) =>
-      old.center != center || old.radii != radii || old.isDark != isDark;
+      old.center != center ||
+      old.radii != radii ||
+      old.isDark != isDark ||
+      old.sweep != sweep;
 }
 
 // ── Search sheet ────────────────────────────────────────────────────────────
