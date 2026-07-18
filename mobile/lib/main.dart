@@ -563,6 +563,23 @@ class _AppInitializerState extends State<AppInitializer>
             nearbyPubkeys: messageService.nearbyUsers,
           );
 
+      // If the app launched with no internet, the block below bails early
+      // and nothing ever retried — groups/invites silently queued forever.
+      // Re-run the whole connect sequence when connectivity appears.
+      messageService.onInternetRegained = () {
+        if (!keyManager.hasKeys) return;
+        ServerService().connectAndRegister(
+          privateKey: keyManager.privateKey!,
+          publicKey: keyManager.publicKey!,
+          shortId: Contact.shortIdFor(keyManager.publicKey!),
+          displayName: keyManager.username ?? '',
+          onAuthenticated: () => signalingService.connect(),
+        ).then((_) async {
+          await messageService.fetchMissedServerMessages();
+          messageService.retryPendingMessages();
+        });
+      };
+
       // Authenticate with server — fire-and-forget, never blocks startup.
       // connectAndRegister wakes Render first (up to 50 s) then retries auth,
       // so .then() may fire well after the HomeScreen is already visible.

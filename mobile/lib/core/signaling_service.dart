@@ -120,6 +120,10 @@ class SignalingService {
   /// Call signals are never queued: a stale SDP/ICE payload is useless.
   bool send(Map<String, dynamic> payload) {
     if (!_isConnected || _channel == null) {
+      // Kick the reconnect loop — if connect() was never reached (e.g. the
+      // app launched offline), nothing else would ever start it and queued
+      // messages would sit forever.
+      _scheduleReconnect();
       return _enqueue(payload);
     }
     try {

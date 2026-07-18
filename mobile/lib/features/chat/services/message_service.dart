@@ -389,8 +389,15 @@ class MessageService {
       _retryPendingMessages();
       _fetchPendingFromServer();
       _fetchOnlineMessages();
+      // If the app launched offline, the whole auth + WebSocket sequence
+      // bailed at startup — restart it now that a network exists.
+      onInternetRegained?.call();
     }
   }
+
+  /// Wired in main.dart to re-run server auth + WebSocket connect when
+  /// connectivity appears after an offline launch.
+  void Function()? onInternetRegained;
 
   /// Fetch messages that were relayed to the server on our behalf while we
   /// were offline (A sent → C had internet → C posted to server → we fetch now).

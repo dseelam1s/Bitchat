@@ -271,14 +271,30 @@ class GroupService {
   }
 
   void _sendDm(String recipientPubkey, String encryptedContent) {
+    final messageId = _keyManager.generateMessageId();
+    final ts = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     _signaling?.send({
       'type': 'dm',
       'recipientPubkey': recipientPubkey,
-      'messageId': _keyManager.generateMessageId(),
+      'messageId': messageId,
       'encryptedContent': encryptedContent,
-      'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      'timestamp': ts,
       'senderName': _keyManager.username ?? '',
     });
+    // Invites carry the group key — too important to ride only a possibly
+    // dead WebSocket. Also store-and-forward via REST (idempotent server
+    // side; the receiver's handleInvite ignores duplicates).
+    final myPub = _keyManager.publicKey;
+    if (myPub != null) {
+      ServerService().relayMeshMessage(
+        messageId: '$messageId:r',
+        senderPubkey: myPub,
+        receiverPubkey: recipientPubkey,
+        encryptedContent: encryptedContent,
+        timestamp: ts,
+        senderName: _keyManager.username ?? '',
+      );
+    }
   }
 
   void dispose() => _controller.close();
