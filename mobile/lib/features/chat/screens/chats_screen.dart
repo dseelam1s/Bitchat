@@ -83,6 +83,8 @@ class _ChatsScreenState extends State<ChatsScreen> {
   List<Map<String, dynamic>> _groups = [];
   StreamSubscription? _groupSub;
   Map<String, Map<String, dynamic>> _statusByPubkey = {};
+  Map<String, Message> _groupLastMsgs = {};
+  Map<String, int> _groupUnread = {};
 
   @override
   void initState() {
@@ -114,8 +116,27 @@ class _ChatsScreenState extends State<ChatsScreen> {
   }
 
   Future<void> _loadGroups() async {
-    final groups = await widget.dbService.getGroups();
-    if (mounted) setState(() => _groups = groups);
+    // Copy: db.query returns a read-only list and we sort it below.
+    final groups =
+        List<Map<String, dynamic>>.of(await widget.dbService.getGroups());
+    final lastMsgs = await widget.dbService.getGroupLastMessages();
+    final myPub = widget.messageService.publicKey;
+    final unread = myPub == null
+        ? <String, int>{}
+        : await widget.dbService.getGroupUnreadCounts(myPub);
+    // Most recent activity first; untouched groups by creation date.
+    groups.sort((a, b) {
+      final ta = lastMsgs[a['groupId']]?.timestamp ?? (a['createdAt'] as int? ?? 0);
+      final tb = lastMsgs[b['groupId']]?.timestamp ?? (b['createdAt'] as int? ?? 0);
+      return tb.compareTo(ta);
+    });
+    if (mounted) {
+      setState(() {
+        _groups = groups;
+        _groupLastMsgs = lastMsgs;
+        _groupUnread = unread;
+      });
+    }
   }
 
   void _openGroup(String groupId) {
@@ -623,60 +644,125 @@ class _ChatsScreenState extends State<ChatsScreen> {
   }
 
   Widget _buildGroupsStrip(bool isDark) {
+    final myPub = widget.messageService.publicKey;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final g in _groups)
-          InkWell(
-            onTap: () => _openGroup(g['groupId'] as String),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Row(
-                children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: const BoxDecoration(
-                        color: AppColors.primary, shape: BoxShape.circle),
-                    child: const Icon(Icons.groups, color: Colors.white, size: 26),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              g['name'] as String? ?? 'Group',
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w600),
-                            ),
-                            if ((g['membersVisible'] as int? ?? 1) == 0) ...[
-                              const SizedBox(width: 6),
-                              const Icon(Icons.visibility_off,
-                                  size: 13, color: AppColors.coral),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          (g['isAdmin'] as int? ?? 0) == 1
-                              ? 'You\'re the admin · ${g['memberCount'] ?? 0} members'
-                              : 'Group',
-                          style: TextStyle(
-                              fontSize: 13,
-                              color: isDark
-                                  ? AppColors.darkTextMuted
-                                  : AppColors.textMuted),
-                        ),
-                      ],
+          Builder(builder: (context) {
+            final gid = g['groupId'] as String;
+            final last = _groupLastMsgs[gid];
+            final unread = _groupUnread[gid] ?? 0;
+            final hasUnread = unread > 0;
+            final String preview;
+            if (last == null) {
+              preview = (g['isAdmin'] as int? ?? 0) == 1
+                  ? 'You\'re the admin · say hi 👋'
+                  : 'No messages yet — say hi 👋';
+            } else {
+              final who = last.senderPubkey == myPub
+                  ? 'You'
+                  : ((last.senderLabel?.isNotEmpty == true)
+                      ? last.senderLabel!
+                      : 'Member');
+              preview = '$who: ${_previewText(last)}';
+            }
+            return InkWell(
+              onTap: () => _openGroup(gid),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: const BoxDecoration(
+                          color: AppColors.primary, shape: BoxShape.circle),
+                      child: const Icon(Icons.groups,
+                          color: Colors.white, size: 26),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  g['name'] as String? ?? 'Group',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              if ((g['membersVisible'] as int? ?? 1) == 0) ...[
+                                const SizedBox(width: 6),
+                                const Icon(Icons.visibility_off,
+                                    size: 13, color: AppColors.coral),
+                              ],
+                              if ((g['membersCanMessage'] as int? ?? 1) ==
+                                  0) ...[
+                                const SizedBox(width: 6),
+                                const Icon(Icons.campaign_outlined,
+                                    size: 14, color: AppColors.coral),
+                              ],
+                              const Spacer(),
+                              Text(
+                                last == null ? '' : _formatTime(last.timestamp),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: hasUnread
+                                      ? AppColors.online
+                                      : (isDark
+                                          ? AppColors.darkTextMuted
+                                          : AppColors.textMuted),
+                                  fontWeight: hasUnread
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  preview,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: hasUnread
+                                        ? FontWeight.w500
+                                        : FontWeight.normal,
+                                    color: hasUnread
+                                        ? (isDark
+                                            ? AppColors.darkTextSecondary
+                                            : AppColors.textSecondary)
+                                        : (isDark
+                                            ? AppColors.darkTextMuted
+                                            : AppColors.textMuted),
+                                  ),
+                                ),
+                              ),
+                              if (hasUnread) ...[
+                                const SizedBox(width: 8),
+                                _UnreadBadge(count: unread),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
+            );
+          }),
         const Divider(height: 1, indent: 82),
       ],
     );

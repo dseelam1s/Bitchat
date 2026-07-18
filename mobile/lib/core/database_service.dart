@@ -473,6 +473,72 @@ class DatabaseService {
     return db.query('groups', orderBy: 'createdAt DESC');
   }
 
+  /// Refresh server-known group metadata without touching local keys.
+  Future<void> updateGroupInfo(
+    String groupId, {
+    String? name,
+    int? memberCount,
+    bool? membersVisible,
+    bool? membersCanMessage,
+  }) async {
+    final db = await database;
+    final values = <String, Object?>{
+      if (name != null && name.isNotEmpty) 'name': name,
+      if (memberCount != null) 'memberCount': memberCount,
+      if (membersVisible != null) 'membersVisible': membersVisible ? 1 : 0,
+      if (membersCanMessage != null)
+        'membersCanMessage': membersCanMessage ? 1 : 0,
+    };
+    if (values.isEmpty) return;
+    await db.update('groups', values, where: 'groupId = ?', whereArgs: [groupId]);
+  }
+
+  /// Last message per group (for chat-list previews).
+  Future<Map<String, Message>> getGroupLastMessages() async {
+    final db = await database;
+    final maps = await db.rawQuery('''
+      SELECT m.* FROM messages m
+      INNER JOIN (
+        SELECT groupId gid, MAX(timestamp) maxTs FROM messages
+        WHERE groupId IS NOT NULL AND type IN ('text','image','voice_note')
+        GROUP BY groupId
+      ) l ON m.groupId = l.gid AND m.timestamp = l.maxTs
+      WHERE m.type IN ('text','image','voice_note')
+    ''');
+    final result = <String, Message>{};
+    for (final map in maps) {
+      final msg = Message.fromMap(map);
+      final gid = msg.groupId;
+      if (gid == null) continue;
+      if (!result.containsKey(gid) || msg.timestamp > result[gid]!.timestamp) {
+        result[gid] = msg;
+      }
+    }
+    return result;
+  }
+
+  /// Unread (never-opened) messages per group, excluding my own.
+  Future<Map<String, int>> getGroupUnreadCounts(String myPubkey) async {
+    final db = await database;
+    final maps = await db.rawQuery('''
+      SELECT groupId, COUNT(*) cnt FROM messages
+      WHERE groupId IS NOT NULL AND senderPubkey != ? AND status != 'read'
+        AND type IN ('text','image','voice_note')
+      GROUP BY groupId
+    ''', [myPubkey]);
+    return {
+      for (final m in maps) m['groupId'] as String: (m['cnt'] as int?) ?? 0
+    };
+  }
+
+  Future<void> markGroupMessagesRead(String groupId, String myPubkey) async {
+    final db = await database;
+    await db.rawUpdate(
+      "UPDATE messages SET status='read' WHERE groupId = ? AND senderPubkey != ? AND status != 'read'",
+      [groupId, myPubkey],
+    );
+  }
+
   Future<Map<String, dynamic>?> getGroup(String groupId) async {
     final db = await database;
     final rows =

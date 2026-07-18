@@ -6,10 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import 'package:bitchat_messenger/core/server_service.dart';
 import 'package:bitchat_messenger/core/theme.dart';
 import 'package:bitchat_messenger/core/database_service.dart';
 import 'package:bitchat_messenger/core/widgets/voice_player.dart';
 import 'package:bitchat_messenger/features/chat/models/message.dart';
+import 'package:bitchat_messenger/features/contacts/models/contact.dart';
 import 'package:bitchat_messenger/features/groups/services/group_service.dart';
 
 /// Group conversation. In blind groups, incoming messages carry a
@@ -44,6 +46,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   int _recordSecs = 0;
   Timer? _recordTimer;
   bool _sendingMedia = false;
+  List<Map<String, dynamic>>? _serverMembers;
 
   // Stable colour per senderLabel so 'Member 3' keeps one colour.
   static const _palette = [
@@ -56,9 +59,28 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   void initState() {
     super.initState();
     _load();
+    _syncFromServer();
     _sub = widget.groupService.groupUpdates.listen((gid) {
       if (gid == widget.groupId) _load();
     });
+  }
+
+  /// Pull fresh group metadata (member count, name, toggles) — joiners
+  /// otherwise only know what the invite carried (memberCount 0).
+  Future<void> _syncFromServer() async {
+    final info = await ServerService().getGroupInfo(widget.groupId);
+    if (info == null) return;
+    await widget.dbService.updateGroupInfo(
+      widget.groupId,
+      name: info['name'] as String?,
+      memberCount: (info['member_count'] as num?)?.toInt(),
+      membersVisible: info['members_visible'] as bool?,
+      membersCanMessage: info['members_can_message'] as bool?,
+    );
+    _serverMembers = (info['members'] as List?)
+        ?.map((m) => Map<String, dynamic>.from(m as Map))
+        .toList();
+    if (mounted) _load();
   }
 
   @override
@@ -128,6 +150,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Future<void> _load() async {
     final group = await widget.dbService.getGroup(widget.groupId);
     final msgs = await widget.dbService.getGroupMessages(widget.groupId);
+    // Being in the room means you've seen it — clears the unread badge.
+    await widget.dbService.markGroupMessagesRead(widget.groupId, widget.myPubkey);
     if (!mounted) return;
     setState(() {
       _group = group;
@@ -155,6 +179,149 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return _palette[h % _palette.length];
   }
 
+  Future<void> _showGroupInfo() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final g = _group;
+    if (g == null) return;
+    final blind = (g['membersVisible'] as int? ?? 1) == 0;
+    final announcement = (g['membersCanMessage'] as int? ?? 1) == 0;
+    final isAdmin = (g['isAdmin'] as int? ?? 0) == 1;
+    final count = g['memberCount'] as int? ?? 0;
+    final members = _serverMembers;
+    final contacts = await widget.dbService.getAllContacts();
+    final nameFor = {for (final c in contacts) c.pubkey: c.name};
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? AppColors.darkCard : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            24, 22, 24, 22 + MediaQuery.of(ctx).viewPadding.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: AppColors.primary,
+                child: const Icon(Icons.groups, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(g['name'] as String? ?? 'Group',
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w800)),
+                      Text('$count ${count == 1 ? 'member' : 'members'}',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? AppColors.darkTextMuted
+                                  : AppColors.textMuted)),
+                    ]),
+              ),
+            ]),
+            const SizedBox(height: 14),
+            if (blind)
+              _infoTag(
+                  '🕶️',
+                  isAdmin
+                      ? 'Blind group — only you see the members'
+                      : 'Blind group — members appear as “Member N”'),
+            if (announcement)
+              _infoTag('📣',
+                  isAdmin
+                      ? 'Announcement group — only you can send'
+                      : 'Announcement group — only the admin can send'),
+            if (blind || announcement) const SizedBox(height: 8),
+            if (members != null && members.isNotEmpty) ...[
+              Text('MEMBERS',
+                  style: TextStyle(
+                      fontSize: 10.5,
+                      letterSpacing: 1.5,
+                      fontWeight: FontWeight.w800,
+                      color: isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.textMuted)),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 260),
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final m in members)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(children: [
+                          CircleAvatar(
+                            radius: 15,
+                            backgroundColor: _colorFor(
+                                m['pubkey'] as String? ?? ''),
+                            child: Text(
+                              ((m['alias_n'] as num?)?.toInt() ?? 0) == 0
+                                  ? '👑'
+                                  : '${m['alias_n']}',
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.white),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              (m['pubkey'] as String?) == widget.myPubkey
+                                  ? 'You'
+                                  : (nameFor[m['pubkey']] ??
+                                      '#${Contact.shortIdFor(m['pubkey'] as String? ?? '')}'),
+                              style: const TextStyle(
+                                  fontSize: 14.5, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          if (((m['alias_n'] as num?)?.toInt() ?? -1) == 0)
+                            Text('admin',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark
+                                        ? AppColors.darkTextMuted
+                                        : AppColors.textMuted)),
+                        ]),
+                      ),
+                  ],
+                ),
+              ),
+            ] else if (blind && !isAdmin)
+              _infoTag('🔒', 'The member list is hidden in blind groups'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoTag(String emoji, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: AppColors.coral.withAlpha(20),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text('$emoji  $text',
+            style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.coral)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -168,44 +335,49 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: AppColors.primary,
-              child: const Icon(Icons.groups, color: Colors.white, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(name,
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w700)),
-                  Row(
-                    children: [
-                      if (blind)
-                        const Padding(
-                          padding: EdgeInsets.only(right: 5),
-                          child: Icon(Icons.visibility_off,
-                              size: 12, color: AppColors.coral),
-                        ),
-                      Text(
-                        count > 0 ? '$count members' : (blind ? 'Blind group' : 'Group'),
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: isDark
-                                ? AppColors.darkTextMuted
-                                : AppColors.textMuted),
-                      ),
-                    ],
-                  ),
-                ],
+        title: InkWell(
+          onTap: _showGroupInfo,
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: AppColors.primary,
+                child: const Icon(Icons.groups, color: Colors.white, size: 20),
               ),
-            ),
-          ],
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(name,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700)),
+                    Row(
+                      children: [
+                        if (blind)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 5),
+                            child: Icon(Icons.visibility_off,
+                                size: 12, color: AppColors.coral),
+                          ),
+                        Text(
+                          count > 0
+                              ? '$count members · tap for info'
+                              : (blind ? 'Blind group' : 'Group'),
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? AppColors.darkTextMuted
+                                  : AppColors.textMuted),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
       body: Column(
