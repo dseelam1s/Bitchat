@@ -1295,6 +1295,7 @@ class _Bubble extends StatelessWidget {
         : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary);
 
     final isImage = message.type == 'image';
+    final isDeleted = message.content == '🚫 Message deleted';
 
     Widget? statusIcon;
     if (isMe) {
@@ -1369,11 +1370,25 @@ class _Bubble extends StatelessWidget {
             ),
           ),
         Text(
-          message.content,
-          style: TextStyle(color: textColor, fontSize: 15, height: 1.4),
+          isDeleted ? 'Message deleted' : message.content,
+          style: isDeleted
+              ? TextStyle(
+                  color: isDark
+                      ? AppColors.darkTextMuted
+                      : AppColors.textMuted,
+                  fontSize: 14.5,
+                  height: 1.4,
+                  fontStyle: FontStyle.italic,
+                )
+              : TextStyle(color: textColor, fontSize: 15, height: 1.4),
         ),
         const SizedBox(height: 2),
-        Text(timeLabel, style: TextStyle(fontSize: 10, color: timeColor)),
+        Text(timeLabel,
+            style: TextStyle(
+                fontSize: 10,
+                color: isDeleted
+                    ? (isDark ? AppColors.darkTextMuted : AppColors.textMuted)
+                    : timeColor)),
       ],
     );
 
@@ -1435,21 +1450,31 @@ class _Bubble extends StatelessWidget {
       decoration: BoxDecoration(
         // Outgoing bubbles get a subtle gradient + coloured lift; incoming
         // stay airy outlines. Flat fills are what read as "amateur".
-        color: isMe ? null : bubbleBg,
-        gradient: isMe
+        // Deleted messages opt out of all of it — they are absence, not content.
+        color: isDeleted ? Colors.transparent : (isMe ? null : bubbleBg),
+        gradient: isDeleted
+            ? null
+            : isMe
             ? (viaAir
                 ? AppDepth.ember
                 : LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: isDark
-                        ? [const Color(0xFF6D82FF), AppColors.primaryDark]
+                        // Deeper, not lifted: a filled bubble needs white
+                        // text at 4.5:1+, which #5C74FF could not carry.
+                        ? const [Color(0xFF4A5CE0), Color(0xFF3444C4)]
                         : const [Color(0xFF4B63FF), AppColors.primary],
                   ))
             : null,
-        border: bubbleBorder,
+        border: isDeleted
+            ? Border.all(
+                color: (isDark ? AppColors.darkTextMuted : AppColors.textMuted)
+                    .withValues(alpha: 0.35),
+                width: 1)
+            : bubbleBorder,
         borderRadius: radius,
-        boxShadow: isMe
+        boxShadow: (isMe && !isDeleted)
             ? AppDepth.soft(viaAir ? AppColors.coral : AppColors.primary,
                 opacity: isDark ? 0.30 : 0.22)
             : null,

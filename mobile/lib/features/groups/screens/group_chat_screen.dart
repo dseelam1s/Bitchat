@@ -479,11 +479,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           ),
                           Expanded(
                             child: Container(
+                              constraints:
+                                  const BoxConstraints(minHeight: 46),
                               decoration: BoxDecoration(
                                 color: isDark
                                     ? AppColors.darkInputBg
                                     : AppColors.inputBg,
-                                borderRadius: BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: isDark
+                                      ? AppColors.darkDivider
+                                      : AppColors.divider,
+                                  width: 1,
+                                ),
                               ),
                               child: TextField(
                                 controller: _textController,
@@ -492,6 +500,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                 decoration: const InputDecoration(
                                   hintText: 'Message',
                                   border: InputBorder.none,
+                                  // Theme sets filled:true with its own 16px
+                                  // radius, which paints a rectangle inside
+                                  // the pill container. Opt out.
+                                  filled: false,
                                   contentPadding: EdgeInsets.symmetric(
                                       horizontal: 16, vertical: 11),
                                 ),
@@ -510,11 +522,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           GestureDetector(
                             onTap: _send,
                             child: Container(
-                              width: 44,
-                              height: 44,
-                              decoration: const BoxDecoration(
-                                  color: AppColors.primary,
-                                  shape: BoxShape.circle),
+                              width: 46,
+                              height: 46,
+                              decoration: BoxDecoration(
+                                gradient: AppDepth.cobalt,
+                                shape: BoxShape.circle,
+                                boxShadow: AppDepth.lift(AppColors.primary),
+                              ),
                               child: const Icon(Icons.send_rounded,
                                   color: Colors.white, size: 22),
                             ),
@@ -546,9 +560,22 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             decoration: BoxDecoration(
-              color: isMe
-                  ? AppColors.primary
-                  : (isDark ? AppColors.darkCard : Colors.white),
+              // Match the DM bubble language: gradient + coloured lift out,
+              // airy outline in.
+              color: isMe ? null : (isDark ? AppColors.darkCard : Colors.white),
+              gradient: isMe
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: isDark
+                          ? const [Color(0xFF4A5CE0), Color(0xFF3444C4)]
+                          : const [Color(0xFF4B63FF), AppColors.primary],
+                    )
+                  : null,
+              boxShadow: isMe
+                  ? AppDepth.soft(AppColors.primary,
+                      opacity: isDark ? 0.30 : 0.22)
+                  : null,
               border: isMe
                   ? null
                   : Border.all(
@@ -557,10 +584,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           : const Color(0xFFC9D2F5),
                       width: 1.5),
               borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(isMe ? 18 : 4),
-                topRight: Radius.circular(isMe ? 4 : 18),
-                bottomLeft: const Radius.circular(18),
-                bottomRight: const Radius.circular(18),
+                topLeft: Radius.circular(isMe ? 22 : 6),
+                topRight: Radius.circular(isMe ? 6 : 22),
+                bottomLeft: const Radius.circular(22),
+                bottomRight: const Radius.circular(22),
               ),
             ),
             child: Column(

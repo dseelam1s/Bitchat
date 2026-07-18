@@ -295,6 +295,7 @@ class _CampfireScreenState extends State<CampfireScreen> {
                   decoration: const InputDecoration(
                     hintText: 'Say it to the fire…',
                     border: InputBorder.none,
+                    filled: false,
                     contentPadding:
                         EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                   ),
