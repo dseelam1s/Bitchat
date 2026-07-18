@@ -1041,18 +1041,35 @@ class _ChatsScreenState extends State<ChatsScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 80,
-              height: 80,
+              width: 96,
+              height: 96,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withAlpha(10),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.16),
+                    AppColors.coral.withValues(alpha: 0.12),
+                  ],
+                ),
               ),
-              child: Icon(Icons.chat_bubble_outline_rounded, size: 36, color: AppColors.primary.withAlpha(120)),
-            ),
-            const SizedBox(height: 20),
+              child: const Icon(Icons.chat_bubble_outline_rounded,
+                  size: 40, color: AppColors.primary),
+            )
+                .animate(onPlay: (c) => c.repeat(reverse: true))
+                .scale(
+                    duration: 2600.ms,
+                    begin: const Offset(1, 1),
+                    end: const Offset(1.05, 1.05),
+                    curve: Curves.easeInOut),
+            const SizedBox(height: 22),
             const Text(
               'No messages yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5),
             ),
             const SizedBox(height: 8),
             Text(

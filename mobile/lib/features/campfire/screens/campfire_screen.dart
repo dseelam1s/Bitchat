@@ -190,10 +190,11 @@ class _CampfireScreenState extends State<CampfireScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         constraints: const BoxConstraints(maxWidth: 280),
         decoration: BoxDecoration(
-          color: mine
-              ? AppColors.primary
-              : (isDark ? AppColors.darkCard : AppColors.card),
-          borderRadius: BorderRadius.circular(14),
+          color: mine ? null : (isDark ? AppColors.darkCard : AppColors.card),
+          gradient: mine ? AppDepth.ember : null,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow:
+              mine ? AppDepth.soft(AppColors.coral, opacity: 0.24) : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,10 +306,13 @@ class _CampfireScreenState extends State<CampfireScreen> {
             GestureDetector(
               onTap: _send,
               child: Container(
-                width: 44,
-                height: 44,
-                decoration: const BoxDecoration(
-                    color: AppColors.coral, shape: BoxShape.circle),
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  gradient: AppDepth.ember,
+                  shape: BoxShape.circle,
+                  boxShadow: AppDepth.lift(AppColors.coral),
+                ),
                 child:
                     const Icon(Icons.send_rounded, color: Colors.white, size: 22),
               ),
@@ -336,7 +340,10 @@ class _CampfireScreenState extends State<CampfireScreen> {
           const SizedBox(height: 12),
           const Text('The campfire burned out',
               style: TextStyle(
-                  fontSize: 21, fontWeight: FontWeight.w800, color: Colors.white)),
+                  fontSize: 25,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.7,
+                  color: Colors.white)),
           const SizedBox(height: 8),
           Text(
             '${mins < 1 ? 'a few moments' : '$mins min'} · ${b.peakCount} ${b.peakCount == 1 ? 'person' : 'people'} · ${b.moments.where((m) => !m.system).length} moments'
@@ -371,13 +378,16 @@ class _CampfireScreenState extends State<CampfireScreen> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1D2247),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(18),
                         border: Border.all(
                           color: picked
                               ? AppColors.coral
                               : const Color(0xFF2B3055),
                           width: picked ? 2 : 1,
                         ),
+                        boxShadow: picked
+                            ? AppDepth.lift(AppColors.coral)
+                            : null,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

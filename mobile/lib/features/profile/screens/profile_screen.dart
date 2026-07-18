@@ -901,11 +901,18 @@ class _SettingsScreenState extends State<_SettingsScreen> {
 
   Widget _themeRow(IconData icon, String title, ThemeMode value) {
     final sel = themeNotifier.mode == value;
+    // Selected state must read on both grounds — this used the light-theme
+    // ink constant, which vanished in dark mode.
+    final selColor = AppColors.primary;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-      leading: Icon(icon, size: 22, color: sel ? AppColors.textPrimary : AppColors.textMuted),
-      title: Text(title, style: TextStyle(fontSize: 15, fontWeight: sel ? FontWeight.w600 : FontWeight.w500)),
-      trailing: sel ? const Icon(Icons.check, size: 18, color: AppColors.textPrimary) : null,
+      leading: Icon(icon, size: 22, color: sel ? selColor : AppColors.textMuted),
+      title: Text(title,
+          style: TextStyle(
+              fontSize: 15,
+              fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+              color: sel ? selColor : null)),
+      trailing: sel ? Icon(Icons.check_rounded, size: 20, color: selColor) : null,
       onTap: () {
         if (value == ThemeMode.dark) themeNotifier.setDark();
         else if (value == ThemeMode.light) themeNotifier.setLight();

@@ -10,16 +10,17 @@ class ThemeNotifier extends ChangeNotifier {
   bool get isDark => _mode == ThemeMode.dark;
 
   /// Load saved preference from disk. Call once at startup.
+  ///
+  /// `dark` was previously missing from this switch, so choosing dark mode
+  /// silently reverted to light on every restart.
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getString(_kThemeKey);
-    if (saved == 'light') {
-      _mode = ThemeMode.light;
-    } else if (saved == 'system') {
-      _mode = ThemeMode.system;
-    } else {
-      _mode = ThemeMode.light;
-    }
+    _mode = switch (prefs.getString(_kThemeKey)) {
+      'dark' => ThemeMode.dark,
+      'system' => ThemeMode.system,
+      'light' => ThemeMode.light,
+      _ => ThemeMode.light, // first launch
+    };
     notifyListeners();
   }
 

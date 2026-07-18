@@ -46,12 +46,13 @@ class _EmberShelfScreenState extends State<EmberShelfScreen> {
       body: _embers.isEmpty
           ? Center(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Text('🔥', style: TextStyle(fontSize: 40)),
-                const SizedBox(height: 12),
+                const Text('🔥', style: TextStyle(fontSize: 52)),
+                const SizedBox(height: 14),
                 Text('No embers yet',
                     style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
                         color: isDark
                             ? AppColors.darkTextMuted
                             : AppColors.textSecondary)),
