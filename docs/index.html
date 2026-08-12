@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reach — Privacy Policy</title>
+<style>
+  :root{ --bg:#ffffff; --ink:#14183c; --muted:#5a6180; --card:#f4f6ff;
+         --accent:#2544ff; --border:#e3e7f7; }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0b0e22; --ink:#eef1ff; --muted:#9aa3c8; --card:#131735;
+           --accent:#5c74ff; --border:#262c5a; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:720px;margin:0 auto;padding:48px 22px 80px}
+  header{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+  .logo{width:44px;height:44px;border-radius:12px;flex:none;
+        background:linear-gradient(135deg,#4b63ff,var(--accent));
+        display:grid;place-items:center;color:#fff;font-weight:800;font-size:22px}
+  h1{font-size:30px;font-weight:800;letter-spacing:-.6px;margin:0}
+  .updated{color:var(--muted);font-size:14px;margin:2px 0 34px}
+  h2{font-size:19px;font-weight:800;letter-spacing:-.3px;margin:34px 0 10px}
+  p{margin:10px 0}
+  ul{margin:10px 0;padding-left:22px}
+  li{margin:7px 0}
+  strong{color:var(--ink)}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;
+        padding:4px 20px;margin:16px 0}
+  a{color:var(--accent);font-weight:600}
+  footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);
+         color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">R</div>
+    <h1>Reach — Privacy Policy</h1>
+  </header>
+  <p class="updated">Last updated: July 14, 2026</p>
+
+  <p>Reach is a private messenger. This policy explains what we collect, what we
+     don’t, and the permissions the app uses.</p>
+
+  <div class="card">
+    <h2>What we DON’T collect</h2>
+    <ul>
+      <li><strong>No phone number, no email, no name required.</strong> Your
+          identity is a cryptographic key generated on your device.</li>
+      <li><strong>No message content.</strong> Messages are end-to-end encrypted
+          (NIP-44). Our server relays and temporarily stores only ciphertext it
+          cannot read.</li>
+      <li><strong>No location tracking.</strong> The app never reads GPS
+          position. The location permission exists only because Android requires
+          it for Bluetooth scanning; no location data is ever collected or
+          transmitted.</li>
+      <li>No ads, no trackers, no analytics SDKs, no sale of data.</li>
+    </ul>
+  </div>
+
+  <h2>What the server stores</h2>
+  <ul>
+    <li>Your public key and 8-digit short ID, and a display name
+        <strong>if you choose to set one</strong>.</li>
+    <li>Encrypted (unreadable) messages awaiting delivery — deleted after
+        delivery or 7 days.</li>
+    <li>A push-notification token (Firebase Cloud Messaging) so your phone
+        rings.</li>
+    <li>If you upload a profile photo, it is stored with our media provider
+        (Cloudinary) and is visible to people you talk to.</li>
+    <li>Optional encrypted backups (keys, contacts) — encrypted on your device
+        with your password before upload; we cannot read them.</li>
+  </ul>
+
+  <h2>Permissions the app requests</h2>
+  <ul>
+    <li><strong>Bluetooth / Nearby devices</strong> — finding people around you
+        and offline messaging. Radio only; works with zero internet.</li>
+    <li><strong>Location</strong> — required by Android for Bluetooth scanning;
+        never used for location.</li>
+    <li><strong>Camera / Photos</strong> — profile pictures and photo messages
+        you choose to send.</li>
+    <li><strong>Microphone</strong> — voice and video calls.</li>
+    <li><strong>Notifications</strong> — incoming messages and calls.</li>
+  </ul>
+
+  <h2>Calls</h2>
+  <p>Voice/video calls are peer-to-peer (WebRTC) and encrypted. When a direct
+     connection isn’t possible, encrypted call traffic is relayed through a TURN
+     server (Metered) that cannot decrypt it.</p>
+
+  <h2>Visibility</h2>
+  <p>The “Visible to others” switch controls whether people can find you by
+     search or see you on their radar. Turn it off and only your existing
+     contacts can reach you.</p>
+
+  <h2>Data deletion</h2>
+  <p>Uninstalling the app deletes your keys and local data. Server-side data
+     (short ID, pending ciphertext, push token) becomes orphaned and is removed
+     in routine cleanup. For explicit deletion requests contact us.</p>
+
+  <footer>
+    Contact: <a href="mailto:durgareddyseelam09@gmail.com">durgareddyseelam09@gmail.com</a>
+  </footer>
+</div>
+</body>
+</html>
