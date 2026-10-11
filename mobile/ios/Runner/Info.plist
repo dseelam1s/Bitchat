@@ -5,7 +5,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>Bitchat Messenger</string>
+		<string>Reach</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -46,24 +46,24 @@
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
 		<key>NSBluetoothAlwaysUsageDescription</key>
-		<string>BitChat uses Bluetooth for offline mesh messaging with nearby devices</string>
+		<string>Reach uses Bluetooth for offline mesh messaging with nearby devices</string>
 		<key>NSBluetoothPeripheralUsageDescription</key>
-		<string>BitChat uses Bluetooth to communicate with nearby devices</string>
+		<string>Reach uses Bluetooth to communicate with nearby devices</string>
 		<key>NSLocalNetworkUsageDescription</key>
-		<string>BitChat uses the local network for device discovery and offline mesh messaging with nearby devices</string>
+		<string>Reach uses the local network for device discovery and offline mesh messaging with nearby devices</string>
 		<key>NSBonjourServices</key>
 		<array>
 			<string>_bitchat-mesh._tcp</string>
 			<string>_bitchat-mesh._udp</string>
 		</array>
 		<key>NSMicrophoneUsageDescription</key>
-		<string>BitChat needs microphone access to record voice notes</string>
+		<string>Reach needs microphone access to record voice notes</string>
 		<key>NSCameraUsageDescription</key>
-		<string>BitChat needs camera access to take a profile picture</string>
+		<string>Reach needs camera access to take a profile picture</string>
 		<key>NSPhotoLibraryUsageDescription</key>
-		<string>BitChat needs photo library access to choose a profile picture</string>
+		<string>Reach needs photo library access to choose a profile picture</string>
 		<key>NSPhotoLibraryAddUsageDescription</key>
-		<string>BitChat needs permission to save photos</string>
+		<string>Reach needs permission to save photos</string>
 		<key>UIBackgroundModes</key>
 		<array>
 			<string>bluetooth-central</string>

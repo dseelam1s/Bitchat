@@ -188,7 +188,7 @@ class BleGattService: NSObject, CBPeripheralManagerDelegate {
 
         pm.startAdvertising([
             CBAdvertisementDataServiceUUIDsKey: [BleGattService.serviceUUID],
-            CBAdvertisementDataLocalNameKey: "BitChat"
+            CBAdvertisementDataLocalNameKey: "Reach"
         ])
     }
 }
